@@ -157,11 +157,25 @@ class Writer:
             self.client = anthropic.Anthropic()
 
     def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000):
+        import hashlib
+        import os
+
+        # Answers are kept on disk: a run that stops can be restarted without
+        # asking again what was already answered.
+        cache = Path(os.environ.get("WRITER_CACHE", "out/cache"))
+        key = hashlib.sha256(json.dumps([self.backend, system, prompt, _schema(schema)], ensure_ascii=False).encode()).hexdigest()
+        hit = cache / f"{key}.json"
+        if hit.exists():
+            out = schema.model_validate_json(hit.read_text())
+            self.notebook.append({"step": step, "backend": self.backend, "cached": True, "result": out.model_dump()})
+            return out
         last = None
         for attempt in range(3):
             try:
                 text, meta = getattr(self, f"_{self.backend}")(system, prompt, _schema(schema), max_tokens)
                 out = schema.model_validate_json(text)
+                cache.mkdir(parents=True, exist_ok=True)
+                hit.write_text(out.model_dump_json())
                 self.notebook.append({"step": step, "backend": self.backend, **meta, "result": out.model_dump()})
                 return out
             except Exception as e:  # a broken answer is a sketch that failed
@@ -179,7 +193,7 @@ class Writer:
             full = f"{system}\n\n---\n\n{prompt}\n\nОтветь только JSON по схеме. Не используй инструменты и файлы."
             r = subprocess.run(["codex", "exec", "--skip-git-repo-check", "-s", "read-only", "-C", d,
                                 "--output-schema", str(sp), "-o", str(op), full],
-                               capture_output=True, text=True, timeout=900, stdin=subprocess.DEVNULL)
+                               capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
             if not op.exists():
                 raise RuntimeError(f"codex: {r.stderr[-400:]}")
             return op.read_text(), {"engine": "codex-cli"}
@@ -191,7 +205,7 @@ class Writer:
         with tempfile.TemporaryDirectory() as d:
             r = subprocess.run(["claude", "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
                                 "--system-prompt", system, "--disallowedTools", "Bash,Edit,Write,Read,WebFetch,WebSearch",
-                                prompt], capture_output=True, text=True, timeout=900, cwd=d, stdin=subprocess.DEVNULL)
+                                prompt], capture_output=True, text=True, timeout=3600, cwd=d, stdin=subprocess.DEVNULL)
             data = json.loads(r.stdout)
             out = data.get("structured_output") or data.get("result")
             text = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
