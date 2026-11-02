@@ -172,3 +172,106 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+class Method(BaseModel):
+    choice: str  # "existing" | "cross" | "break" | "invent"
+    name: str
+    based_on: list[str]
+    broken_principles: list[str]
+    manifesto: list[str]
+    philosophy: str  # what reality, beauty, the author and time are in this method
+    techniques: list[str]
+    forbids: list[str]
+    rejects_and_argues_with: str
+    why_this_serves_the_idea: str
+    works_it_could_make: list[str]
+
+
+class Judgement(BaseModel):
+    verdict: str  # "accept" or "rewrite"
+    is_reinvention_of: str  # an existing school it merely renames, or ""
+    coherent: str
+    generative: str
+    objections: list[str]
+
+
+def method(portrait: SelfPortrait, st: Statement, art: str, atlas_methods: list[dict], nb: list,
+           allow_invention: bool, backend: str | None = None, rounds: int = 3) -> tuple[Method, list]:
+    """The creative method: take one, cross two, break a principle on purpose,
+    or invent a new one with a manifesto and a philosophy behind it."""
+    w = Writer(nb, backend=backend)
+    system = (f"Ты — {portrait.name}. {portrait.what_i_am_as_artist}\n\nТвоя идея: {st.idea}\n{st.thought}\n\n"
+              f"Искусство: {art}. Не упоминай технику, компьютеры, серверы.")
+    known = "\n".join(f"- {m.get('name')}: {m.get('hero') or m.get('principles') or ''}" for m in atlas_methods)
+    base = ("Выбери творческий метод для этой идеи. Варианты: взять существующий (existing); скрестить два (cross); "
+            "сознательно нарушить принцип и объяснить, что откроет нарушение (break)"
+            + ("; изобрести новый метод — с манифестом в тезисах, философией (что в нём реальность, красота, автор, "
+               "время), приёмами, запретами, с тем, от чего он отказывается и с кем спорит (invent)" if allow_invention else "")
+            + ". Метод должен служить идее, а не украшать её. Перечисли 3–5 разных работ, которые этот метод мог бы "
+              "породить, чтобы было видно, что он плодотворен.\n\nИзвестные методы:\n" + known)
+    hist, prompt = [], base
+    for r in range(rounds):
+        m = w.ask(system, prompt, Method, f"method:{r}")
+        critic = ("Ты — искусствовед и Шахрияр вместе. Проверь метод: не переизобретение ли это известной школы "
+                  "под новым именем (назови её), держится ли его философия, плодотворен ли он или это одноразовый "
+                  "трюк, служит ли он идее. Реши: accept или rewrite.")
+        j = w.ask(critic, m.model_dump_json(), Judgement, f"method-judgement:{r}", max_tokens=8000)
+        hist.append({"round": r, "method": m.model_dump(), "judgement": j.model_dump()})
+        if j.verdict.strip().lower().startswith("accept"):
+            return m, hist
+        prompt = base + "\n\nКритик возразил: " + "; ".join(j.objections) + (
+            f"\nЭто похоже на: {j.is_reinvention_of}" if j.is_reinvention_of else "") + "\nПредложи метод заново."
+    return m, hist
+
+
+def save_invented(m: Method, author: str, cluster: str, when: str, root: Path):
+    """An accepted new method enters the atlas as a school with an author."""
+    d = root / "atlas" / "invented"
+    d.mkdir(parents=True, exist_ok=True)
+    import yaml
+
+    rec = {"id": "".join(ch if ch.isalnum() else "-" for ch in m.name.lower()).strip("-")[:60],
+           "name": m.name, "author": author, "cluster": cluster, "born": when,
+           **m.model_dump(exclude={"choice", "why_this_serves_the_idea"})}
+    (d / f"{rec['id']}.yaml").write_text(yaml.safe_dump(rec, allow_unicode=True, sort_keys=False))
+    return rec["id"]
+
+
+def method_stage():
+    import argparse
+
+    import yaml
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("--art", default="архитектура как искусство (визионерская, бумажная архитектура)")
+    ap.add_argument("--dir", type=Path, default=Path("out/works/artist"))
+    ap.add_argument("--invent", action="store_true", help="allow inventing a new method")
+    a = ap.parse_args()
+    root = Path(__file__).resolve().parents[2]
+    atlas_methods = yaml.safe_load((root / "atlas/literature/methods.yaml").read_text()) + \
+        yaml.safe_load((root / "atlas/architecture/visionary.yaml").read_text())
+    for c in a.clusters:
+        rec = json.loads((a.dir / f"{c}.json").read_text())
+        p, st = SelfPortrait(**rec["portrait"]), Statement(**rec["statement"])
+        nb: list = []
+        m, hist = method(p, st, a.art, atlas_methods, nb, a.invent)
+        rec["method"], rec["method_history"] = m.model_dump(), hist
+        rec.setdefault("notebook", []).extend(nb)
+        if m.choice == "invent" and hist[-1]["judgement"]["verdict"].lower().startswith("accept"):
+            rec["invented"] = save_invented(m, p.name, c, rec.get("until", "2025-12-31"), root)
+        (a.dir / f"{c}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1))
+        md = ["", "## Метод", "", f"**{m.name}** ({m.choice})", "", "Манифест:", ""] + [f"{i + 1}. {t}" for i, t in enumerate(m.manifesto)] + \
+             ["", f"Философия: {m.philosophy}", "", "Приёмы: " + "; ".join(m.techniques), "", "Запреты: " + "; ".join(m.forbids),
+              "", f"Спорит с: {m.rejects_and_argues_with}", "", f"Почему служит идее: {m.why_this_serves_the_idea}", "",
+              "Работы, которые он мог бы породить:", ""] + [f"- {x}" for x in m.works_it_could_make] + \
+             ["", "### Суд над методом", ""] + [f"Раунд {h['round'] + 1}: {h['judgement']['verdict']}; похоже на: "
+                                                f"{h['judgement']['is_reinvention_of'] or '—'}; возражения: {'; '.join(h['judgement']['objections'])}" for h in hist]
+        with (a.dir / f"{c}.md").open("a") as f:
+            f.write("\n".join(md) + "\n")
+        print(c, m.choice, m.name, "| rounds:", len(hist))
+
+
+if __name__ == "__main__" and False:
+    pass
