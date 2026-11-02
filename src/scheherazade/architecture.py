@@ -257,8 +257,13 @@ def design(scenarios: Path, cluster: str, at: datetime, label: str, out: Path) -
     for typ in ("courtyard", "enfilade"):
         plan = solve(prog, typ, seed=seed)
         notebook.append({k: plan.get(k) for k in ("typology", "status", "wishes", "doors_made", "flats_joined", "fill", "objective")})
-        if plan.get("rooms") and (best is None or plan["objective"] > best["objective"]):
-            best = plan
+        if plan.get("rooms"):
+            # Every typology tried stays as a sketch in the notebook.
+            sk = out / "sketches"
+            sk.mkdir(parents=True, exist_ok=True)
+            (sk / f"{cluster}_{label.replace(':', '_')}_{typ}.svg").write_text(svg(plan, f"{cluster} · {label} · {typ} (sketch)"))
+            if best is None or plan["objective"] > best["objective"]:
+                best = plan
     out.mkdir(parents=True, exist_ok=True)
     stem = f"{cluster}_{label.replace(':', '_')}"
     (out / f"{stem}.svg").write_text(svg(best, f"{cluster} · {label} · {best['typology']}"))
