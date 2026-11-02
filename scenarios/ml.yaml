@@ -1,0 +1,28 @@
+# An ML platform: nightly training, experiment namespaces come and go, GPUs are scarce.
+name: ml
+timezone: America/Los_Angeles
+seed: 37
+daily_profile: night          # batch training at night
+weekly: {sat: 1.1, sun: 1.1}
+seasons:
+  - {from: "2025-03-01", to: "2025-04-15", factor: 1.7}   # big training campaign
+  - {from: "2025-09-01", to: "2025-10-20", factor: 1.9}
+incidents_per_month: 1.0
+deploys_per_week: 8
+freezes: []
+k8s_upgrade: {at: "2025-07-08T18:00", from: "1.31", to: "1.33"}
+migration: null
+tenants: {initial: 4, births_per_quarter: 9, deaths_per_quarter: 8}
+nodes: {initial: 16, max: 48}
+services:
+  - {name: training-scheduler, kind: api, replicas: 2, share: 1.0, deps: [model-registry]}
+  - {name: model-registry, kind: api, replicas: 2, share: 0.5, deps: [artifact-store]}
+  - {name: inference-gateway, kind: web, replicas: 4, share: 0.6, deps: [model-server]}
+  - {name: model-server, kind: api, replicas: 6, share: 0.6, deps: [model-registry]}
+  - {name: feature-pipeline, kind: worker, replicas: 3, share: 0.8, deps: [artifact-store]}
+  - {name: notebook-hub, kind: web, replicas: 2, share: 0.3, deps: []}
+  - {name: artifact-store, kind: db, replicas: 3, share: 0.9, deps: []}
+cronjobs:
+  - {name: nightly-training, schedule: "0 1 * * *"}
+  - {name: eval-suite, schedule: "0 7 * * *"}
+  - {name: gc-checkpoints, schedule: "0 4 * * 0"}

@@ -1,0 +1,34 @@
+# A bank: business hours, month-end closing, almost no incidents, strict network policies.
+name: bank
+timezone: Europe/Zurich
+seed: 23
+daily_profile: business       # 08:00–18:00 on weekdays
+weekly: {sat: 0.25, sun: 0.2}
+seasons:
+  - {from: "2025-03-28", to: "2025-04-01", factor: 1.8}   # quarter closing
+  - {from: "2025-06-27", to: "2025-07-01", factor: 1.8}
+  - {from: "2025-09-26", to: "2025-10-01", factor: 1.8}
+  - {from: "2025-12-29", to: "2026-01-01", factor: 2.2}   # year-end closing
+month_end_factor: 1.3
+incidents_per_month: 0.4
+deploys_per_week: 2
+freezes: [{from: "2025-12-01", to: "2026-01-01"}]
+k8s_upgrade: {at: "2025-10-04T02:00", from: "1.30", to: "1.31"}
+migration: null
+tenants: {initial: 6, births_per_quarter: 0.5, deaths_per_quarter: 0.2}
+nodes: {initial: 18, max: 22}
+strict_network_policies: true
+services:
+  - {name: core-ledger, kind: api, replicas: 5, share: 1.0, deps: [ledger-db]}
+  - {name: payments-gateway, kind: api, replicas: 4, share: 0.7, deps: [core-ledger, fraud-scoring]}
+  - {name: fraud-scoring, kind: api, replicas: 3, share: 0.7, deps: [feature-store]}
+  - {name: online-banking, kind: web, replicas: 4, share: 0.6, deps: [core-ledger, auth]}
+  - {name: auth, kind: api, replicas: 3, share: 0.6, deps: [auth-db]}
+  - {name: reporting, kind: worker, replicas: 2, share: 0.3, deps: [ledger-db]}
+  - {name: feature-store, kind: cache, replicas: 3, share: 0.5, deps: []}
+  - {name: ledger-db, kind: db, replicas: 3, share: 1.0, deps: []}
+  - {name: auth-db, kind: db, replicas: 3, share: 0.6, deps: []}
+cronjobs:
+  - {name: end-of-day-settlement, schedule: "30 22 * * 1-5"}
+  - {name: nightly-backup, schedule: "0 2 * * *"}
+  - {name: regulatory-report, schedule: "0 6 1 * *"}

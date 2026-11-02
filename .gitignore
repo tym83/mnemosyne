@@ -1,0 +1,6 @@
+SESSION_LOG.md
+.venv/
+__pycache__/
+*.pyc
+out/
+.env

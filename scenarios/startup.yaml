@@ -1,0 +1,26 @@
+# A startup: chaotic deploys, frequent incidents, moves to another datacenter in summer.
+name: startup
+timezone: Europe/Lisbon
+seed: 41
+daily_profile: flat
+weekly: {sat: 0.8, sun: 0.7}
+seasons:
+  - {from: "2025-05-12", to: "2025-05-19", factor: 3.0}   # launch week
+  - {from: "2025-10-06", to: "2025-10-08", factor: 2.5}   # featured on a big news site
+incidents_per_month: 3.0
+deploys_per_week: 40
+freezes: []
+k8s_upgrade: {at: "2025-03-03T11:00", from: "1.30", to: "1.32"}
+migration: {at: "2025-07-19T01:00", from: "hetzner-fsn1", to: "hetzner-hel1"}
+tenants: {initial: 2, births_per_quarter: 2, deaths_per_quarter: 1}
+nodes: {initial: 5, max: 14}
+services:
+  - {name: app, kind: web, replicas: 3, share: 1.0, deps: [api]}
+  - {name: api, kind: api, replicas: 3, share: 1.0, deps: [postgres, queue]}
+  - {name: worker, kind: worker, replicas: 2, share: 0.6, deps: [queue, postgres]}
+  - {name: queue, kind: cache, replicas: 1, share: 0.6, deps: []}
+  - {name: postgres, kind: db, replicas: 1, share: 1.0, deps: []}
+  - {name: billing, kind: api, replicas: 1, share: 0.2, deps: [postgres]}
+cronjobs:
+  - {name: db-dump, schedule: "0 3 * * *"}
+  - {name: weekly-digest, schedule: "0 9 * * 1"}

@@ -1,0 +1,34 @@
+# An online shop: evening traffic, a hard Black Friday, deploy freeze in December.
+name: shop
+timezone: Europe/Berlin
+seed: 11
+daily_profile: evening        # peaks 19:00–23:00
+weekly: {sat: 1.25, sun: 1.35}
+seasons:
+  - {from: "2025-11-01", to: "2025-12-24", factor: 1.6}
+  - {from: "2025-11-28", to: "2025-11-29", factor: 4.0}   # Black Friday
+  - {from: "2025-12-01", to: "2025-12-02", factor: 2.5}   # Cyber Monday
+incidents_per_month: 1.6
+deploys_per_week: 18
+freezes: [{from: "2025-12-15", to: "2026-01-01"}]
+k8s_upgrade: {at: "2025-09-16T22:00", from: "1.31", to: "1.32"}
+migration: null
+tenants: {initial: 3, births_per_quarter: 1, deaths_per_quarter: 0.3}
+nodes: {initial: 12, max: 40}
+services:
+  - {name: storefront, kind: web, replicas: 6, share: 1.0, deps: [catalog, cart, search]}
+  - {name: catalog, kind: api, replicas: 4, share: 0.8, deps: [catalog-db]}
+  - {name: search, kind: api, replicas: 3, share: 0.6, deps: [catalog]}
+  - {name: cart, kind: api, replicas: 3, share: 0.5, deps: [payments, cart-cache]}
+  - {name: payments, kind: api, replicas: 3, share: 0.3, deps: [payments-db]}
+  - {name: recommendations, kind: worker, replicas: 2, share: 0.4, deps: [catalog]}
+  - {name: cart-cache, kind: cache, replicas: 3, share: 0.5, deps: []}
+  - {name: catalog-db, kind: db, replicas: 3, share: 0.8, deps: []}
+  - {name: payments-db, kind: db, replicas: 3, share: 0.3, deps: []}
+cronjobs:
+  - {name: nightly-backup, schedule: "0 3 * * *"}
+  - {name: price-sync, schedule: "*/30 * * * *"}
+  - {name: sitemap, schedule: "0 5 * * *"}
+# The main incident of the year: payments go down on Black Friday evening.
+forced_incidents:
+  - {at: "2025-11-28T20:40", service: payments, cause: load, severity: 0.92, minutes: 150}
