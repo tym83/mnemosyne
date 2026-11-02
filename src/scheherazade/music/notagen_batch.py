@@ -39,9 +39,11 @@ def worker(idx: int, prompt: list[str], count: int, threads: int, out: Path, see
         from inference import inference_patch  # loads the weights
     for k in range(count):
         t0 = time.time()
-        with contextlib.redirect_stdout(io.StringIO()):
-            abc = inference_patch(*prompt)
         name = f"p{idx:02d}_{k:03d}"
+        # The model prints the score as it writes it: keep that stream on
+        # disk, so a piece in progress can be watched and is never lost.
+        with (out / f"{name}.part").open("w", buffering=1) as part, contextlib.redirect_stdout(part):
+            abc = inference_patch(*prompt)
         (out / f"{name}.abc").write_text(abc)
         (out / f"{name}.json").write_text(json.dumps({"prompt": prompt, "seconds": round(time.time() - t0, 1),
                                                        "seed": seed + idx, "index": k}))

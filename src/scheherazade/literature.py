@@ -156,14 +156,18 @@ class Writer:
 
             self.client = anthropic.Anthropic()
 
-    def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000):
+    def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000,
+            images: list[Path] | None = None):
+        """images: pictures the writer looks at (its own drafts); codex only."""
         import hashlib
         import os
 
         # Answers are kept on disk: a run that stops can be restarted without
         # asking again what was already answered.
         cache = Path(os.environ.get("WRITER_CACHE", "out/cache"))
-        key = hashlib.sha256(json.dumps([self.backend, system, prompt, _schema(schema)], ensure_ascii=False).encode()).hexdigest()
+        seen = [hashlib.sha256(Path(i).read_bytes()).hexdigest() for i in images or []]
+        key = hashlib.sha256(json.dumps([self.backend, system, prompt, _schema(schema)] + seen,
+                                        ensure_ascii=False).encode()).hexdigest()
         hit = cache / f"{key}.json"
         if hit.exists():
             out = schema.model_validate_json(hit.read_text())
@@ -172,7 +176,10 @@ class Writer:
         last = None
         for attempt in range(3):
             try:
-                text, meta = getattr(self, f"_{self.backend}")(system, prompt, _schema(schema), max_tokens)
+                if images and self.backend != "codex":
+                    raise NotImplementedError(f"{self.backend}: looking at images")
+                extra = {"images": images} if images else {}
+                text, meta = getattr(self, f"_{self.backend}")(system, prompt, _schema(schema), max_tokens, **extra)
                 out = schema.model_validate_json(text)
                 cache.mkdir(parents=True, exist_ok=True)
                 hit.write_text(out.model_dump_json())
@@ -183,7 +190,7 @@ class Writer:
                 self.notebook.append({"step": step, "backend": self.backend, "attempt": attempt, "error": str(e)[:300]})
         raise RuntimeError(f"{step}: {last}")
 
-    def _codex(self, system, prompt, schema, max_tokens):
+    def _codex(self, system, prompt, schema, max_tokens, images=None):
         import subprocess
         import tempfile
 
@@ -192,7 +199,8 @@ class Writer:
             sp.write_text(json.dumps(schema))
             full = f"{system}\n\n---\n\n{prompt}\n\nОтветь только JSON по схеме. Не используй инструменты и файлы."
             r = subprocess.run(["codex", "exec", "--skip-git-repo-check", "-s", "read-only", "-C", d,
-                                "--output-schema", str(sp), "-o", str(op), full],
+                                "--output-schema", str(sp), "-o", str(op),
+                                *[a for i in images or [] for a in ("-i", str(Path(i).resolve()))], "--", full],
                                capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
             if not op.exists():
                 raise RuntimeError(f"codex: {r.stderr[-400:]}")
