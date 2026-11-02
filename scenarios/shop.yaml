@@ -10,7 +10,7 @@ seasons:
   - {from: "2025-12-01", to: "2025-12-02", factor: 2.5}   # Cyber Monday
 incidents_per_month: 1.6
 deploys_per_week: 18
-freezes: [{from: "2025-12-15", to: "2026-01-01"}]
+freezes: [{from: "2025-11-21", to: "2025-12-03"}, {from: "2025-12-15", to: "2026-01-01"}]   # no releases around Black Friday and the holidays
 k8s_upgrade: {at: "2025-09-16T22:00", from: "1.31", to: "1.32"}
 migration: null
 tenants: {initial: 3, births_per_quarter: 1, deaths_per_quarter: 0.3}

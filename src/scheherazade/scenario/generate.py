@@ -433,6 +433,18 @@ def simulate(p: dict) -> tuple[World, dict, dict]:
         if hr.isdigit():
             cron_active += (np.abs(hour - (int(hr) + (int(minute) if minute.isdigit() else 0) / 60)) < 0.25)
     w.ops.sort(key=lambda o: o.at)
+    # The autoscaler was simulated after the year, from the final objects:
+    # give each of its changes the pod template people had set at that moment.
+    templates: dict = {}
+    for o in w.ops:
+        if o.obj["kind"] != "Deployment":
+            continue
+        k = (o.obj["metadata"].get("namespace", ""), o.obj["metadata"]["name"])
+        if o.actor_kind == "controller":
+            if k in templates:
+                o.obj["spec"]["template"] = copy.deepcopy(templates[k])
+        else:
+            templates[k] = copy.deepcopy(o.obj["spec"]["template"])
     signals = {
         "load": rel.astype(np.float32),
         "unready": np.clip(unready, 0, 1).astype(np.float32),
