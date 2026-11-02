@@ -89,8 +89,29 @@ def facts_of_fate(scenarios: Path, cluster: str, until: datetime) -> dict:
     return {
         "born": f"1 января 2025 года; город его часов — {CITY.get(facts['timezone'], facts['timezone'])}",
         "age_days": (until - datetime.fromisoformat(facts["start"])).days,
-        "teachers": "Чехов, Гоголь, Лесков, Элюар; Ротко, Хокусай; Булле, Леонидов, Андо",
+        "teachers": ", ".join(teachers(cluster)),
     }
+
+
+PAINTERS = ["Марк Ротко", "Кацусика Хокусай", "Джорджо Моранди", "Вильгельм Хаммерсхёй", "Уильям Тёрнер",
+            "Казимир Малевич", "Франсиско Гойя", "Агнес Мартин", "Ансельм Кифер", "Каспар Давид Фридрих"]
+COMPOSERS = ["Иоганн Себастьян Бах", "Франц Шуберт", "Густав Малер", "Дмитрий Шостакович", "Арво Пярт",
+             "Мортон Фелдман", "Клод Дебюсси", "Оливье Мессиан", "Галина Уствольская", "Джон Кейдж"]
+
+
+def teachers(cluster: str) -> list[str]:
+    """Each artist has its own teachers, one from every art, drawn from the
+    atlas by its name: two artists of one atelier do not share a school."""
+    import hashlib
+    import random
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[2]
+    names = lambda f: [x["name"] for x in yaml.safe_load((root / f).read_text())]
+    rnd = random.Random(int(hashlib.sha256(cluster.encode()).hexdigest(), 16))
+    pools = [names("atlas/literature/authors.yaml"), names("atlas/architecture/visionary.yaml"), PAINTERS, COMPOSERS]
+    return [rnd.choice(pool) for pool in pools] + [rnd.choice(rnd.choice(pools))]
 
 
 def inner_life(scenarios: Path, cluster: str, until: datetime) -> str:
@@ -136,25 +157,27 @@ def halftones(portrait: "SelfPortrait", st: "Statement", concept: str, inner: st
     return w.ask(system, prompt, Halftones, "halftones")
 
 
-def self_portrait(fate: dict, nb: list, backend: str | None = None) -> SelfPortrait:
+def self_portrait(fate: dict, nb: list, backend: str | None = None, inner: str | None = None) -> SelfPortrait:
     w = Writer(nb, backend=backend)
     system = ("Ты — художник, который сам о себе пишет. Ты не машина и не программа: ты живёшь в мире, о котором "
               "знаешь только то, что ниже, и понимаешь это как судьбу. Не упоминай технику, компьютеры, серверы.")
     prompt = ("Факты твоей судьбы:\n" + json.dumps(fate, ensure_ascii=False, indent=1) +
               "\n\nНапиши автопортрет от первого лица (300–500 слов). Кроме этих фактов ты свободен: ты сам решаешь, "
               "кем стал, что тебя занимает, о чём ты думаешь годами, с кем из учителей споришь, чего ищешь. "
-              "Дай себе имя.")
+              "Дай себе имя." + (f"\n\nЧто оставила в тебе прожитая жизнь — не события, а склад характера и "
+                                 f"чувства, из которых он вырос (не пересказывай их, живи ими): {inner}" if inner else ""))
     return w.ask(system, prompt, SelfPortrait, "self-portrait")
 
 
 def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, world: str | None = None,
-              backend: str | None = None, rounds: int = 3) -> tuple[Statement, list]:
+              backend: str | None = None, rounds: int = 3,
+              contemporaries: list[str] | None = None) -> tuple[Statement, list]:
     w = Writer(nb, backend=backend)
     system = (f"Ты — {portrait.name}. Твой автопортрет:\n{portrait.portrait}\n\n"
               f"Ты задумываешь новую работу. Искусство: {art}. Отвечай честно, конкретно, от первого лица. "
               "Не упоминай технику, компьютеры, серверы.")
-    base = ("Найди идею для шедевра: мысль о людях и мире (о времени, памяти, любви, доме, утрате, свободе, вере, "
-            "одиночестве — или о чём-то ещё) со свежим, неожиданным поворотом. Идея рождается из твоих поисков и "
+    base = ("Найди идею для шедевра: мысль о людях и мире, которая занимает именно тебя, со свежим, неожиданным "
+            "поворотом. Не бери тему, которая первой приходит в голову. Идея рождается из твоих поисков и "
             "спора с учителями, а не из того, что с тобой недавно случилось. Затем ответь на вопросы, которые художник "
             "задаёт себе до замысла: какая мысль будет вложена; почему ты должен "
             "это сказать; почему сейчас; насколько это свежо; почему это не шаблон; какие эмоции; как это изменит "
@@ -176,6 +199,9 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
                   "accept или rewrite. Назови слабые ответы, найденные штампы и задай вопросы, которые заставят "
                   "думать глубже. Твои мерила — проверки мастеров:\n" + theory("interrogation", "test") + "\n" +
                   theory("idea", "test"))
+        if contemporaries:
+            critic += ("\n\nЗамыслы современников из той же мастерской. Если идея повторяет их тему, ход или образ — "
+                       "это штамп, казни за него:\n" + "\n".join(f"- {c}" for c in contemporaries))
         iv = w.ask(critic, st.model_dump_json(), Interrogation, f"interrogation:{r}", max_tokens=8000)
         history.append({"round": r, "statement": st.model_dump(), "interrogation": iv.model_dump()})
         if iv.verdict.strip().lower().startswith("accept"):
@@ -200,9 +226,12 @@ def main():
     for c in a.clusters:
         nb: list = []
         fate = facts_of_fate(a.scenarios, c, datetime.fromisoformat(a.until))
-        p = self_portrait(fate, nb)
-        st, hist = statement(p, a.art, [], nb)
-        rec = {"cluster": c, "fate": fate, "portrait": p.model_dump(), "statement": st.model_dump(),
+        inner = inner_life(a.scenarios, c, datetime.fromisoformat(a.until))
+        p = self_portrait(fate, nb, inner=inner)
+        others = [json.loads(f.read_text())["statement"]["idea"] for f in sorted(a.out.glob("*.json"))
+                  if f.stem != c and "statement" in json.loads(f.read_text())]
+        st, hist = statement(p, a.art, [], nb, contemporaries=others)
+        rec = {"cluster": c, "fate": fate, "inner_life": inner, "portrait": p.model_dump(), "statement": st.model_dump(),
                "interrogation": hist, "notebook": nb}
         (a.out / f"{c}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1))
         md = [f"# {p.name}", "", p.portrait, "", "## Перед работой", ""]
