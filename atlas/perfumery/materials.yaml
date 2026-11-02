@@ -1,0 +1,53 @@
+# Perfumery materials for stage A. tau_h: how long the material keeps
+# presence on a blotter (a rough evaporation time constant, hours).
+# max_pct: a practical upper bound of use in a concentrate for this
+# experiment — NOT an IFRA limit; real IFRA category limits must replace
+# these before any physical sample is made.
+- {id: bergamot, name: "Bergamot oil (FCF)", family: citrus, tau_h: 0.5, max_pct: 15, cost: 2, notes: [bright, green, tea]}
+- {id: lemon, name: "Lemon oil", family: citrus, tau_h: 0.3, max_pct: 10, cost: 1, notes: [sharp, zest]}
+- {id: mandarin, name: "Mandarin oil", family: citrus, tau_h: 0.5, max_pct: 10, cost: 2, notes: [sweet, juicy]}
+- {id: grapefruit, name: "Grapefruit oil", family: citrus, tau_h: 0.4, max_pct: 10, cost: 2, notes: [bitter, sparkling]}
+- {id: aldehyde-c11, name: "Aldehyde C-11 undecylenic (10%)", family: aldehydic, tau_h: 0.8, max_pct: 3, cost: 1, notes: [waxy, metallic, clean]}
+- {id: aldehyde-mna, name: "Aldehyde C-12 MNA (10%)", family: aldehydic, tau_h: 1.0, max_pct: 3, cost: 1, notes: [ambergris, metallic, pine-needle]}
+- {id: rose-oxide, name: "Rose oxide (10%)", family: floral, tau_h: 0.7, max_pct: 2, cost: 2, notes: [metallic, geranium, sharp]}
+- {id: pink-pepper, name: "Pink pepper CO2", family: spicy, tau_h: 0.8, max_pct: 4, cost: 3, notes: [rosy, peppery, airy]}
+- {id: black-pepper, name: "Black pepper oil", family: spicy, tau_h: 1.0, max_pct: 4, cost: 2, notes: [dry, hot, woody]}
+- {id: cardamom, name: "Cardamom oil", family: spicy, tau_h: 1.2, max_pct: 3, cost: 3, notes: [cool, warm, crowd]}
+- {id: saffron, name: "Saffron accord (safraleine-type, 10%)", family: spicy, tau_h: 3.0, max_pct: 3, cost: 3, notes: [leathery, hay, warm]}
+- {id: cumin, name: "Cumin oil (10%)", family: spicy, tau_h: 2.0, max_pct: 1, cost: 2, notes: [sweat, animalic, effort]}
+- {id: lavender, name: "Lavender oil", family: aromatic, tau_h: 1.5, max_pct: 15, cost: 1, notes: [herbal, clean]}
+- {id: galbanum, name: "Galbanum oil (10%)", family: green, tau_h: 1.5, max_pct: 3, cost: 3, notes: [bitter, green, cut-stem]}
+- {id: hexenol, name: "cis-3-Hexenol (10%)", family: green, tau_h: 0.6, max_pct: 2, cost: 1, notes: [cut-grass, leaf]}
+- {id: calone, name: "Calone (1%)", family: marine, tau_h: 3.0, max_pct: 3, cost: 2, notes: [sea-air, melon, ozone]}
+- {id: helional, name: "Helional", family: marine, tau_h: 4.0, max_pct: 6, cost: 2, notes: [ozone, watery, hay]}
+- {id: geosmin, name: "Geosmin (0.01%)", family: earthy, tau_h: 2.5, max_pct: 1, cost: 3, notes: [petrichor, wet-earth, rain]}
+- {id: hedione, name: "Hedione", family: floral, tau_h: 6.0, max_pct: 30, cost: 1, notes: [radiant, jasmine, air]}
+- {id: jasmine, name: "Jasmine absolute (10%)", family: floral, tau_h: 6.0, max_pct: 8, cost: 3, notes: [indolic, rich]}
+- {id: rose, name: "Rose absolute (10%)", family: floral, tau_h: 6.0, max_pct: 8, cost: 3, notes: [honeyed, deep]}
+- {id: tuberose, name: "Tuberose absolute (10%)", family: floral, tau_h: 7.0, max_pct: 6, cost: 3, notes: [night, creamy, narcotic]}
+- {id: violet-leaf, name: "Violet leaf absolute (10%)", family: green, tau_h: 3.0, max_pct: 3, cost: 3, notes: [cucumber, green, cool]}
+- {id: iris, name: "Orris butter accord (irones, 10%)", family: powdery, tau_h: 12.0, max_pct: 6, cost: 3, notes: [cold, powdery, paper, expensive]}
+- {id: ionone-beta, name: "beta-Ionone", family: powdery, tau_h: 8.0, max_pct: 5, cost: 1, notes: [violet, woody]}
+- {id: cashmeran, name: "Cashmeran", family: woody, tau_h: 20.0, max_pct: 6, cost: 2, notes: [musky, woolen, dusty, old-book]}
+- {id: cedarwood, name: "Cedarwood Virginia", family: woody, tau_h: 24.0, max_pct: 20, cost: 1, notes: [pencil, dry]}
+- {id: vetiver, name: "Vetiver oil", family: woody, tau_h: 36.0, max_pct: 10, cost: 2, notes: [roots, earthy, smoky]}
+- {id: patchouli, name: "Patchouli oil", family: woody, tau_h: 36.0, max_pct: 10, cost: 2, notes: [earthy, dark, camphor]}
+- {id: guaiac, name: "Guaiacwood oil", family: woody, tau_h: 30.0, max_pct: 8, cost: 2, notes: [smoky, rosy, tar]}
+- {id: iso-e, name: "Iso E Super", family: woody, tau_h: 30.0, max_pct: 25, cost: 1, notes: [velvet, cedar, transparent, skin]}
+- {id: birch-tar, name: "Birch tar rectified (1%)", family: smoky, tau_h: 30.0, max_pct: 2, cost: 2, notes: [burnt, leather, smoke]}
+- {id: cade, name: "Cade oil (10%)", family: smoky, tau_h: 20.0, max_pct: 2, cost: 2, notes: [campfire, tar]}
+- {id: olibanum, name: "Olibanum oil", family: resinous, tau_h: 8.0, max_pct: 8, cost: 2, notes: [incense, church, cold]}
+- {id: myrrh, name: "Myrrh resinoid (50%)", family: resinous, tau_h: 30.0, max_pct: 6, cost: 2, notes: [bitter, funeral, mushroom]}
+- {id: labdanum, name: "Labdanum absolute (50%)", family: amber, tau_h: 48.0, max_pct: 8, cost: 2, notes: [ambery, leather, resin]}
+- {id: benzoin, name: "Benzoin Siam resinoid (50%)", family: amber, tau_h: 48.0, max_pct: 10, cost: 1, notes: [vanillic, balsamic]}
+- {id: vanillin, name: "Vanillin (10%)", family: amber, tau_h: 40.0, max_pct: 6, cost: 1, notes: [sweet, comfort]}
+- {id: coumarin, name: "Coumarin", family: amber, tau_h: 30.0, max_pct: 6, cost: 1, notes: [hay, tonka, almond]}
+- {id: evernyl, name: "Evernyl (oakmoss substitute)", family: mossy, tau_h: 60.0, max_pct: 2, cost: 2, notes: [moss, forest-floor, ink]}
+- {id: ambroxan, name: "Ambroxan", family: amber, tau_h: 72.0, max_pct: 5, cost: 2, notes: [ambergris, salt, skin, radiant]}
+- {id: ambrette, name: "Ambrette seed accord (10%)", family: musky, tau_h: 40.0, max_pct: 5, cost: 3, notes: [pear-skin, musk, tender]}
+- {id: habanolide, name: "Habanolide", family: musky, tau_h: 72.0, max_pct: 10, cost: 1, notes: [clean-musk, metallic, linen]}
+- {id: ethylene-brassylate, name: "Ethylene brassylate", family: musky, tau_h: 72.0, max_pct: 15, cost: 1, notes: [soft-musk, sweet]}
+- {id: suede, name: "Suede accord (10%)", family: leather, tau_h: 40.0, max_pct: 5, cost: 2, notes: [soft-leather, glove]}
+- {id: fir-balsam, name: "Fir balsam absolute (50%)", family: conifer, tau_h: 12.0, max_pct: 6, cost: 2, notes: [jam, conifer, winter]}
+- {id: cinnamon-leaf, name: "Cinnamon leaf oil (10%)", family: spicy, tau_h: 2.0, max_pct: 2, cost: 1, notes: [clove, hot, festive]}
+- {id: dpg, name: "Dipropylene glycol (solvent)", family: solvent, tau_h: 100.0, max_pct: 60, cost: 1, odor: 0, notes: []}

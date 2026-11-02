@@ -1,0 +1,34 @@
+# Accords: the vocabulary between the life of a cluster and a formula.
+# Each function of a skeleton (see material.py) speaks through one or two
+# accords; parts are relative.
+crowd:          # the guests keep arriving: warm spice, bodies, festivity
+  - {name: warm-crowd, parts: {cardamom: 3, pink-pepper: 2, saffron: 2, cinnamon-leaf: 1, labdanum: 2}}
+  - {name: market-day, parts: {mandarin: 3, black-pepper: 2, coumarin: 2, benzoin: 2}}
+trouble:        # heat, metal, smoke
+  - {name: hot-metal, parts: {aldehyde-mna: 2, rose-oxide: 1, black-pepper: 2, birch-tar: 1, iso-e: 4}}
+  - {name: burnt-wire, parts: {aldehyde-c11: 2, cade: 1, guaiac: 2, cashmeran: 2}}
+struggle:       # effort, sweat, grip
+  - {name: effort, parts: {cumin: 1, black-pepper: 2, vetiver: 3, suede: 2}}
+helper:         # many hands: green, radiant, multiplying
+  - {name: many-hands, parts: {hedione: 5, hexenol: 1, violet-leaf: 1, bergamot: 3}}
+restoration:    # rain after the storm
+  - {name: petrichor, parts: {geosmin: 1, vetiver: 3, cedarwood: 3, helional: 2, iris: 1}}
+  - {name: morning-after, parts: {bergamot: 3, hedione: 4, ambrette: 2, habanolide: 3}}
+return-of-the-old: # an old book, a returned coat
+  - {name: old-paper, parts: {iris: 2, cashmeran: 3, evernyl: 1, coumarin: 2}}
+fast:           # vigil: cold incense, restraint
+  - {name: cold-incense, parts: {olibanum: 3, iris: 2, ambrette: 2, cedarwood: 2}}
+arrival:        # a newcomer: a cut stem
+  - {name: cut-stem, parts: {galbanum: 2, hexenol: 1, violet-leaf: 2, grapefruit: 3}}
+loss:           # myrrh and smoke
+  - {name: funeral-myrrh, parts: {myrrh: 3, guaiac: 2, olibanum: 2, labdanum: 1}}
+new-period:     # a new manner: aldehydic brightness
+  - {name: bright-aldehydes, parts: {aldehyde-c11: 1, aldehyde-mna: 1, bergamot: 3, rose: 2, iris: 1}}
+journey:        # sea air and salt
+  - {name: sea-crossing, parts: {calone: 2, helional: 2, ambroxan: 2, lemon: 2, cedarwood: 2}}
+silence:        # skin, almost nothing
+  - {name: skin, parts: {iso-e: 5, ambrette: 2, habanolide: 3}}
+season-Q1: [{name: frost, parts: {fir-balsam: 2, olibanum: 1, ambroxan: 1}}]
+season-Q2: [{name: green-rain, parts: {hexenol: 1, violet-leaf: 2, geosmin: 1}}]
+season-Q3: [{name: hot-dust, parts: {grapefruit: 2, cedarwood: 2, black-pepper: 1}}]
+season-Q4: [{name: winter-market, parts: {fir-balsam: 2, cinnamon-leaf: 1, benzoin: 2, mandarin: 2}}]
