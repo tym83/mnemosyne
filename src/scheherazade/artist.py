@@ -10,9 +10,11 @@ A masterpiece starts with an idea, not with data. The order is:
    how fresh, is it a cliché, what will a heart feel); a critic sends weak
    answers back;
 3. concept in a given art;
-4. halftones — the shade of each feeling the concept carries, as this
-   artist gives it: the concept says "sadness", the halftone says which
-   sadness — bright, desperate, weary, bitter — and how it will show. The
+4. halftones — three layers of shade, as this artist gives them: of the
+   thought (consolation or verdict, tender or stern, ironic or earnest),
+   of the embodiment (restrained or lavish, careful or sketched, solemn or
+   everyday) and of every feeling (which sadness: bright, desperate,
+   weary, bitter) — each with why it is so and how it will show. The
    life of the cluster reaches the artist only as inner life (feelings,
    not facts) and colours these shades; the idea does not change;
 5. sketches and drafts.
@@ -91,8 +93,16 @@ class Nuance(BaseModel):
     how_it_shows: str  # how the shade will be embodied in the work
 
 
+class Shade(BaseModel):
+    shade: str  # e.g. tender or stern, ironic or earnest, restrained or lavish
+    why_mine: str
+    how_it_shows: str
+
+
 class Halftones(BaseModel):
-    nuances: list[Nuance]
+    thought: Shade  # how the idea is inflected: consolation or verdict, confession or parable…
+    embodiment: Shade  # how the concept is carried out: the artist's hand
+    nuances: list[Nuance]  # the shade of every feeling
     overall: str
 
 
@@ -104,9 +114,12 @@ def halftones(portrait: "SelfPortrait", st: "Statement", concept: str, inner: st
     system = (f"Ты — {portrait.name}. {portrait.what_i_am_as_artist}\n\nЧто осталось в тебе от прожитого "
               f"(это твоё чувство, не факты): {inner}\n\nНе упоминай технику, компьютеры, серверы.")
     prompt = (f"Твой замысел: {concept}\nЧувства, которые ты в него закладываешь: {', '.join(st.emotions)}.\n\n"
-              "Для каждого чувства реши, какой у него оттенок именно у тебя (не просто «печаль», а какая: светлая, "
-              "отчаянная, усталая, горькая, почти радостная…), почему он у тебя такой, и как этот оттенок проявится "
-              "в работе. В конце — общий тон работы одной фразой.")
+              "Реши три слоя оттенков, каждый — как он есть именно у тебя, почему он у тебя такой и как проявится в "
+              "работе:\n1) оттенок мысли — как прозвучит идея: утешение или приговор, исповедь или притча, нежно или "
+              "сурово, с иронией или всерьёз, с сомнением или с убеждённостью;\n2) оттенок воплощения — твоя рука: "
+              "сдержанно или щедро, вполголоса или на пределе, тщательно или эскизно, торжественно или буднично;\n"
+              "3) оттенок каждого чувства — не просто «печаль», а какая: светлая, отчаянная, усталая, горькая, почти "
+              "радостная…\nВ конце — общий тон работы одной фразой.")
     return w.ask(system, prompt, Halftones, "halftones")
 
 
