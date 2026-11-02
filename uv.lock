@@ -1006,6 +1006,7 @@ dependencies = [
     { name = "music21" },
     { name = "numpy" },
     { name = "ortools" },
+    { name = "pillow" },
     { name = "pyyaml" },
 ]
 
@@ -1015,6 +1016,7 @@ requires-dist = [
     { name = "music21", specifier = ">=10.5.2" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "ortools", specifier = ">=9.15.6755" },
+    { name = "pillow", specifier = ">=13.0.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
 ]
 

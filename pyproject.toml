@@ -12,6 +12,7 @@ dependencies = [
     "music21>=10.5.2",
     "numpy>=2.5.4",
     "ortools>=9.15.6755",
+    "pillow>=13.0.0",
     "pyyaml>=6.0.3",
 ]
 
