@@ -10,9 +10,11 @@ A masterpiece starts with an idea, not with data. The order is:
    how fresh, is it a cliché, what will a heart feel); a critic sends weak
    answers back;
 3. concept in a given art;
-4. halftones — only now the life of the cluster tints the found concept:
-   warmer or colder light, rougher or smoother surface, tempo, density,
-   the weight of the ending. The idea does not change;
+4. halftones — the shade of each feeling the concept carries, as this
+   artist gives it: the concept says "sadness", the halftone says which
+   sadness — bright, desperate, weary, bitter — and how it will show. The
+   life of the cluster reaches the artist only as inner life (feelings,
+   not facts) and colours these shades; the idea does not change;
 5. sketches and drafts.
 
 The artist's identity takes only birth and age from facts; who it became
@@ -77,20 +79,35 @@ def facts_of_fate(scenarios: Path, cluster: str, until: datetime) -> dict:
     }
 
 
-def halftones(scenarios: Path, cluster: str, until: datetime) -> dict:
-    """How the life of the cluster may tint a work already conceived:
-    soft directions, never subjects."""
-    q = mood(scenarios, cluster, until)["qualities"]
-    pick = lambda x, a, b, c: a if x < 0.33 else b if x < 0.66 else c
-    return {
-        "light": pick(q["scars"], "ровный, рассеянный", "с тенями", "резкий, контрастный"),
-        "temperature": pick(q["crowding"], "прохладная", "умеренная", "тёплая, почти жаркая"),
-        "surface": pick(1 - q["steadiness"], "гладкая, спокойная", "живая", "шероховатая, взволнованная"),
-        "tempo": pick(q["volatility"], "медленный", "переменчивый", "порывистый"),
-        "density": pick(q["density"], "разреженная", "средняя", "плотная"),
-        "enclosure": pick(q["closedness"], "открытость", "полуоткрытость", "замкнутость"),
-        "ending": pick(q["loss"], "светлая", "с горечью", "с утратой"),
-    }
+def inner_life(scenarios: Path, cluster: str, until: datetime) -> str:
+    """What the life of the cluster leaves in the artist: feelings, not facts."""
+    return mood(scenarios, cluster, until)["words"]
+
+
+class Nuance(BaseModel):
+    emotion: str
+    shade: str  # what kind exactly: bright, desperate, weary, bitter, almost joyful…
+    why_mine: str  # why this artist feels it this way
+    how_it_shows: str  # how the shade will be embodied in the work
+
+
+class Halftones(BaseModel):
+    nuances: list[Nuance]
+    overall: str
+
+
+def halftones(portrait: "SelfPortrait", st: "Statement", concept: str, inner: str, nb: list,
+              backend: str | None = None) -> Halftones:
+    """The shade of each feeling the concept carries, as only this artist
+    would give it: the concept says 'sadness', the halftone says which."""
+    w = Writer(nb, backend=backend)
+    system = (f"Ты — {portrait.name}. {portrait.what_i_am_as_artist}\n\nЧто осталось в тебе от прожитого "
+              f"(это твоё чувство, не факты): {inner}\n\nНе упоминай технику, компьютеры, серверы.")
+    prompt = (f"Твой замысел: {concept}\nЧувства, которые ты в него закладываешь: {', '.join(st.emotions)}.\n\n"
+              "Для каждого чувства реши, какой у него оттенок именно у тебя (не просто «печаль», а какая: светлая, "
+              "отчаянная, усталая, горькая, почти радостная…), почему он у тебя такой, и как этот оттенок проявится "
+              "в работе. В конце — общий тон работы одной фразой.")
+    return w.ask(system, prompt, Halftones, "halftones")
 
 
 def self_portrait(fate: dict, nb: list, backend: str | None = None) -> SelfPortrait:
