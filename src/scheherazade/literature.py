@@ -134,37 +134,87 @@ def points(material: dict, catalogue: list[dict], k: int, seed: int) -> list[dic
 
 
 class Writer:
-    def __init__(self, notebook: list, effort: str = "high"):
-        import anthropic
+    """Asks a model for a structured answer through one of three doors:
 
-        self.client = anthropic.Anthropic()
+    * codex  — Codex CLI on a ChatGPT subscription (`codex exec --output-schema`);
+    * claude — Claude Code on a Claude subscription (`claude -p --json-schema`);
+    * api    — the Anthropic API (Claude Opus 5.5, cached frame, refusal fallback).
+
+    The CLIs run in an empty scratch directory with no tools, so they only
+    write. Every answer is validated against its schema; a broken one is
+    asked again.
+    """
+
+    def __init__(self, notebook: list, effort: str = "high", backend: str | None = None):
+        import os
+
         self.notebook = notebook
         self.effort = effort
+        self.backend = backend or os.environ.get("WRITER", "codex")
+        if self.backend == "api":
+            import anthropic
+
+            self.client = anthropic.Anthropic()
 
     def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000):
-        """One structured request; the cached system prefix is the frame."""
+        last = None
+        for attempt in range(3):
+            try:
+                text, meta = getattr(self, f"_{self.backend}")(system, prompt, _schema(schema), max_tokens)
+                out = schema.model_validate_json(text)
+                self.notebook.append({"step": step, "backend": self.backend, **meta, "result": out.model_dump()})
+                return out
+            except Exception as e:  # a broken answer is a sketch that failed
+                last = e
+                self.notebook.append({"step": step, "backend": self.backend, "attempt": attempt, "error": str(e)[:300]})
+        raise RuntimeError(f"{step}: {last}")
+
+    def _codex(self, system, prompt, schema, max_tokens):
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            sp, op = Path(d) / "schema.json", Path(d) / "answer.json"
+            sp.write_text(json.dumps(schema))
+            full = f"{system}\n\n---\n\n{prompt}\n\nОтветь только JSON по схеме. Не используй инструменты и файлы."
+            r = subprocess.run(["codex", "exec", "--skip-git-repo-check", "-s", "read-only", "-C", d,
+                                "--output-schema", str(sp), "-o", str(op), full],
+                               capture_output=True, text=True, timeout=900, stdin=subprocess.DEVNULL)
+            if not op.exists():
+                raise RuntimeError(f"codex: {r.stderr[-400:]}")
+            return op.read_text(), {"engine": "codex-cli"}
+
+    def _claude(self, system, prompt, schema, max_tokens):
+        import subprocess
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run(["claude", "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
+                                "--system-prompt", system, "--disallowedTools", "Bash,Edit,Write,Read,WebFetch,WebSearch",
+                                prompt], capture_output=True, text=True, timeout=900, cwd=d, stdin=subprocess.DEVNULL)
+            data = json.loads(r.stdout)
+            out = data.get("structured_output") or data.get("result")
+            text = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
+            return text, {"engine": "claude-code", "cost_usd": data.get("total_cost_usd")}
+
+    def _api(self, system, prompt, schema, max_tokens):
         with self.client.beta.messages.stream(
             model=MODEL,
             max_tokens=max_tokens,
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
             thinking={"type": "adaptive"},
-            output_config={"effort": self.effort,
-                           "format": {"type": "json_schema", "schema": _schema(schema)}},
+            output_config={"effort": self.effort, "format": {"type": "json_schema", "schema": schema}},
             system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
             messages=[{"role": "user", "content": prompt}],
         ) as stream:
             msg = stream.get_final_message()
         if msg.stop_reason == "refusal":
-            raise RuntimeError(f"{step}: refused ({msg.stop_details})")
-        text = next(b.text for b in msg.content if b.type == "text")
-        out = schema.model_validate_json(text)
+            raise RuntimeError(f"refused ({msg.stop_details})")
         u = msg.usage
-        self.notebook.append({"step": step, "model": msg.model, "usage": {
+        return next(b.text for b in msg.content if b.type == "text"), {"engine": msg.model, "usage": {
             "input": u.input_tokens, "output": u.output_tokens,
-            "cache_read": u.cache_read_input_tokens, "cache_write": u.cache_creation_input_tokens},
-            "result": out.model_dump()})
-        return out
+            "cache_read": u.cache_read_input_tokens, "cache_write": u.cache_creation_input_tokens}}
 
 
 def _schema(model: type[BaseModel]) -> dict:
