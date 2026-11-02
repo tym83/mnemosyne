@@ -1,0 +1,46 @@
+# Studio workers: one per workshop node, each a long-running pod with its
+# own disk for models, sample libraries and results. Work is handed to them
+# with kubectl exec; results come back with kubectl cp.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: studio
+  namespace: tenant-scheherazade
+spec:
+  serviceName: studio
+  replicas: 4
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels: {app: studio}
+  template:
+    metadata:
+      labels: {app: studio}
+    spec:
+      terminationGracePeriodSeconds: 5
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector: {matchLabels: {app: studio}}
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - name: studio
+        image: python:3.12-bookworm
+        command: [sh, -c, "mkdir -p /work/tmp && exec sleep infinity"]
+        workingDir: /work
+        env:
+        - {name: TMPDIR, value: /work/tmp}
+        - {name: HF_HOME, value: /work/hf}
+        - {name: PIP_CACHE_DIR, value: /work/pip}
+        resources:
+          requests: {cpu: "4", memory: 8Gi}
+          limits: {cpu: "78", memory: 96Gi}
+        volumeMounts:
+        - {name: work, mountPath: /work}
+  volumeClaimTemplates:
+  - metadata: {name: work}
+    spec:
+      accessModes: [ReadWriteOnce]
+      storageClassName: replicated
+      resources:
+        requests:
+          storage: 60Gi
