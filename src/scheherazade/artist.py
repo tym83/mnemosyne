@@ -52,6 +52,8 @@ class SelfPortrait(BaseModel):
 
 class Statement(BaseModel):
     idea: str
+    operators_used: list[str]  # which tools of invention brought the idea
+    superobjective: str  # Stanislavsky: what the whole work is for, one phrase
     thought: str
     why_i_must_say_it: str
     why_now: str
@@ -69,6 +71,16 @@ class Interrogation(BaseModel):
     weak_answers: list[str]
     cliches_found: list[str]
     questions_back: list[str]
+
+
+def theory(stage: str, part: str) -> str:
+    """Operators (for the artist) or tests (for the critics) of a stage,
+    from the atlas of how masterpieces are made."""
+    import yaml
+
+    root = Path(__file__).resolve().parents[2]
+    items = yaml.safe_load((root / "atlas/theory/creation.yaml").read_text())
+    return "\n".join(f"- {t['who']}: {t[part]}" for t in items if stage in t["stages"])
 
 
 def facts_of_fate(scenarios: Path, cluster: str, until: datetime) -> dict:
@@ -119,7 +131,8 @@ def halftones(portrait: "SelfPortrait", st: "Statement", concept: str, inner: st
               "сурово, с иронией или всерьёз, с сомнением или с убеждённостью;\n2) оттенок воплощения — твоя рука: "
               "сдержанно или щедро, вполголоса или на пределе, тщательно или эскизно, торжественно или буднично;\n"
               "3) оттенок каждого чувства — не просто «печаль», а какая: светлая, отчаянная, усталая, горькая, почти "
-              "радостная…\nВ конце — общий тон работы одной фразой.")
+              "радостная…\nВ конце — общий тон работы одной фразой.\n\nПомни, что говорили мастера:\n" +
+              theory("halftones", "operator"))
     return w.ask(system, prompt, Halftones, "halftones")
 
 
@@ -147,6 +160,9 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
             "это сказать; почему сейчас; насколько это свежо; почему это не шаблон; какие эмоции; как это изменит "
             "сердце человека; за что им будут восхищаться; вневременное это высказывание или ответ на то, что "
             "происходит в мире; в чём риски провала.")
+    base += ("\n\nИнструменты изобретения, которыми пользовались мастера (назови в operators_used, какими ты "
+             "воспользовался, и сформулируй сверхзадачу одной фразой):\n" + theory("idea", "operator") +
+             "\n" + theory("interrogation", "operator"))
     if catalogue:
         base += "\n\nТвои прежние работы (не повторяй себя):\n" + "\n".join(f"- {c}" for c in catalogue)
     if world:
@@ -158,7 +174,8 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
         critic = ("Ты — Шахрияр, беспощадный критик. Ты казнишь за общие слова, за штампы, за то, что уже тысячу раз "
                   "сказано в мировом искусстве, и за повтор прежних работ художника. Прочитай ответы художника и реши: "
                   "accept или rewrite. Назови слабые ответы, найденные штампы и задай вопросы, которые заставят "
-                  "думать глубже.")
+                  "думать глубже. Твои мерила — проверки мастеров:\n" + theory("interrogation", "test") + "\n" +
+                  theory("idea", "test"))
         iv = w.ask(critic, st.model_dump_json(), Interrogation, f"interrogation:{r}", max_tokens=8000)
         history.append({"round": r, "statement": st.model_dump(), "interrogation": iv.model_dump()})
         if iv.verdict.strip().lower().startswith("accept"):
@@ -206,6 +223,7 @@ if __name__ == "__main__":
 
 class Method(BaseModel):
     choice: str  # "existing" | "cross" | "break" | "invent"
+    kind_of_creativity: str  # Boden: combinational, exploratory or transformational — and which rule changes
     name: str
     based_on: list[str]
     broken_principles: list[str]
@@ -239,13 +257,14 @@ def method(portrait: SelfPortrait, st: Statement, art: str, atlas_methods: list[
             + ("; изобрести новый метод — с манифестом в тезисах, философией (что в нём реальность, красота, автор, "
                "время), приёмами, запретами, с тем, от чего он отказывается и с кем спорит (invent)" if allow_invention else "")
             + ". Метод должен служить идее, а не украшать её. Перечисли 3–5 разных работ, которые этот метод мог бы "
-              "породить, чтобы было видно, что он плодотворен.\n\nИзвестные методы:\n" + known)
+              "породить, чтобы было видно, что он плодотворен.\n\nЧто говорили мастера о методе:\n" +
+            theory("method", "operator") + "\n\nИзвестные методы:\n" + known)
     hist, prompt = [], base
     for r in range(rounds):
         m = w.ask(system, prompt, Method, f"method:{r}")
         critic = ("Ты — искусствовед и Шахрияр вместе. Проверь метод: не переизобретение ли это известной школы "
                   "под новым именем (назови её), держится ли его философия, плодотворен ли он или это одноразовый "
-                  "трюк, служит ли он идее. Реши: accept или rewrite.")
+                  "трюк, служит ли он идее. Реши: accept или rewrite. Мерила:\n" + theory("method", "test"))
         j = w.ask(critic, m.model_dump_json(), Judgement, f"method-judgement:{r}", max_tokens=8000)
         hist.append({"round": r, "method": m.model_dump(), "judgement": j.model_dump()})
         if j.verdict.strip().lower().startswith("accept"):
