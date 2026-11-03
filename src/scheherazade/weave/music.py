@@ -1,4 +1,4 @@
-"""Read-only preflight for the nocturne channel; no approved style grammar yet.
+"""Read-only transport preflight; the implemented music channel is in nocturne.py.
 
     uv run python -m scheherazade.weave.music
 

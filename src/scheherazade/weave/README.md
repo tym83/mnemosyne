@@ -1,56 +1,62 @@
-# Weave transport preflight
+# Music surface proof (v1)
 
-This is **not yet an opus backup**. There is no approved music surface grammar,
-MusicXML encoder/decoder, encoded score, or encoded audio/PDF. The existing
-nocturne is untouched. Do not mark it as backup on the strength of these tests.
+The nocturne now carries one authenticated **partial envelope frame**, decoded
+from MusicXML and the recipient key alone. It is not a complete state backup.
+The approved grammar is implemented conservatively: LH chord voicings and
+quarter/two-eighth repeated chords. Other approved figurations and ornaments
+are not used; the measured capacity is not an upper bound on that grammar.
 
-Run from the repository root:
+`surface.py` reconstructs quarter cells directly from MusicXML. Each cell
+preserves its bass and spelled pitch-class set. Sorted options contain 2–5
+notes within a tenth, MIDI 21–108, below the minimum RH pitch in the measure.
+Tied, slurred, decorated, tuplet and polyphonic LH cells are not rewritten.
+The melody and every other XML element remain unchanged. RH rests and changes
+in chord articulation can affect the outer-voice diagnostic; no claim of
+complete contrapuntal or artistic validation is made.
+
+`arithmetic.py` uses equal integer intervals, with no floating-point coding.
+Carrier notes determine options, radices and fixed block size. All choices
+including padding are decoded and validated. No bytes are hidden in metadata,
+lyrics, IDs, dynamics or an external score template.
+
+`payload.py` compresses and encrypts with ephemeral X25519, HKDF-SHA256 and
+ChaCha20-Poly1305, including length and CRC32. `frames.py` splits that envelope:
+4-byte bundle hint, zero-based uint8 index, uint8 count, uint16 total length,
+fragment, zero padding, 12-byte HMAC-SHA256 tag. Bundle hints are not security
+identities; final assembly checks the envelope and its AEAD. No plaintext is
+returned for missing, duplicate or mixed frames. V1 bundles require the same
+fragment capacity across works (at most 255 frames / 65535 envelope bytes).
+
+The frame MAC authenticates the entire canonical XML tree, with carrier cells
+reset to canonical voicings/rhythm. It includes melody, ties, tempo, dynamics,
+slurs, rests and form; whitespace is ignored. An arbitrary notation-editor
+rewrite is not guaranteed to decode, even when it sounds equivalent.
+
+**Key model:** the encoder needs the recipient private key as well as the
+public key: a domain-separated HMAC key protects individual partial frames.
+This is a local proof, not a public-key-only publishing interface. Keys are
+never placed in a score. The CLI creates a separate mode-0600 key, reuses it
+on subsequent runs and keeps the encrypted envelope for future works. This
+is not age format, an owner signature (§40.4), or a proof of steganographic
+indistinguishability. PDF/audio are renditions, not supported decoder inputs.
 
 ```sh
-uv run python -m unittest discover -s tests -p test_weave.py -v
-uv run python -m scheherazade.weave.music
+uv run python -m unittest discover -s tests -p 'test_weave*.py' -v
+uv run python -m scheherazade.weave.nocturne
+uv run python -m scheherazade.weave.nocturne --decode out/works/music/nocturne/p02_000.backup.musicxml
+# Encode another frame into a compatible work; keep the same key/envelope:
+uv run python -m scheherazade.weave.nocturne --xml another.xml --output another.backup.musicxml --index 1
+# Only a complete set may produce recovered plaintext:
+uv run python -m scheherazade.weave.nocturne --decode work1.musicxml work2.musicxml --recovered restored.json
 ```
 
-`payload.py` compresses an exact byte string, generates a fresh ephemeral
-X25519 key and nonce, derives a key through HKDF-SHA256, and encrypts with
-ChaCha20-Poly1305. The versioned envelope includes total length and CRC32.
-The header and SHA256 of caller-supplied work context are authenticated. A
-bounded decompressor runs only after authentication. This is a custom proof
-format, not the age wire protocol. Recipient encryption is not an owner
-signature: §40.4 authorship authentication remains unimplemented. No keys
-are stored by these modules.
+The final command illustrates assembly; supply all frames, not just two.
+`music.py` remains the original read-only transport preflight. The default
+synthetic payload is Namespace/shop at 2025-07-01, never live Secrets.
 
-The intended music context must be a canonical representation reconstructed
-from the encoded score, covering all protected notes, rhythm and form. The
-preflight uses original XML bytes only to test the transport; this is not the
-future MusicXML decoder and does not prove resistance to a changed note.
-
-`arithmetic.py` partitions an integer interval into equal subintervals at each
-slot, with the product of slot radices as its exact scale. A fixed-size byte
-block selects the first lattice point in its binary interval; decoding
-recovers the block and validates padding. A future grammar must reconstruct
-slot radices and choices from the received work alone. It must also define
-framing/size recovery without out-of-band payload metadata. No cryptographic
-steganographic indistinguishability is claimed for this reference codec.
-
-`music.py` replays the synthetic shop state at 2025-07-01, selects the complete
-Namespace/shop object, verifies an envelope round trip in memory and reports
-size and original-score diagnostics. JSON serialization uses sorted keys,
-compact separators and UTF-8. The percentage denominator is the canonical
-JSON array of all non-Secret objects, not the volume of live application data.
-Its hypothetical one-bit-per-non-bass-tone capacity is not an upper bound on
-all possible music grammars. Reported bit rates are requirements, not achieved
-music-channel rates. Repeats increase playback time, not unique capacity.
-
-The crude style check counts crossings between staff pitch envelopes and
-music21 parallel fifths/octaves between outer voices of adjacent chordified
-sonorities. It does not measure inner-voice counterpoint or artistic quality.
-
-Before implementation of the music channel, the person making artistic
-decisions must specify/approve the admissible rhythmic/figuration grammar,
-including density. This follows the repository AGENTS.md restriction on
-implementers making artistic decisions. Rendering then needs to accept the
-encoded MusicXML directly through the studio's musicxml2ly/LilyPond and
-FluidSynth/ffmpeg toolchain, preserving the decoder's source score. Publication
-must follow an actual MusicXML-only decode, exact byte comparison, invariant
-checks, and a one-note corruption rejection.
+Render only in studio-0/ws1 or studio-1/ws4 with `weave.render`, which uses the
+same musicxml2ly, LilyPond, FluidSynth and ffmpeg chain as
+`hack/workshop/render_music.sh`, but accepts the encoded MusicXML directly.
+It verifies sounding events through the engraving XML round trip, preserves
+conversion warnings, and measures the resulting MP3. Keep the decoder's
+original `.musicxml`; `.engraving.musicxml` is not its replacement.
