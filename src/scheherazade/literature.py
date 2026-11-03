@@ -17,11 +17,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import time
 from pathlib import Path
 
 import numpy as np
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 ATLAS = Path(__file__).resolve().parents[2] / "atlas" / "literature"
 MODEL = "claude-opus-5-5"
@@ -133,6 +135,21 @@ def points(material: dict, catalogue: list[dict], k: int, seed: int) -> list[dic
     return chosen
 
 
+def _transient(error: Exception) -> bool:
+    if isinstance(error, (ValidationError, json.JSONDecodeError)):
+        return False
+    if isinstance(error, (TimeoutError, ConnectionError, subprocess.TimeoutExpired)):
+        return True
+    if getattr(error, "status_code", None) in (408, 429, 500, 502, 503, 504, 529):
+        return True
+    message = f"{type(error).__name__}: {error}".lower()
+    return any(s in message for s in (
+        "at capacity", "overloaded", "rate limit", "rate_limit", "ratelimit", "too many requests",
+        "timeout", "timed out", "connection", "network", "temporary failure in name resolution",
+        "stream disconnected", "service unavailable",
+    ))
+
+
 class Writer:
     """Asks a model for a structured answer through one of three doors:
 
@@ -174,7 +191,11 @@ class Writer:
             self.notebook.append({"step": step, "backend": self.backend, "cached": True, "result": out.model_dump()})
             return out
         last = None
-        for attempt in range(3):
+        attempt, pause = 0, 60
+        deadline = None
+        while attempt < 3:
+            if deadline is not None and time.monotonic() >= deadline:
+                break
             try:
                 if images and self.backend != "codex":
                     raise NotImplementedError(f"{self.backend}: looking at images")
@@ -185,9 +206,21 @@ class Writer:
                 hit.write_text(out.model_dump_json())
                 self.notebook.append({"step": step, "backend": self.backend, **meta, "result": out.model_dump()})
                 return out
-            except Exception as e:  # a broken answer is a sketch that failed
+            except Exception as e:
                 last = e
-                self.notebook.append({"step": step, "backend": self.backend, "attempt": attempt, "error": str(e)[:300]})
+                entry = {"step": step, "backend": self.backend, "attempt": attempt, "error": str(e)[:300]}
+                self.notebook.append(entry)
+                if _transient(e):
+                    now = time.monotonic()
+                    if deadline is None:
+                        deadline = now + 12 * 3600
+                    wait = min(pause, max(0, deadline - now))
+                    entry.update(transient=True, wait_seconds=wait)
+                    print(f"{step}: transient {type(e).__name__}; retry in {wait:g}s", flush=True)
+                    time.sleep(wait)
+                    pause = min(pause * 2, 30 * 60)
+                else:  # a broken answer is a sketch that failed
+                    attempt += 1
         raise RuntimeError(f"{step}: {last}")
 
     def _codex(self, system, prompt, schema, max_tokens, images=None):
@@ -202,7 +235,7 @@ class Writer:
                                 "--output-schema", str(sp), "-o", str(op),
                                 *[a for i in images or [] for a in ("-i", str(Path(i).resolve()))], "--", full],
                                capture_output=True, text=True, timeout=3600, stdin=subprocess.DEVNULL)
-            if not op.exists():
+            if r.returncode or not op.exists() or not op.read_text().strip():
                 raise RuntimeError(f"codex: {r.stderr[-400:]}")
             return op.read_text(), {"engine": "codex-cli"}
 
@@ -214,7 +247,11 @@ class Writer:
             r = subprocess.run(["claude", "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
                                 "--system-prompt", system, "--disallowedTools", "Bash,Edit,Write,Read,WebFetch,WebSearch",
                                 prompt], capture_output=True, text=True, timeout=3600, cwd=d, stdin=subprocess.DEVNULL)
+            if r.returncode:
+                raise RuntimeError(f"claude: {r.stderr[-400:]} {r.stdout[-400:]}")
             data = json.loads(r.stdout)
+            if data.get("is_error"):
+                raise RuntimeError(f"claude: {data.get('result')}")
             out = data.get("structured_output") or data.get("result")
             text = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
             return text, {"engine": "claude-code", "cost_usd": data.get("total_cost_usd")}

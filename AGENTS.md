@@ -49,8 +49,10 @@ Run Python with `uv run python -m scheherazade.<module>`.
 
 ## Git
 
-- Work on the current feature branch; never commit to or push `main`.
-- Do not push; the person pushes.
+- Your sandbox cannot write `.git` or start long runs that call Codex
+  themselves (artists). Leave changes uncommitted and give the commit
+  message and launch commands in the report; they are applied after review.
+- Never commit to or push `main`. Do not push.
 - Every commit: semantic message in English, `--signoff`, and exactly one
   trailer `Assisted-by: LLM`. No other attribution anywhere.
 - Small commits, one per logical step. Never commit `out/` or secrets.

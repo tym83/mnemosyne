@@ -91,6 +91,12 @@ def draw(script: str, local_png: Path, size=(1500, 1000, 64)) -> str:
     """Render one sheet in the workshop; returns Blender's complaint or ''."""
     name = f"{local_png.parent.name}_{local_png.stem}"
     local_py = local_png.with_suffix(".py")
+    state = local_png.with_suffix(".render-state")
+    if (local_png.exists() and local_py.exists() and local_py.read_text() == script
+            and (not state.exists() or state.read_text() == "done")):
+        return ""
+    # A stopped or failed render must not make an older PNG look current.
+    state.write_text("pending")
     local_py.write_text(script)
     kube("exec", POD, "--", "mkdir", "-p", f"{REMOTE}/kit")
     for f in (KIT, RUNNER):
@@ -103,6 +109,7 @@ def draw(script: str, local_png: Path, size=(1500, 1000, 64)) -> str:
     if got.returncode or not local_png.exists():
         lines = [x for x in r.stdout.splitlines() if not x.startswith("Fra:")]
         return "\n".join(lines[-25:]) or "no image"
+    state.write_text("done")
     return ""
 
 

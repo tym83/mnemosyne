@@ -1,6 +1,6 @@
-SESSION_LOG.md
-.venv/
 __pycache__/
+.env
+.venv/
 *.pyc
 out/
-.env
+SESSION_LOG.md
