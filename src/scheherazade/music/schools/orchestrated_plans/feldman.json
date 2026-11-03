@@ -1,0 +1,46 @@
+{
+  "title": "feldman",
+  "school": "feldman",
+  "seed": 2026110304,
+  "duration": 240,
+  "tempo": 60,
+  "ensemble": "strings_piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 80,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        48,
+        79
+      ],
+      "dynamic": "ppp"
+    },
+    {
+      "duration": 80,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        43,
+        84
+      ],
+      "dynamic": "ppp"
+    },
+    {
+      "duration": 80,
+      "character": "still",
+      "density": 0.12,
+      "register": [
+        48,
+        79
+      ],
+      "dynamic": "ppp"
+    }
+  ],
+  "orchestration": "chamber_orchestra",
+  "colour": "dark",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

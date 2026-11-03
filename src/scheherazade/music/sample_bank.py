@@ -121,4 +121,10 @@ def build(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory',type=Path)
-    build(parser.parse_args().directory)
+    parser.add_argument('--native', action='store_true', help='Preserve stereo SFZ, layers and round robins')
+    args = parser.parse_args()
+    if args.native:
+        from .native_bank import prepare
+        prepare(args.directory)
+    else:
+        build(args.directory)

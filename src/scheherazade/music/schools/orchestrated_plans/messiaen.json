@@ -1,0 +1,46 @@
+{
+  "title": "messiaen",
+  "school": "messiaen",
+  "seed": 2026110310,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "chamber",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.55,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "mf"
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.9,
+      "register": [
+        43,
+        103
+      ],
+      "dynamic": "ff"
+    },
+    {
+      "duration": 60,
+      "character": "flowing",
+      "density": 0.65,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "p"
+    }
+  ],
+  "orchestration": "chamber_orchestra",
+  "colour": "glassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

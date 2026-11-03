@@ -1,0 +1,55 @@
+{
+  "title": "serial",
+  "school": "serial",
+  "seed": 2026110302,
+  "duration": 24,
+  "ensemble": "chamber",
+  "tempo": 60,
+  "form": [
+    {
+      "duration": 6,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "p"
+    },
+    {
+      "duration": 6,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 6,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "mp"
+    },
+    {
+      "duration": 6,
+      "character": "still",
+      "density": 0.1,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "ppp"
+    }
+  ],
+  "orchestration": "pierrot",
+  "colour": "glassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

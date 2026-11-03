@@ -1,0 +1,46 @@
+{
+  "title": "spectral",
+  "school": "spectral",
+  "seed": 2026110308,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "string_orchestra",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        28,
+        103
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.55,
+      "register": [
+        28,
+        103
+      ],
+      "dynamic": "mf"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.4,
+      "register": [
+        36,
+        103
+      ],
+      "dynamic": "p"
+    }
+  ],
+  "orchestration": "symphony_orchestra",
+  "colour": "glassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

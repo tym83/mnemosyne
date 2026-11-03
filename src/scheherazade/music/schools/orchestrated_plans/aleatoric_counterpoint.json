@@ -1,0 +1,46 @@
+{
+  "title": "aleatoric_counterpoint",
+  "school": "aleatoric_counterpoint",
+  "seed": 2026110314,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "chamber",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.4,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "p"
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.95,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "f"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.3,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "pp"
+    }
+  ],
+  "orchestration": "chamber_orchestra",
+  "colour": "woody",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

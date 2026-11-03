@@ -1,0 +1,47 @@
+{
+  "title": "drone",
+  "school": "drone",
+  "seed": 2026110318,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "string_orchestra",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "ppp"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.25,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "p"
+    }
+  ],
+  "audio_profile": "native_sfz",
+  "fundamental": 36,
+  "orchestration": "string_orchestra",
+  "colour": "dark",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

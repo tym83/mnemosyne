@@ -1,0 +1,49 @@
+{
+  "title": "chance",
+  "school": "chance",
+  "seed": 2026110312,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.4,
+      "register": [
+        28,
+        103
+      ],
+      "dynamic": "p"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.6,
+      "register": [
+        21,
+        108
+      ],
+      "dynamic": "f"
+    }
+  ],
+  "audio_profile": "native_sfz",
+  "orchestration": "two_pianos",
+  "colour": "woody",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment.",
+  "required_techniques": [
+    "prepared_piano"
+  ]
+}

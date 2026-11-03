@@ -1,0 +1,66 @@
+{
+  "title": "fibonacci",
+  "school": "fibonacci",
+  "seed": 2026110315,
+  "duration": 248,
+  "tempo": 60,
+  "ensemble": "string_quartet",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 16,
+      "character": "still",
+      "density": 0.25,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 24,
+      "character": "still",
+      "density": 0.4,
+      "register": [
+        43,
+        88
+      ],
+      "dynamic": "p"
+    },
+    {
+      "duration": 40,
+      "character": "still",
+      "density": 0.55,
+      "register": [
+        36,
+        91
+      ],
+      "dynamic": "mp"
+    },
+    {
+      "duration": 64,
+      "character": "flowing",
+      "density": 0.7,
+      "register": [
+        43,
+        88
+      ],
+      "dynamic": "mf"
+    },
+    {
+      "duration": 104,
+      "character": "agitated",
+      "density": 0.85,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "f"
+    }
+  ],
+  "orchestration": "string_quartet",
+  "colour": "dark",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

@@ -1,0 +1,521 @@
+version: 1
+ensembles:
+  symphony_orchestra:
+  - instrument: piccolo
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: flute
+    count: 3
+    players: 1
+    divisi: 1
+  - instrument: oboe
+    count: 2
+    players: 1
+    divisi: 1
+  - instrument: cor_anglais
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: clarinet
+    count: 2
+    players: 1
+    divisi: 1
+  - instrument: bass_clarinet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: bassoon
+    count: 2
+    players: 1
+    divisi: 1
+  - instrument: contrabassoon
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: horn
+    count: 4
+    players: 1
+    divisi: 1
+  - instrument: trumpet
+    count: 3
+    players: 1
+    divisi: 1
+  - instrument: trombone
+    count: 2
+    players: 1
+    divisi: 1
+  - instrument: bass_trombone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tuba
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: timpani
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: bass_drum
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: snare
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cymbals
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tam_tam
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: glockenspiel
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: xylophone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: vibraphone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: marimba
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tubular_bells
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: harp
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: celesta
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: organ
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: violin_1_section
+    count: 1
+    players: 16
+    divisi: 4
+  - instrument: violin_2_section
+    count: 1
+    players: 14
+    divisi: 4
+  - instrument: viola_section
+    count: 1
+    players: 12
+    divisi: 3
+  - instrument: cello_section
+    count: 1
+    players: 10
+    divisi: 3
+  - instrument: bass_section
+    count: 1
+    players: 8
+    divisi: 2
+  chamber_orchestra:
+  - instrument: flute
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: oboe
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: clarinet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: bassoon
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: horn
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: trumpet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: timpani
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: harp
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: violin_1_section
+    count: 1
+    players: 8
+    divisi: 2
+  - instrument: violin_2_section
+    count: 1
+    players: 7
+    divisi: 2
+  - instrument: viola_section
+    count: 1
+    players: 6
+    divisi: 2
+  - instrument: cello_section
+    count: 1
+    players: 5
+    divisi: 2
+  - instrument: bass_section
+    count: 1
+    players: 4
+    divisi: 2
+  string_orchestra:
+  - instrument: violin_1_section
+    count: 1
+    players: 16
+    divisi: 4
+  - instrument: violin_2_section
+    count: 1
+    players: 14
+    divisi: 4
+  - instrument: viola_section
+    count: 1
+    players: 12
+    divisi: 3
+  - instrument: cello_section
+    count: 1
+    players: 10
+    divisi: 3
+  - instrument: bass_section
+    count: 1
+    players: 8
+    divisi: 2
+  wind_quintet:
+  - instrument: flute
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: oboe
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: clarinet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: horn
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: bassoon
+    count: 1
+    players: 1
+    divisi: 1
+  brass_quintet:
+  - instrument: trumpet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: trumpet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: horn
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: trombone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tuba
+    count: 1
+    players: 1
+    divisi: 1
+  percussion_ensemble:
+  - instrument: timpani
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: bass_drum
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: snare
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cymbals
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tam_tam
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: glockenspiel
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: xylophone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: vibraphone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: marimba
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tubular_bells
+    count: 1
+    players: 1
+    divisi: 1
+  string_quartet:
+  - instrument: violin
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: violin
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: viola
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cello
+    count: 1
+    players: 1
+    divisi: 1
+  piano_trio:
+  - instrument: violin
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cello
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  pierrot:
+  - instrument: flute
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: clarinet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: violin
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cello
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  organ:
+  - instrument: organ
+    count: 1
+    players: 1
+    divisi: 1
+  piano:
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  harpsichord:
+  - instrument: harpsichord
+    count: 1
+    players: 1
+    divisi: 1
+  accordion:
+  - instrument: accordion
+    count: 1
+    players: 1
+    divisi: 1
+  guitar_solo:
+  - instrument: guitar
+    count: 1
+    players: 1
+    divisi: 1
+  voice_and_piano:
+  - instrument: soprano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  choir:
+  - instrument: soprano_choir
+    count: 1
+    players: 8
+    divisi: 2
+  - instrument: alto_choir
+    count: 1
+    players: 8
+    divisi: 2
+  - instrument: tenor_choir
+    count: 1
+    players: 8
+    divisi: 2
+  - instrument: bass_voice_choir
+    count: 1
+    players: 8
+    divisi: 2
+  bells_and_strings:
+  - instrument: violin
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tubular_bells
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: viola
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: cello
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: celesta
+    count: 1
+    players: 1
+    divisi: 1
+  four_pianos:
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  two_pianos:
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  brass_and_pianos:
+  - instrument: horn
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: trumpet
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: trombone
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: tuba
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  - instrument: piano
+    count: 1
+    players: 1
+    divisi: 1
+  dan_tranh:
+  - instrument: dan_tranh
+    count: 1
+    players: 1
+    divisi: 1
+legacy_voices:
+  piano:
+  - piano
+  - piano
+  pulse:
+  - piano
+  - piano
+  - piano
+  - piano
+  strings_piano:
+  - violin
+  - viola
+  - cello
+  - piano
+  string_quartet:
+  - violin
+  - violin
+  - viola
+  - cello
+  chamber:
+  - flute
+  - clarinet
+  - violin
+  - cello
+  - piano
+  string_orchestra:
+  - violin
+  - violin
+  - violin
+  - violin
+  - viola
+  - viola
+  - cello
+  - cello
+  - bass
+  - bass
+  satb:
+  - soprano
+  - alto
+  - tenor
+  - bass_voice
+legacy_ranges:
+  soprano:
+  - 60
+  - 81
+  alto:
+  - 55
+  - 74
+  tenor:
+  - 48
+  - 69
+  bass_voice:
+  - 40
+  - 62

@@ -1,0 +1,47 @@
+{
+  "title": "scelsi",
+  "school": "scelsi",
+  "seed": 2026110317,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "chamber",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "mf"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "ppp"
+    }
+  ],
+  "audio_profile": "native_sfz",
+  "centre": 62,
+  "orchestration": "wind_quintet",
+  "colour": "dark",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

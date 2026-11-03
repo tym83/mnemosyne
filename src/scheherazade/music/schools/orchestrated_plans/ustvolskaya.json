@@ -1,0 +1,46 @@
+{
+  "title": "ustvolskaya",
+  "school": "ustvolskaya",
+  "seed": 2026110311,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "strings_piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 1,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "fff"
+    },
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        28,
+        103
+      ],
+      "dynamic": "ppp"
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 1,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "fff"
+    }
+  ],
+  "orchestration": "brass_and_pianos",
+  "colour": "brassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

@@ -203,6 +203,11 @@ def render_score(score, plan, destination, soundfont):
     import numpy as np
     import xml.etree.ElementTree as ET
 
+    if plan.get('audio_profile') == 'native_sfz':
+        from .orchestration import school_lines, orchestrate
+        from .orchestra_render import render_orchestra
+        orchestral, assignment = orchestrate(school_lines(score,plan),plan)
+        return render_orchestra(orchestral,plan,assignment,destination,soundfont)
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     if (destination/'render.json').exists():

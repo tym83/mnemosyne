@@ -1,0 +1,2740 @@
+version: 1
+pitch_convention: Sounding MIDI, C4=60; transpose = sounding minus written. Unpitched
+  ranges are SFZ trigger keys.
+range_reference: https://www.vsl.co.at/academy/
+policy: Ordinary orchestral ranges. Comfortable ranges, velocity limits and balance
+  are configurable engineering heuristics, not physical absolutes. Sample coverage
+  is checked separately.
+instruments:
+  piccolo:
+    family: woodwinds
+    range:
+    - 74
+    - 108
+    comfortable:
+    - 79
+    - 100
+    sounding_minus_written: 12
+    clefs:
+    - treble
+    music21: Piccolo
+    gm_program: 72
+    section: false
+    polyphony: 1
+    pan: -0.15
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 74
+      - 78
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 79
+      - 100
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 101
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Piccolo Solo Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Piccolo Solo Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 72
+          - 103
+        staccato:
+        - - 72
+          - 103
+  flute:
+    family: woodwinds
+    range:
+    - 60
+    - 96
+    comfortable:
+    - 65
+    - 89
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Flute
+    gm_program: 73
+    section: false
+    polyphony: 1
+    pan: -0.22
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 60
+      - 64
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 65
+      - 89
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 90
+      - 96
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Flute Solo 1 Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Flute Solo 1 Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 60
+          - 96
+        staccato:
+        - - 60
+          - 96
+  oboe:
+    family: woodwinds
+    range:
+    - 58
+    - 91
+    comfortable:
+    - 62
+    - 84
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Oboe
+    gm_program: 68
+    section: false
+    polyphony: 1
+    pan: -0.08
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 58
+      - 61
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 62
+      - 84
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 85
+      - 91
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Oboe Solo Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Oboe Solo Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 58
+          - 87
+        staccato:
+        - - 58
+          - 87
+  cor_anglais:
+    family: woodwinds
+    range:
+    - 52
+    - 84
+    comfortable:
+    - 57
+    - 77
+    sounding_minus_written: -7
+    clefs:
+    - treble
+    music21: EnglishHorn
+    gm_program: 69
+    section: false
+    polyphony: 1
+    pan: 0.05
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 52
+      - 56
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 57
+      - 77
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 78
+      - 84
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Cor Anglais Solo
+          Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Cor Anglais Solo
+          Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 53
+          - 77
+        staccato:
+        - - 53
+          - 77
+  clarinet:
+    family: woodwinds
+    range:
+    - 50
+    - 94
+    comfortable:
+    - 55
+    - 87
+    sounding_minus_written: -2
+    clefs:
+    - treble
+    music21: Clarinet
+    gm_program: 71
+    section: false
+    polyphony: 1
+    pan: 0.1
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 50
+      - 54
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 55
+      - 87
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 88
+      - 94
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Clarinet Solo Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Clarinet Solo
+          Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 50
+          - 86
+        staccato:
+        - - 50
+          - 86
+  bass_clarinet:
+    family: woodwinds
+    range:
+    - 34
+    - 79
+    comfortable:
+    - 40
+    - 72
+    sounding_minus_written: -14
+    clefs:
+    - treble
+    music21: BassClarinet
+    gm_program: 71
+    section: false
+    polyphony: 1
+    pan: 0.2
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 34
+      - 39
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 40
+      - 72
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 73
+      - 79
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Bass Clarinet Solo
+          Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Bass Clarinet
+          Solo Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 38
+          - 74
+        staccato:
+        - - 38
+          - 74
+  bassoon:
+    family: woodwinds
+    range:
+    - 34
+    - 75
+    comfortable:
+    - 41
+    - 67
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    music21: Bassoon
+    gm_program: 70
+    section: false
+    polyphony: 1
+    pan: 0.25
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 34
+      - 40
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 41
+      - 67
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 68
+      - 75
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Bassoon Solo Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Bassoon Solo Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 34
+          - 74
+        staccato:
+        - - 34
+          - 74
+  contrabassoon:
+    family: woodwinds
+    range:
+    - 22
+    - 58
+    comfortable:
+    - 29
+    - 50
+    sounding_minus_written: -12
+    clefs:
+    - bass
+    - tenor
+    music21: Contrabassoon
+    gm_program: 70
+    section: false
+    polyphony: 1
+    pan: 0.35
+    gain_db: 0
+    colours:
+    - woody
+    - dark
+    techniques:
+    - sustain
+    - staccato
+    - flutter
+    - multiphonics
+    dynamic_registers:
+    - range:
+      - 22
+      - 28
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 29
+      - 50
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 51
+      - 58
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Woodwinds - Notation/Contrabassoon Solo
+          Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Woodwinds - Notation/Contrabassoon
+          Solo Staccato.sfz
+      unavailable:
+      - flutter
+      - multiphonics
+      key_ranges:
+        sustain:
+        - - 22
+          - 58
+        staccato:
+        - - 22
+          - 58
+  horn:
+    family: brass
+    range:
+    - 35
+    - 77
+    comfortable:
+    - 41
+    - 70
+    sounding_minus_written: -7
+    clefs:
+    - treble
+    music21: Horn
+    gm_program: 60
+    section: false
+    polyphony: 1
+    pan: -0.35
+    gain_db: -5
+    colours:
+    - brassy
+    techniques:
+    - sustain
+    - staccato
+    - mute
+    - stopped
+    dynamic_registers:
+    - range:
+      - 35
+      - 40
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 41
+      - 70
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 71
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Brass - Notation/Horn Solo Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Brass - Notation/Horn Solo Staccato.sfz
+      unavailable:
+      - mute
+      - stopped
+      key_ranges:
+        sustain:
+        - - 40
+          - 76
+        staccato:
+        - - 40
+          - 76
+  trumpet:
+    family: brass
+    range:
+    - 52
+    - 86
+    comfortable:
+    - 60
+    - 79
+    sounding_minus_written: -2
+    clefs:
+    - treble
+    music21: Trumpet
+    gm_program: 56
+    section: false
+    polyphony: 1
+    pan: 0.05
+    gain_db: -5
+    colours:
+    - brassy
+    techniques:
+    - sustain
+    - staccato
+    - mute
+    dynamic_registers:
+    - range:
+      - 52
+      - 59
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 60
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 86
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Brass - Notation/Trumpet Solo Sustain
+          (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Brass - Notation/Trumpet Solo Staccato.sfz
+      unavailable:
+      - mute
+      key_ranges:
+        sustain:
+        - - 52
+          - 88
+        staccato:
+        - - 52
+          - 88
+    variant: B-flat trumpet; written F#3–E6, sounding E3–D6
+    range_reference: https://andrewhugill.com/OrchestraManual/trumpet_range.html
+  trombone:
+    family: brass
+    range:
+    - 40
+    - 77
+    comfortable:
+    - 46
+    - 70
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    music21: Trombone
+    gm_program: 57
+    section: false
+    polyphony: 1
+    pan: 0.3
+    gain_db: -5
+    colours:
+    - brassy
+    techniques:
+    - sustain
+    - staccato
+    - mute
+    dynamic_registers:
+    - range:
+      - 40
+      - 45
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 46
+      - 70
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 71
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Brass - Notation/Tenor Trombone Solo
+          Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Brass - Notation/Tenor Trombone Solo
+          Staccato.sfz
+      unavailable:
+      - mute
+      key_ranges:
+        sustain:
+        - - 40
+          - 71
+        staccato:
+        - - 40
+          - 71
+  bass_trombone:
+    family: brass
+    range:
+    - 22
+    - 77
+    comfortable:
+    - 40
+    - 62
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    music21: BassTrombone
+    gm_program: 57
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: -5
+    colours:
+    - brassy
+    techniques:
+    - sustain
+    - staccato
+    - mute
+    dynamic_registers:
+    - range:
+      - 22
+      - 39
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 40
+      - 62
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 63
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Brass - Notation/Bass Trombone Solo
+          Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Brass - Notation/Bass Trombone Solo
+          Staccato.sfz
+      unavailable:
+      - mute
+      key_ranges:
+        sustain:
+        - - 28
+          - 67
+        staccato:
+        - - 28
+          - 67
+    range_reference: https://www.vsl.co.at/academy/brass/bass-trombone
+  tuba:
+    family: brass
+    range:
+    - 28
+    - 65
+    comfortable:
+    - 34
+    - 57
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    music21: Tuba
+    gm_program: 58
+    section: false
+    polyphony: 1
+    pan: 0.5
+    gain_db: -5
+    colours:
+    - brassy
+    techniques:
+    - sustain
+    - staccato
+    - mute
+    dynamic_registers:
+    - range:
+      - 28
+      - 33
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 34
+      - 57
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 58
+      - 65
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Brass - Notation/Tuba Sustain (looped).sfz
+        staccato: Sonatina Symphonic Orchestra/Brass - Notation/Tuba Staccato.sfz
+      unavailable:
+      - mute
+      key_ranges:
+        sustain:
+        - - 28
+          - 62
+        staccato:
+        - - 28
+          - 62
+  violin:
+    family: strings
+    range: &id001
+    - 55
+    - 103
+    comfortable: &id002
+    - 60
+    - 91
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Violin
+    gm_program: 40
+    section: false
+    polyphony: 1
+    pan: -0.7
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 55
+      - 59
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 60
+      - 91
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 92
+      - 103
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Violin Solo 1 Sustain
+          (looped).sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Violin Solo 1 Pizzicato.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Violin Solo 1 Harmonics.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Violin Solo 1 Staccato.sfz
+      unavailable:
+      - col_legno
+      - sul_ponticello
+      - tremolo
+      key_ranges:
+        arco:
+        - - 55
+          - 96
+        pizzicato:
+        - - 55
+          - 96
+        harmonics:
+        - - 55
+          - 96
+        staccato:
+        - - 55
+          - 96
+  viola:
+    family: strings
+    range: &id003
+    - 48
+    - 88
+    comfortable: &id004
+    - 53
+    - 79
+    sounding_minus_written: 0
+    clefs:
+    - alto
+    - treble
+    music21: Viola
+    gm_program: 41
+    section: false
+    polyphony: 1
+    pan: -0.15
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 48
+      - 52
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 53
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 88
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Viola Solo Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Viola Solo Pizzicato.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Viola Solo Harmonics.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Viola Solo Staccato.sfz
+      unavailable:
+      - col_legno
+      - sul_ponticello
+      - tremolo
+      key_ranges:
+        arco:
+        - - 48
+          - 88
+        pizzicato:
+        - - 48
+          - 88
+        harmonics:
+        - - 48
+          - 88
+        staccato:
+        - - 48
+          - 88
+  cello:
+    family: strings
+    range: &id005
+    - 36
+    - 84
+    comfortable: &id006
+    - 43
+    - 72
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    - treble
+    music21: Violoncello
+    gm_program: 42
+    section: false
+    polyphony: 1
+    pan: 0.35
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 36
+      - 42
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 43
+      - 72
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 73
+      - 84
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Cello Solo Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Cello Solo Pizzicato.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Cello Solo Harmonics.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Cello Solo Staccato.sfz
+      unavailable:
+      - col_legno
+      - sul_ponticello
+      - tremolo
+      key_ranges:
+        arco:
+        - - 36
+          - 84
+        pizzicato:
+        - - 36
+          - 84
+        harmonics:
+        - - 36
+          - 84
+        staccato:
+        - - 36
+          - 84
+  bass:
+    family: strings
+    range: &id007
+    - 28
+    - 67
+    comfortable: &id008
+    - 33
+    - 55
+    sounding_minus_written: -12
+    clefs:
+    - bass
+    - tenor
+    music21: Contrabass
+    gm_program: 43
+    section: false
+    polyphony: 1
+    pan: 0.65
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 28
+      - 32
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 33
+      - 55
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 56
+      - 67
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Bass Solo Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Bass Solo Pizzicato.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Bass Solo Harmonics.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Bass Solo Staccato.sfz
+      unavailable:
+      - col_legno
+      - sul_ponticello
+      - tremolo
+      key_ranges:
+        arco:
+        - - 24
+          - 67
+        pizzicato:
+        - - 24
+          - 67
+        harmonics:
+        - - 24
+          - 67
+        staccato:
+        - - 24
+          - 67
+  violin_1_section:
+    family: strings
+    range: *id001
+    comfortable: *id002
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Violin
+    gm_program: 48
+    section: true
+    polyphony: 1
+    pan: -0.7
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 55
+      - 59
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 60
+      - 91
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 92
+      - 103
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Pizzicato.sfz
+        col_legno: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Col
+          Legno.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Harmonics.sfz
+        tremolo: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Tremolo.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/1st Violins Staccato.sfz
+      unavailable:
+      - sul_ponticello
+      key_ranges:
+        arco:
+        - - 55
+          - 96
+        pizzicato:
+        - - 55
+          - 96
+        col_legno:
+        - - 55
+          - 96
+        harmonics:
+        - - 55
+          - 96
+        tremolo:
+        - - 55
+          - 96
+        staccato:
+        - - 55
+          - 96
+  violin_2_section:
+    family: strings
+    range: *id001
+    comfortable: *id002
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Violin
+    gm_program: 48
+    section: true
+    polyphony: 1
+    pan: -0.4
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 55
+      - 59
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 60
+      - 91
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 92
+      - 103
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Pizzicato.sfz
+        col_legno: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Col
+          Legno.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Harmonics.sfz
+        tremolo: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Tremolo.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/2nd Violins Staccato.sfz
+      unavailable:
+      - sul_ponticello
+      key_ranges:
+        arco:
+        - - 55
+          - 96
+        pizzicato:
+        - - 55
+          - 96
+        col_legno:
+        - - 55
+          - 96
+        harmonics:
+        - - 55
+          - 96
+        tremolo:
+        - - 55
+          - 96
+        staccato:
+        - - 55
+          - 96
+  viola_section:
+    family: strings
+    range: *id003
+    comfortable: *id004
+    sounding_minus_written: 0
+    clefs:
+    - alto
+    - treble
+    music21: Viola
+    gm_program: 48
+    section: true
+    polyphony: 1
+    pan: -0.05
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 48
+      - 52
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 53
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 88
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Violas Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Violas Pizzicato.sfz
+        col_legno: Sonatina Symphonic Orchestra/Strings - Notation/Violas Col Legno.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Violas Harmonics.sfz
+        tremolo: Sonatina Symphonic Orchestra/Strings - Notation/Violas Tremolo.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Violas Staccato.sfz
+      unavailable:
+      - sul_ponticello
+      key_ranges:
+        arco:
+        - - 48
+          - 84
+        pizzicato:
+        - - 48
+          - 84
+        col_legno:
+        - - 48
+          - 84
+        harmonics:
+        - - 48
+          - 84
+        tremolo:
+        - - 48
+          - 84
+        staccato:
+        - - 48
+          - 84
+  cello_section:
+    family: strings
+    range: *id005
+    comfortable: *id006
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    - tenor
+    - treble
+    music21: Violoncello
+    gm_program: 48
+    section: true
+    polyphony: 1
+    pan: 0.35
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 36
+      - 42
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 43
+      - 72
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 73
+      - 84
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Celli Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Celli Pizzicato.sfz
+        col_legno: Sonatina Symphonic Orchestra/Strings - Notation/Celli Col Legno.sfz
+        harmonics: Sonatina Symphonic Orchestra/Strings - Notation/Celli Harmonics.sfz
+        tremolo: Sonatina Symphonic Orchestra/Strings - Notation/Celli Tremolo.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Celli Staccato.sfz
+      unavailable:
+      - sul_ponticello
+      key_ranges:
+        arco:
+        - - 36
+          - 73
+        pizzicato:
+        - - 36
+          - 73
+        col_legno:
+        - - 36
+          - 73
+        harmonics:
+        - - 36
+          - 73
+        tremolo:
+        - - 36
+          - 73
+        staccato:
+        - - 36
+          - 73
+  bass_section:
+    family: strings
+    range: *id007
+    comfortable: *id008
+    sounding_minus_written: -12
+    clefs:
+    - bass
+    - tenor
+    music21: Contrabass
+    gm_program: 48
+    section: true
+    polyphony: 1
+    pan: 0.65
+    gain_db: 0
+    colours:
+    - dark
+    - glassy
+    techniques:
+    - arco
+    - pizzicato
+    - col_legno
+    - sul_ponticello
+    - harmonics
+    - tremolo
+    - glissando
+    - staccato
+    dynamic_registers:
+    - range:
+      - 28
+      - 32
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 33
+      - 55
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 56
+      - 67
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 12
+    samples:
+      library: sso
+      patches:
+        arco: Sonatina Symphonic Orchestra/Strings - Notation/Basses Sustain.sfz
+        pizzicato: Sonatina Symphonic Orchestra/Strings - Notation/Basses Pizzicato.sfz
+        col_legno: Sonatina Symphonic Orchestra/Strings - Notation/Basses Col Legno.sfz
+        tremolo: Sonatina Symphonic Orchestra/Strings - Notation/Basses Tremolo.sfz
+        staccato: Sonatina Symphonic Orchestra/Strings - Notation/Basses Staccato.sfz
+      unavailable:
+      - sul_ponticello
+      - harmonics
+      key_ranges:
+        arco:
+        - - 24
+          - 60
+        pizzicato:
+        - - 24
+          - 60
+        col_legno:
+        - - 24
+          - 57
+        tremolo:
+        - - 24
+          - 60
+        staccato:
+        - - 24
+          - 60
+  timpani:
+    family: percussion
+    range:
+    - 36
+    - 60
+    comfortable:
+    - 43
+    - 55
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    music21: Timpani
+    gm_program: 47
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 36
+      - 42
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 43
+      - 55
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 56
+      - 60
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Timpani.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 36
+          - 48
+      notes: Only the hit map is used. Higher SFZ trigger octaves select rolls/crescendos,
+        not the written sounding pitch; they are excluded.
+    percussion_family: membrane
+    drums: 5
+    range_reference: https://www.trpercussion.com/en/pitch-range-and-notation.html
+  glockenspiel:
+    family: percussion
+    range:
+    - 79
+    - 108
+    comfortable:
+    - 84
+    - 103
+    sounding_minus_written: 24
+    clefs:
+    - treble
+    music21: Glockenspiel
+    gm_program: 9
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 79
+      - 83
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 84
+      - 103
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 104
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Glockenspiel.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 84
+    percussion_family: metal
+  xylophone:
+    family: percussion
+    range:
+    - 65
+    - 108
+    comfortable:
+    - 72
+    - 100
+    sounding_minus_written: 12
+    clefs:
+    - treble
+    music21: Xylophone
+    gm_program: 13
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 65
+      - 71
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 72
+      - 100
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 101
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Xylophone.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 43
+          - 82
+    percussion_family: wood
+  vibraphone:
+    family: percussion
+    range:
+    - 53
+    - 89
+    comfortable:
+    - 58
+    - 84
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Vibraphone
+    gm_program: 11
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 53
+      - 57
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 58
+      - 84
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 85
+      - 89
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Vibraphone.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 89
+    percussion_family: metal
+  marimba:
+    family: percussion
+    range:
+    - 36
+    - 96
+    comfortable:
+    - 48
+    - 89
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Marimba
+    gm_program: 12
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 36
+      - 47
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 48
+      - 89
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 90
+      - 96
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Marimba Hits.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 36
+          - 96
+    percussion_family: wood
+  tubular_bells:
+    family: percussion
+    range:
+    - 60
+    - 77
+    comfortable:
+    - 62
+    - 76
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: TubularBells
+    gm_program: 14
+    section: false
+    polyphony: 1
+    pan: 0.4
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 60
+      - 61
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 62
+      - 76
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 77
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Chimes.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 84
+    percussion_family: metal
+  bass_drum:
+    family: percussion
+    range: &id009
+    - 48
+    - 48
+    comfortable:
+    - 48
+    - 48
+    sounding_minus_written: 0
+    clefs:
+    - percussion
+    music21: BassDrum
+    gm_program: 0
+    section: false
+    polyphony: 1
+    pan: 0.45
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range: *id009
+      velocity:
+      - 20
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Bass Drum & Snare.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 50
+    unpitched: true
+    percussion_family: membrane
+    sample_key: 48
+  snare:
+    family: percussion
+    range: &id010
+    - 49
+    - 49
+    comfortable:
+    - 49
+    - 49
+    sounding_minus_written: 0
+    clefs:
+    - percussion
+    music21: SnareDrum
+    gm_program: 0
+    section: false
+    polyphony: 1
+    pan: 0.45
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range: *id010
+      velocity:
+      - 20
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Bass Drum & Snare.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 50
+    unpitched: true
+    percussion_family: membrane
+    sample_key: 49
+  cymbals:
+    family: percussion
+    range: &id011
+    - 55
+    - 55
+    comfortable:
+    - 55
+    - 55
+    sounding_minus_written: 0
+    clefs:
+    - percussion
+    music21: CrashCymbals
+    gm_program: 0
+    section: false
+    polyphony: 1
+    pan: 0.45
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range: *id011
+      velocity:
+      - 20
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Cymbals & Tamtam.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 48
+        - - 50
+          - 50
+        - - 52
+          - 53
+        - - 55
+          - 55
+        - - 57
+          - 57
+        - - 59
+          - 60
+    unpitched: true
+    percussion_family: metal
+    sample_key: 55
+  tam_tam:
+    family: percussion
+    range: &id012
+    - 57
+    - 57
+    comfortable:
+    - 57
+    - 57
+    sounding_minus_written: 0
+    clefs:
+    - percussion
+    music21: TamTam
+    gm_program: 0
+    section: false
+    polyphony: 1
+    pan: 0.45
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range: *id012
+      velocity:
+      - 20
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Cymbals & Tamtam.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 48
+          - 48
+        - - 50
+          - 50
+        - - 52
+          - 53
+        - - 55
+          - 55
+        - - 57
+          - 57
+        - - 59
+          - 60
+    unpitched: true
+    percussion_family: metal
+    sample_key: 57
+  harp:
+    family: plucked
+    range:
+    - 24
+    - 103
+    comfortable:
+    - 36
+    - 91
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    - bass
+    music21: Harp
+    gm_program: 46
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - woody
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 24
+      - 35
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 36
+      - 91
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 92
+      - 103
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Concert Harp.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 36
+          - 96
+  celesta:
+    family: keyboard
+    range:
+    - 60
+    - 108
+    comfortable:
+    - 65
+    - 101
+    sounding_minus_written: 12
+    clefs:
+    - treble
+    - bass
+    music21: Celesta
+    gm_program: 8
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 60
+      - 64
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 65
+      - 101
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 102
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Percussion/Celeste.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 60
+          - 108
+  piano:
+    family: keyboard
+    range:
+    - 21
+    - 108
+    comfortable:
+    - 36
+    - 96
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    - bass
+    music21: Piano
+    gm_program: 0
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 21
+      - 35
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 36
+      - 96
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 97
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Grand Piano/Grand Piano.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 21
+          - 108
+  organ:
+    family: keyboard
+    range:
+    - 24
+    - 108
+    comfortable:
+    - 36
+    - 96
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    - bass
+    music21: PipeOrgan
+    gm_program: 19
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 24
+      - 35
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 36
+      - 96
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 97
+      - 108
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Organ/Organ Combinations.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 36
+          - 91
+  harpsichord:
+    family: keyboard
+    range:
+    - 29
+    - 89
+    comfortable:
+    - 36
+    - 84
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    - bass
+    music21: Harpsichord
+    gm_program: 6
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 29
+      - 35
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 36
+      - 84
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 85
+      - 89
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Harpsichord/Harpsichord 8'.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 29
+          - 89
+  guitar:
+    family: plucked
+    range:
+    - 40
+    - 88
+    comfortable:
+    - 45
+    - 79
+    sounding_minus_written: -12
+    clefs:
+    - treble
+    music21: Guitar
+    gm_program: 24
+    section: false
+    polyphony: 6
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - woody
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 40
+      - 44
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 45
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 88
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: shinyguitar
+      patches:
+        sustain: Programs/acoustic.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 33
+          - 91
+  accordion:
+    family: keyboard
+    range:
+    - 41
+    - 96
+    comfortable:
+    - 48
+    - 89
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    - bass
+    music21: Accordion
+    gm_program: 21
+    section: false
+    polyphony: 8
+    pan: -0.5
+    gain_db: 0
+    colours:
+    - glassy
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 41
+      - 47
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 48
+      - 89
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 90
+      - 96
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: null
+    samples:
+      library: button_accordion
+      patches:
+        sustain: PRESET Button Accordion HN tuned.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 0
+          - 127
+  soprano:
+    family: voice
+    range: &id013
+    - 60
+    - 84
+    comfortable: &id014
+    - 64
+    - 79
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Soprano
+    gm_program: 53
+    section: false
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 60
+      - 63
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 64
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 84
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: null
+      patches: {}
+      unavailable:
+      - sustain
+      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      key_ranges: {}
+  soprano_choir:
+    family: voice
+    range: *id013
+    comfortable: *id014
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Soprano
+    gm_program: 52
+    section: true
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 60
+      - 63
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 64
+      - 79
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 80
+      - 84
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Chorus - Notation/Mixed Chorus.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 43
+          - 84
+  alto:
+    family: voice
+    range: &id015
+    - 53
+    - 77
+    comfortable: &id016
+    - 57
+    - 72
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Alto
+    gm_program: 53
+    section: false
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 53
+      - 56
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 57
+      - 72
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 73
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: null
+      patches: {}
+      unavailable:
+      - sustain
+      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      key_ranges: {}
+  alto_choir:
+    family: voice
+    range: *id015
+    comfortable: *id016
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Alto
+    gm_program: 52
+    section: true
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 53
+      - 56
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 57
+      - 72
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 73
+      - 77
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Chorus - Notation/Mixed Chorus.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 43
+          - 84
+  tenor:
+    family: voice
+    range: &id017
+    - 48
+    - 72
+    comfortable: &id018
+    - 52
+    - 67
+    sounding_minus_written: 0
+    clefs:
+    - treble8vb
+    music21: Tenor
+    gm_program: 53
+    section: false
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 48
+      - 51
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 52
+      - 67
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 68
+      - 72
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: null
+      patches: {}
+      unavailable:
+      - sustain
+      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      key_ranges: {}
+  tenor_choir:
+    family: voice
+    range: *id017
+    comfortable: *id018
+    sounding_minus_written: 0
+    clefs:
+    - treble8vb
+    music21: Tenor
+    gm_program: 52
+    section: true
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 48
+      - 51
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 52
+      - 67
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 68
+      - 72
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Chorus - Notation/Mixed Chorus.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 43
+          - 84
+  bass_voice:
+    family: voice
+    range: &id019
+    - 40
+    - 64
+    comfortable: &id020
+    - 45
+    - 60
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    music21: Bass
+    gm_program: 53
+    section: false
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 40
+      - 44
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 45
+      - 60
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 61
+      - 64
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: null
+      patches: {}
+      unavailable:
+      - sustain
+      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      key_ranges: {}
+  bass_voice_choir:
+    family: voice
+    range: *id019
+    comfortable: *id020
+    sounding_minus_written: 0
+    clefs:
+    - bass
+    music21: Bass
+    gm_program: 52
+    section: true
+    polyphony: 1
+    pan: 0
+    gain_db: 0
+    colours:
+    - dark
+    techniques:
+    - sustain
+    dynamic_registers:
+    - range:
+      - 40
+      - 44
+      velocity:
+      - 35
+      - 100
+    - range:
+      - 45
+      - 60
+      velocity:
+      - 20
+      - 120
+    - range:
+      - 61
+      - 64
+      velocity:
+      - 45
+      - 127
+    phrase_seconds: 8
+    samples:
+      library: sso
+      patches:
+        sustain: Sonatina Symphonic Orchestra/Chorus - Notation/Mixed Chorus.sfz
+      unavailable: []
+      key_ranges:
+        sustain:
+        - - 43
+          - 84
+  dan_tranh:
+    family: plucked
+    range:
+    - 47
+    - 83
+    comfortable:
+    - 52
+    - 78
+    sounding_minus_written: 0
+    clefs:
+    - treble
+    music21: Koto
+    gm_program: 107
+    section: false
+    polyphony: 4
+    pan: -0.2
+    gain_db: 0
+    colours:
+    - woody
+    - glassy
+    techniques:
+    - sustain
+    - tremolo
+    - glissando
+    dynamic_registers:
+    - range:
+      - 47
+      - 83
+      velocity:
+      - 20
+      - 120
+    phrase_seconds: null
+    samples:
+      library: vcsl
+      patches:
+        sustain: dan_tranh.sfz
+      unavailable:
+      - tremolo
+      notes: 16-string Vietnamese dan tranh; VCSL filenames use C3=middle C, mapped
+        +12 to scientific MIDI. Fixed recorded pentatonic tuning; chromatic notes
+        are sample transpositions.
+      key_ranges:
+        sustain:
+        - - 47
+          - 83

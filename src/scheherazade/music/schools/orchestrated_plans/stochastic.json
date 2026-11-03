@@ -1,0 +1,45 @@
+{
+  "title": "stochastic",
+  "school": "stochastic",
+  "seed": 2026110300,
+  "duration": 60,
+  "ensemble": "string_orchestra",
+  "tempo": 72,
+  "form": [
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.95,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "ff"
+    },
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 1,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "fff"
+    },
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.85,
+      "register": [
+        28,
+        96
+      ],
+      "dynamic": "ff"
+    }
+  ],
+  "orchestration": "symphony_orchestra",
+  "colour": "brassy",
+  "audio_profile": "native_sfz",
+  "doublings": true,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

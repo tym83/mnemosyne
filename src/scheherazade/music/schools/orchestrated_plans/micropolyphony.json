@@ -1,0 +1,45 @@
+{
+  "title": "micropolyphony",
+  "school": "micropolyphony",
+  "seed": 2026110301,
+  "duration": 60,
+  "ensemble": "string_quartet",
+  "tempo": 60,
+  "form": [
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.8,
+      "register": [
+        60,
+        67
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.9,
+      "register": [
+        61,
+        68
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.7,
+      "register": [
+        62,
+        69
+      ],
+      "dynamic": "ppp"
+    }
+  ],
+  "orchestration": "string_orchestra",
+  "colour": "dark",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

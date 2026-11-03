@@ -1,0 +1,46 @@
+{
+  "title": "process",
+  "school": "process",
+  "seed": 2026110305,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "pulse",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "flowing",
+      "density": 0.8,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "mp"
+    },
+    {
+      "duration": 60,
+      "character": "flowing",
+      "density": 0.9,
+      "register": [
+        43,
+        88
+      ],
+      "dynamic": "mf"
+    },
+    {
+      "duration": 60,
+      "character": "flowing",
+      "density": 0.85,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "mp"
+    }
+  ],
+  "orchestration": "four_pianos",
+  "colour": "glassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}

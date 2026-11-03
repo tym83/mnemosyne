@@ -4,7 +4,7 @@ A channel can play a chord only when all its pitches have the same bend.
 Reject incompatible chords rather than silently detuning their notes.
 """
 import struct
-from music21 import articulations, dynamics, spanner
+from music21 import articulations, dynamics, spanner, note
 
 
 def vlq(n):
@@ -16,6 +16,8 @@ def vlq(n):
 
 
 def velocity(n):
+    if n.volume.velocity is not None:
+        return max(1, min(127, int(n.volume.velocity)))
     dynamic = n.getContextByClass(dynamics.Dynamic)
     return max(8, min(127, round(127*(dynamic.volumeScalar if dynamic else .5))))
 
@@ -27,6 +29,9 @@ def sounding_events(part):
     merged = []
     for n in notes:
         pitches = tuple(p.ps for p in n.pitches)
+        if isinstance(n, note.Unpitched):
+            ins=part.recurse().getElementsByClass('Instrument').first()
+            pitches=(getattr(ins, "percMapPitch", None) if getattr(ins, "percMapPitch", None) is not None else 35,)
         if n.tie and n.tie.type in ('continue', 'stop') and merged and merged[-1][3] == pitches:
             merged[-1][1] += float(n.quarterLength)
         else:
@@ -58,15 +63,17 @@ def sounding_events(part):
 
 
 def write_midi(score, path, bpm, orchestral=False):
-    if len(score.parts) > 15:
-        raise ValueError('pitch-bend playback supports at most 15 parts')
     tracks = []
     for i, part in enumerate(score.parts):
-        channel = i if i < 9 else i+1
+        local_channel = i % 15
+        channel = local_channel if local_channel < 9 else local_channel+1
         ins = part.recurse().getElementsByClass('Instrument').first()
+        if getattr(ins, 'midiChannel', None) == 9:
+            channel=9
         program = 48 if orchestral and ins.midiProgram == 40 else ins.midiProgram
-        events = [(0, 0, bytes([0xC0|channel, program]))]
-        for cc, value in ((101,0),(100,0),(6,12),(38,0),(101,127),(100,127),(10,round(25+77*i/max(1,len(score.parts)-1)))):
+        events = [(0, -2, b'\xff\x21\x01'+bytes([i//15])),
+                  (0, 0, bytes([0xC0|channel, program]))]
+        for cc, value in ((101,0),(100,0),(6,12),(38,0),(101,127),(100,127),(10,(64 if len(score.parts)==1 else round(25+77*i/max(1,len(score.parts)-1))))):
             events.append((0, 0, bytes([0xB0|channel, cc, value])))
         if i == 0:
             events.append((0, -1, b'\xff\x51\x03'+round(60000000/bpm).to_bytes(3,'big')))

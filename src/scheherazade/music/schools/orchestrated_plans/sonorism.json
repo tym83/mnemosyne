@@ -1,0 +1,51 @@
+{
+  "title": "sonorism",
+  "school": "sonorism",
+  "seed": 2026110309,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "string_orchestra",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.9,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "ff"
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 1,
+      "register": [
+        28,
+        103
+      ],
+      "dynamic": "fff"
+    },
+    {
+      "duration": 60,
+      "character": "flowing",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ],
+      "dynamic": "p"
+    }
+  ],
+  "audio_profile": "native_sfz",
+  "orchestration": "string_orchestra",
+  "colour": "glassy",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment.",
+  "required_techniques": [
+    "sul_ponticello",
+    "col_legno",
+    "bow_pressure"
+  ]
+}

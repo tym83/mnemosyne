@@ -1,0 +1,49 @@
+{
+  "title": "tintinnabuli",
+  "school": "tintinnabuli",
+  "seed": 2026110303,
+  "duration": 60,
+  "ensemble": "string_quartet",
+  "tempo": 48,
+  "form": [
+    {
+      "duration": 20.0,
+      "character": "still",
+      "density": 0.2,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "pp"
+    },
+    {
+      "duration": 20.0,
+      "character": "still",
+      "density": 0.25,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "p"
+    },
+    {
+      "duration": 20.0,
+      "character": "still",
+      "density": 0.15,
+      "register": [
+        48,
+        84
+      ],
+      "dynamic": "ppp"
+    }
+  ],
+  "orchestration": "bells_and_strings",
+  "colour": "glassy",
+  "audio_profile": "native_sfz",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment.",
+  "line_instruments": {
+    "0": "violin",
+    "1": "tubular_bells"
+  }
+}
