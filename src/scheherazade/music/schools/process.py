@@ -1,10 +1,11 @@
 """One pattern, continuous phase displacement, then addition and substitution."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, grid, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'process')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'process', choices=choices)
     cell = [rng.choice([60, 62, 64, 67, 69]) for _ in range(8)]
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

@@ -1,11 +1,12 @@
 """Quarter-tone bands and parallel glissando fields, with synthetic bow techniques."""
 from music21 import spanner
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'sonorism')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'sonorism', choices=choices)
     centre = rng.choice([60, 62, 64])
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

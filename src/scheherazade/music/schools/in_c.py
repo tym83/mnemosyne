@@ -1,10 +1,11 @@
 """Original shared modules, independent repeats, at most two modules apart."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'in_c')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'in_c', choices=choices)
     modules = [[rng.choice([0, 2, 5, 7, 9]) for _ in range(n)] for n in (3, 5, 2, 7, 4, 6, 3, 5)]
     for start, end, sec in sections:
         positions = [0] * len(score.parts)

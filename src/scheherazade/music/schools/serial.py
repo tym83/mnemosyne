@@ -1,6 +1,7 @@
 """Complete P/I/R/RI aggregates distributed as a mirrored timbral pointillism."""
 from music21 import articulations
 from music21 import stream
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, nearest, put, finish
 
 
@@ -9,8 +10,8 @@ def row_forms(row):
     return [row,inv,row[::-1],inv[::-1]]
 
 
-def compose(plan: dict, seed: int) -> stream.Score:
-    score,rng,sections,total = setup(plan,seed,'serial')
+def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
+    score,rng,sections,total = setup(plan,seed,'serial', choices=choices)
     row = list(range(12))
     rng.shuffle(row)
     forms = row_forms(row)

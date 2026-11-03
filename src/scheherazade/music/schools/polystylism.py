@@ -1,13 +1,14 @@
 """Archived atelier quotation collides with a displaced chromatic layer."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
     quotation = plan.get('quotation')
     if not quotation or not quotation.get('events') or not quotation.get('sha256'):
         raise ValueError('polystylism requires archived quotation events and source SHA-256')
-    score, rng, sections, total = setup(plan, seed, 'polystylism')
+    score, rng, sections, total = setup(plan, seed, 'polystylism', choices=choices)
     shift = rng.choice([0, 2, 5])
     period = quotation['quarters']
     for s, (start, end, sec) in enumerate(sections):

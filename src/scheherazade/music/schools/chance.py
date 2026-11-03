@@ -1,4 +1,5 @@
 """Six seeded coin lines select independent pitch, duration, silence and dynamic."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, put, finish
 from .material import mark
 
@@ -7,8 +8,8 @@ def oracle(rng):
     return sum((sum(rng.randrange(2) for _ in range(3)) % 2) << bit for bit in range(6))
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'chance')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'chance', choices=choices)
     for start, end, sec in sections:
         for part, name in zip(score.parts, ENSEMBLES[plan['ensemble']]):
             at = start

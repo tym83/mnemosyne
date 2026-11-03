@@ -3,9 +3,21 @@
 Each module exposes `compose(plan: dict, seed: int) -> music21.stream.Score`.
 These are explicitly limited rule systems inspired by compositional techniques,
 not models of the named composers or assessments of artistic quality. They do
-not call an LLM. A local Python `random.Random(seed)` owns all choices. Retain
+not call an LLM. By default an unmodified Python `random.Random(seed)` owns all choices. Retain
 the plan, seed, grammar source/version and Python/music21 versions for replay.
-No backup payload codec is claimed: `weave/` is left untouched.
+Every composer also accepts keyword-only `choices: ChoiceSource | None` (see
+`choices.py`). A supplied source owns all grammar draws and supersedes the seed;
+the caller owns its state. Omitting it preserves the previous seeded output.
+This interface is not yet an invertible payload channel. Six schools have only
+two or three possible scores per plan, and some other schools discard RNG
+outcomes. Changing the RNG cannot recover discarded information or expand that
+support without changing the musical grammar.
+
+Run `uv run python -m scheherazade.weave.school_capacity` to create
+`out/works/music/schools/CAPACITY.md`. It measures the six single-choice schools
+through MusicXML and distinguishes source-alphabet upper bounds from unmeasured
+capacity for the remaining schools. Existing reports are preserved; use
+`--output` for a new audit. Grammar expansion needs the author's decision.
 
 ## Plan contract
 
@@ -170,3 +182,153 @@ uv run python -m unittest discover -s tests -p 'test_music*.py'
 ```
 
 The catalog checks every published artifact hash before writing `INDEX.md`.
+
+## Shared instrumentarium and native SFZ rendering
+
+The old SF2 profile above remains for replay of archived works. New realizations
+use `audio_profile: "native_sfz"`. `music/instruments.yaml` separates sounding
+instrument ranges, comfortable ranges, written transposition, clefs, practical
+velocity bounds, phrasing, seating, and **actual sampled key ranges**. A real
+instrument's range is not a promise that its sample patch covers that range.
+Velocity bounds and balance are configurable heuristics, not measured physical
+limits. `music/ensembles.yaml` defines the named ensembles, player counts and
+section divisions; the version-2 material voice counts are retained separately
+as `legacy_voices`. A quartet now uses four solo sample instruments, including
+solo viola and cello. Five section identities are separate from the solo strings.
+
+A school plan retains its `ensemble` for the existing grammar's material voices
+and adds `orchestration`, either a named ensemble or a list such as:
+
+```json
+[
+  {"instrument": "flute", "count": 2},
+  {"instrument": "horn", "count": 2},
+  {"instrument": "violin_1_section", "players": 8, "divisi": 2},
+  {"instrument": "cello_section", "players": 4, "divisi": 2}
+]
+```
+
+For new non-school compositions, `orchestration.orchestrate(lines, plan)` accepts
+`Line`/`Event` objects directly; `ensemble` itself can then be a custom list.
+Roles are `melody`, `bass`, `harmony_pad`, `counter_line`, `figuration`,
+`cluster_field`, and `percussion_layer`. Register and event pitches are sounding
+MIDI; onset/duration are quarter notes. Lines carry density, colour and optional
+mandatory instrument. Stable assignment considers range, sample coverage,
+colour (`dark`, `glassy`, `brassy`, `woody`), role and available players. Chords
+split across divisi when no eligible polyphonic instrument can play them.
+An impossible assignment raises an error, rather than dropping notes or changing
+pitch. `doublings: true` permits loud melody/bass unisons on available players.
+Winds get actual breathing rests; long strings get bow-change attacks. Every
+assignment, dynamic clamp and breath is recorded in `orchestration.json`.
+
+`line_roles`, `line_colours` and `line_instruments` are optional dictionaries
+indexed by the material voice number as a string. They override the adapter's
+inference. This layer is a feasibility heuristic, not an autonomous artistic
+orchestrator. The school algorithms still own their rhythms and pitch processes;
+the adapter preserves their pitches, dynamics and glissandi before assigning
+playable parts. `orchestrated_plans/` contains separate revised realizations of
+all nineteen studies; the original plans and published works are preserved.
+The narrow Ligeti registers are explicitly permitted by that grammar. Xenakis
+uses wide registral mass and ff/fff, Webern is a 24-second sparse point study,
+and Pärt uses a bell/strings ensemble and stillness. Other profiles follow the
+methods already documented above. They remain technical studies, not claims
+of artistic authenticity.
+
+### Native sample and audio path
+
+`music.sample_bank --native` delegates to `native_bank`; the old eight-preset
+conversion is no longer used by this profile. Pinned Sonatina SFZ, Shinyguitar,
+FreePats Button Accordion and a VCSL dan tranh subset retain stereo, velocity
+layers, loops and all round-robin takes. Native source files remain unchanged.
+Working SFZ copies resolve historical filename-case differences and paths,
+convert uniform random take selection into deterministic round-robin cycling,
+and declare a ±12-semitone pitch wheel range. These working copies travel with
+the work. SFZ playback uses sfizz 1.2.3, not a partial home-made synthesizer.
+Some upstream patches derive harmonics/legato from transformed samples; the
+library's README documents that. A patch is not evidence of separately recorded
+extended techniques.
+
+Each instrument/articulation has its own stereo stem and sampler instance.
+Consequently audio is independent of MIDI's 16-channel limit. Preview MIDI uses
+multiple ports (15 pitched channels per port, channel 10 for percussion).
+MusicXML receives corresponding port metadata. Stems are balanced and seated,
+then convolved with the OpenAIR Jack Lyons Hall response (central seating D22,
+B-format decoded to stereo). A measured **constant** gain targets −20 LUFS,
+limited by −1.5 dBTP headroom; the report explicitly says when the loudness target
+cannot be reached without reducing dynamic contrast. The complete four-second
+IR tail is retained. This is not a compressor or time-varying normalization.
+
+Full scores are transposed for players and checked by returning MusicXML to
+sounding pitch. Large scores use A3/A2 paper. Each player/divisi group has an
+extracted PDF; section musicians receive copies of their assigned group part.
+Unpitched percussion uses percussion notation, not displayed SFZ trigger pitches.
+Raw WAV stems, intermediate mixes and failed attempts stay in `.drafts` in the
+studio. Published files include the plan, orchestration decisions, score, parts,
+MIDI, MP3, analysis, source snapshots, normalized SFZ mappings, sample hashes,
+licences, credits, and a manifest written last. Existing successful works are
+verified and never overwritten.
+
+### Availability and honest limitations
+
+The registry currently describes 48 instruments and 21 named ensembles.
+Four solo vocal types are **not sample-backed**: no verified free solo S/A/T/B
+set was found. Choir samples are explicitly section instruments and are never
+substituted for solo voices; `voice_and_piano` therefore fails preflight.
+`dan_tranh` is the non-Western instrument currently provided; no gamelan set or
+shakuhachi is claimed. The VCSL recorded pentatonic tuning is documented in its
+mapping; chromatic playback transposes the nearest recording.
+
+Unavailable techniques (including sul ponticello, bow pressure, wind
+multiphonics, and muted/stopped brass in these selected patches) are declared
+rather than replaced by generic sustain. `sonorism` and `chance` require an
+explicit decision about retaining their former procedural realization versus
+waiting for acoustic samples. Their new native runs report this limitation.
+The complete upstream Sonatina README is included because it describes mixed
+historical sample provenance. OpenAIR's dataset page was unavailable during
+implementation; its CC BY 4.0 designation was corroborated by redistributors,
+not reverified on that page. These limitations are retained in the library
+manifest, not hidden behind a successful download.
+
+### Run and verify
+
+All audio rendering, downloads and engraving run in `studio-0` on ws1, namespace
+`tenant-scheherazade`. No artist/LLM is invoked. The environment needs
+`music21`, `numpy`, `pyyaml`, `ffmpeg`, `musicxml2ly`, `lilypond`, and
+`/work/sfizz-build/library/bin/sfizz_render` (1.2.3).
+
+```sh
+bash hack/workshop/render_ensembles.sh
+# Or selected entries; completed artifacts are checked and reused:
+bash hack/workshop/render_ensembles.sh --mode demos --only wind_quintet string_quartet
+uv run python -m unittest discover -s tests -p 'test_instrumentarium.py'
+uv run python -m unittest discover -s tests -p 'test_music*.py'
+uv run python -m scheherazade.music.distinctness out/works/music/ensembles/schools \
+  --out out/works/music/ensembles/distinctness.json
+```
+
+The render script transfers verified completed artifacts to
+`out/works/music/ensembles/<ensemble>/`; school realizations are in its `schools/`
+subdirectory. It also transfers failure reports and exits nonzero if any requested
+entry failed, even when others succeeded. Use a new `INSTRUMENTARIUM_RUN` value
+for changed inputs, and preserve existing local works by choosing a new output
+location before transferring a changed realization.
+
+`distinctness` compares completed school scores using six feature groups:
+register statistics, attack density, interval classes, duration distribution,
+dynamic distribution and timbre usage. It reports the ten closest pairs and
+rejects exact feature duplicates. Distances are descriptive, not listening
+approval and not a claim that every study sounds distinct to a person.
+
+The existing symphony assembler also routes each selected movement through this
+layer by default (`music.assemble symphony --sample-bank ...`). Its optional
+`--orchestration-plan` supplies ensemble/colour/line assignments; it archives the
+original movement XML and key transposition in the plan. Existing output folders
+are refused. `--legacy-soundfont` explicitly selects the former renderer.
+At present this adapter accepts constant-tempo movements only: a changing tempo
+map is rejected rather than flattened. The four-movement assembler itself is
+not an artist and does not select new musical material.
+
+To reproduce the studio's sfizz build, run
+`bash hack/workshop/prepare_instrumentarium.sh` before rendering. It installs
+build dependencies and compiles the pinned 1.2.3 release in `studio-0` with two
+low-priority build jobs. Its source archive remains in `/work`.

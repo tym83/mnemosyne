@@ -1,5 +1,6 @@
 """Shared canon at sqrt(2), sqrt(3), golden-ratio speeds with integrated acceleration."""
 import math
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, grid, mark
 
@@ -11,8 +12,8 @@ def onset(index, ratio, span):
     return span * (math.sqrt(1+2*index/(ratio*span))-1)
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'tempo_canon')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'tempo_canon', choices=choices)
     cell = rng.sample(range(12), 9)
     for start, end, sec in sections:
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

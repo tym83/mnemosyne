@@ -1,4 +1,5 @@
 """Limited-transposition mode, palindromic rhythms, added values and bird figures."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
@@ -6,8 +7,8 @@ MODE = (0, 1, 3, 4, 6, 7, 9, 10)
 RHYTHM = (1, .5, 1.5, .5, 1)
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'messiaen')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'messiaen', choices=choices)
     transposition = rng.randrange(3)
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

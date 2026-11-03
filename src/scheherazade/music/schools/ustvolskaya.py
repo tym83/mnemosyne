@@ -1,11 +1,12 @@
 """Hammered chromatic blocks against stark unisons and ascetic repetitions."""
 from music21 import articulations
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'ustvolskaya')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'ustvolskaya', choices=choices)
     centre = rng.choice([60, 62, 65])
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

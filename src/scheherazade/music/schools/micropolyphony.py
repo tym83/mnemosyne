@@ -1,10 +1,11 @@
 """Close chromatic canons, independent speeds and continuous slow registral drift."""
 from music21 import stream
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, put, finish
 
 
-def compose(plan: dict, seed: int) -> stream.Score:
-    score,rng,sections,total = setup(plan,seed,'micropolyphony')
+def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
+    score,rng,sections,total = setup(plan,seed,'micropolyphony', choices=choices)
     motif = [0]
     for _ in range(23):
         motif.append(max(-2,min(2,motif[-1]+rng.choice([-1,1]))))

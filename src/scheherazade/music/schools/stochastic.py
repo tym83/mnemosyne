@@ -1,11 +1,12 @@
 """Quantized Poisson arrivals (exponential gaps), modular pitch sieves and glissandi."""
 from music21 import articulations, spanner
 from music21 import stream
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, put, finish
 
 
-def compose(plan: dict, seed: int) -> stream.Score:
-    score,rng,sections,total = setup(plan,seed,'stochastic')
+def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
+    score,rng,sections,total = setup(plan,seed,'stochastic', choices=choices)
     phase = rng.randrange(12)
     for i,(part,name) in enumerate(zip(score.parts,ENSEMBLES[plan['ensemble']])):
         for start,end,sec in sections:

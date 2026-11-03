@@ -1,10 +1,11 @@
 """Long, quiet asymmetric cycles; one duration or interval erodes per return."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'feldman')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'feldman', choices=choices)
     cell = [rng.choice([0, 1, 6, 7]) for _ in range(5)]
     for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):
         for start, end, sec in sections:

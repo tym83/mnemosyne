@@ -1,10 +1,11 @@
 """Independent looping cells between synchronous conducted frames."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'aleatoric_counterpoint')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'aleatoric_counterpoint', choices=choices)
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):
             cell = rng.sample(range(12), 4)

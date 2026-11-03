@@ -1,12 +1,13 @@
 """Exact just partials enter slowly; score rounds to quarter tones, audio retains cents."""
 import math
 from music21 import dynamics
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'drone')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'drone', choices=choices)
     fundamental = plan.get('fundamental', 36)+rng.choice([0, 2])
     for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):
         partial = len(score.parts)-i

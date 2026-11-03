@@ -1,11 +1,12 @@
 """Diatonic M walks paired with nearest alternating upper/lower tonic T tones."""
 from music21 import articulations
 from music21 import stream
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, put, finish
 
 
-def compose(plan: dict, seed: int) -> stream.Score:
-    score,rng,sections,total = setup(plan,seed,'tintinnabuli')
+def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
+    score,rng,sections,total = setup(plan,seed,'tintinnabuli', choices=choices)
     tonic = int(plan.get('tonic',60)) % 12
     scale = {(tonic+x)%12 for x in (0,2,3,5,7,8,10)}
     triad = {(tonic+x)%12 for x in (0,3,7)}

@@ -1,10 +1,11 @@
 """Cells grow then contract, over harmony that changes only after whole cycles."""
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'additive')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'additive', choices=choices)
     cell = rng.sample([0, 2, 4, 7, 9], 5)
     for s, (start, end, sec) in enumerate(sections):
         at, cycle = start, 0

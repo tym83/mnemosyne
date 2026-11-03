@@ -1,5 +1,6 @@
 """Orchestrated partials morph from harmonic to stretched spectra, in quarter tones."""
 import math
+from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, put, finish
 from .material import fit, mark
 
@@ -8,8 +9,8 @@ def partial_pitch(fundamental, partial, stretch):
     return round((fundamental + 12 * math.log2(partial ** stretch))*2)/2
 
 
-def compose(plan, seed):
-    score, rng, sections, total = setup(plan, seed, 'spectral')
+def compose(plan, seed, *, choices: ChoiceSource | None = None):
+    score, rng, sections, total = setup(plan, seed, 'spectral', choices=choices)
     fundamental = plan.get('fundamental', 36) + rng.choice([0, 2, 5])
     for s, (start, end, sec) in enumerate(sections):
         for i, (part, name) in enumerate(zip(score.parts, ENSEMBLES[plan['ensemble']])):

@@ -1,27 +1,16 @@
 """Versioned plan contract; all pitches and ranges are sounding MIDI notes."""
 from fractions import Fraction
 import math
-import random
+from .choices import ChoiceSource, SeededChoices
 from music21 import chord, clef, dynamics, expressions, instrument, metadata, meter, note, stream, tempo
 
 VERSION = 2
-# Conservative practical ranges, not extended techniques. C4 = MIDI 60.
-RANGES = {'piano': (21,108), 'violin': (55,103), 'viola': (48,88),
-          'cello': (36,84), 'bass': (28,67), 'flute': (60,96),
-          'clarinet': (50,94), 'soprano': (60,81), 'alto': (55,74),
-          'tenor': (48,69), 'bass_voice': (40,62)}
-ENSEMBLES = {
-    'piano': ['piano', 'piano'],
-    'pulse': ['piano'] * 4,
-    'strings_piano': ['violin', 'viola', 'cello', 'piano'],
-    'string_quartet': ['violin','violin','viola','cello'],
-    'chamber': ['flute','clarinet','violin','cello','piano'],
-    'string_orchestra': ['violin']*4 + ['viola']*2 + ['cello']*2 + ['bass']*2,
-    'satb': ['soprano','alto','tenor','bass_voice'],
-}
-CLASSES = dict(zip(RANGES, [instrument.Piano, instrument.Violin, instrument.Viola,
-    instrument.Violoncello, instrument.Contrabass, instrument.Flute, instrument.Clarinet,
-    instrument.Soprano, instrument.Alto, instrument.Tenor, instrument.Bass]))
+from ..instrumentarium import REGISTRY, LEGACY_VOICES, ENSEMBLE_DATA, notation_instrument
+# Version-2 grammar voices remain stable; playback ensembles live in ensembles.yaml.
+ENSEMBLES = LEGACY_VOICES
+RANGES = {name: tuple(spec['range']) for name,spec in REGISTRY.items()}
+RANGES.update({name: tuple(bounds) for name,bounds in ENSEMBLE_DATA.get('legacy_ranges',{}).items()})
+CLASSES = {name: (lambda name=name: notation_instrument(name)) for name in REGISTRY}
 CHARACTERS = {'still': 'pp', 'flowing': 'p', 'agitated': 'f', 'luminous': 'mp', 'dissolving': 'ppp'}
 
 
@@ -54,16 +43,16 @@ def validate(plan):
         durations.append(length)
         for name in ENSEMBLES[plan['ensemble']]:
             low, high = RANGES[name]
-            if min(high,reg[1])-max(low,reg[0]) < 11:
+            if min(high,reg[1])-max(low,reg[0]) < (1 if plan.get('school') == 'micropolyphony' else 11):
                 raise ValueError(f'register must overlap {name} range by at least an octave')
     if sum(durations) != total:
         raise ValueError('section durations must sum to duration')
     return total, durations
 
 
-def setup(plan, seed, school):
+def setup(plan, seed, school, *, choices: ChoiceSource | None = None):
     total, lengths = validate(plan)
-    rng = random.Random(seed)
+    rng = SeededChoices(seed) if choices is None else choices
     score = stream.Score(id=school)
     score.atSoundingPitch = True
     score.metadata = metadata.Metadata(title=plan.get('title', school))
@@ -82,7 +71,7 @@ def setup(plan, seed, school):
         part.insert(0,meter.TimeSignature('4/4'))
         part.insert(0,tempo.MetronomeMark(number=plan['tempo']))
         for a,b,sec in sections:
-            part.insert(a, dynamics.Dynamic(CHARACTERS[sec['character']]))
+            part.insert(a, dynamics.Dynamic(sec.get('dynamic', CHARACTERS[sec['character']])))
             part.insert(a, expressions.TextExpression(sec['character']))
         score.insert(0,part)
     return score, rng, sections, total
@@ -100,7 +89,9 @@ def nearest(pc, target, low, high):
 def put(part, at, length, pitch, articulation=None):
     if length <= 0:
         return None
-    n = note.Rest(quarterLength=length) if pitch is None else (chord.Chord(pitch, quarterLength=length) if isinstance(pitch, (list, tuple)) else note.Note(float(pitch),quarterLength=length))
+    if isinstance(pitch,(list,tuple)) and len(pitch)==1:
+        pitch=pitch[0]
+    n = note.Rest(quarterLength=length) if pitch is None else (chord.Chord([note.Note(float(p)) for p in pitch], quarterLength=length) if isinstance(pitch, (list, tuple)) else note.Note(float(pitch),quarterLength=length))
     # music21's diatonic instrument transpose loses 1.5-semitone accidentals.
     # Equivalent half-flat spellings survive MusicXML transposition exactly.
     for written in n.pitches:
