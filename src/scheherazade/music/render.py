@@ -67,7 +67,7 @@ def diagnostics(score):
 
 def note_events(score):
     return [sorted((float(n.offset), float(n.quarterLength),
-                    tuple(sorted(p.midi for p in n.pitches)))
+                    tuple(sorted(round(p.ps, 6) for p in n.pitches)))
                    for n in part.flatten().notes)
             for part in score.parts]
 
@@ -207,7 +207,12 @@ def render_score(score, plan, destination, soundfont):
     destination.mkdir(parents=True, exist_ok=True)
     if (destination/'render.json').exists():
         raise FileExistsError(f'Already rendered: {destination}; select a new destination')
-    if plan['ensemble'] == 'satb':
+    synthetic = plan.get('audio_profile') == 'technique_synthesis'
+    if synthetic:
+        from .schools.synthesis import LICENSE, render_synthesis
+        sample_info = {'library': 'Original technique synthesis', 'license': 'CC0-1.0',
+            'sf2_sha256': None, 'samples': [], 'limitations': 'Procedural approximation, no acoustic technique samples'}
+    elif plan['ensemble'] == 'satb':
         # VSCO contains no choir: use an explicit, separately licensed GM profile.
         soundfont = FONT
         license_file = Path('/usr/share/doc/fluid-soundfont-gm/copyright')
@@ -226,17 +231,18 @@ def render_score(score, plan, destination, soundfont):
         if hashlib.sha256(soundfont.read_bytes()).hexdigest() != sample_info['sf2_sha256']:
             raise ValueError('sample bank checksum mismatch')
     info = analyze(score,plan)
-    # Ensure the chosen sample bank actually covers every played note/velocity.
-    from music21 import dynamics
-    for part in score.parts:
-        program = part.recurse().getElementsByClass("Instrument").first().midiProgram
-        if program==40 and plan['ensemble']=='string_orchestra':
-            program=48
-        for n in part.recurse().notes:
-            d = n.getContextByClass(dynamics.Dynamic)
-            velocity = max(20,min(110,round(127*(d.volumeScalar if d else .5))))
-            if not any(z['program']==program and z['low']<=n.pitch.midi<=z['high'] and z['lovel']<=velocity<=z['hivel'] for z in sample_info['samples']):
-                raise ValueError(f'Sample bank does not cover {part.id} MIDI {n.pitch.midi}, velocity {velocity}')
+    # Check every chord pitch as well as single notes against the sample bank.
+    from .schools.performance import velocity
+    if not synthetic:
+        for part in score.parts:
+            program = part.recurse().getElementsByClass("Instrument").first().midiProgram
+            if program == 40 and plan['ensemble'] == 'string_orchestra':
+                program = 48
+            for n in part.recurse().notes:
+                for pitch in n.pitches:
+                    if not any(z['program'] == program and z['low'] <= round(pitch.ps) <= z['high']
+                               and z['lovel'] <= velocity(n) <= z['hivel'] for z in sample_info['samples']):
+                        raise ValueError(f'Sample bank does not cover {part.id} pitch {pitch.ps}, velocity {velocity(n)}')
     (destination/'.drafts').mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='attempt-',dir=destination/'.drafts'))
     log = work/'render.log'
@@ -259,8 +265,11 @@ def render_score(score, plan, destination, soundfont):
     write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra')
     run(['musicxml2ly','-o',work/'score.ly',xml],log)
     run(['lilypond','-dno-point-and-click','-o',work/'score',work/'score.ly'],log)
-    run(['fluidsynth','-ni','-o','synth.cpu-cores=1','-g','0.6','-R','1','-C','0',
-         '-F',work/'score.wav','-r','44100',soundfont,midi],log)
+    if synthetic:
+        render_synthesis(score, plan, work/'score.wav')
+    else:
+        run(['fluidsynth','-ni','-o','synth.cpu-cores=1','-g','0.6','-R','1','-C','0',
+             '-F',work/'score.wav','-r','44100',soundfont,midi],log)
     if any('error:' in line.lower() or 'failed to load' in line.lower() for line in log.read_text().splitlines()):
         raise RuntimeError(f'Renderer reported an error; see {log}')
     raw_audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.wav'),
@@ -276,7 +285,7 @@ def render_score(score, plan, destination, soundfont):
     info['pregain'] = pregain
     # Preserve the planned silence; allow a documented two-second reverb tail.
     run(['ffmpeg','-nostdin','-v','warning','-i',work/'score.wav','-af',
-         f'volume={pregain},loudnorm=I=-20:TP=-2:LRA=12,apad','-t',str(plan['duration']+2),
+         f'volume={pregain},apad','-t',str(plan['duration']+2),
          '-codec:a','libmp3lame','-q:a','2','-threads','1',work/'score.mp3'],log)
     audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),
         '-ac','1','-ar','44100','-f','f32le','-'])
@@ -289,7 +298,10 @@ def render_score(score, plan, destination, soundfont):
     (work/'analysis.json').write_text(json.dumps(info,indent=2))
     shutil.copy2(Path(__file__).with_name('sample_libraries.yaml'),work/'sample_libraries.yaml')
     (work/'samples.json').write_text(json.dumps(sample_info,indent=2))
-    shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
+    if synthetic:
+        (work/'SAMPLE_LICENSE.txt').write_text(LICENSE)
+    else:
+        shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
     sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__),Path(__file__).with_name('sample_bank.py')]
     (work/'sources.json').write_text(json.dumps({str(p.relative_to(Path(__file__).parent)):p.read_text() for p in sources},indent=2))
     artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3',
@@ -300,7 +312,7 @@ def render_score(score, plan, destination, soundfont):
             raise RuntimeError(f'Missing artifact {path}')
     for filename in artifacts:
         shutil.copy2(work/filename,destination/filename)
-    (destination/'render.json').write_text(json.dumps({'renderer_version':2,'draft':str(work),
+    (destination/'render.json').write_text(json.dumps({'renderer_version':3,'draft':str(work),
         'python':sys.version,'music21':__import__('music21').__version__,
         'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
         'sample_sha256':sample_info['sf2_sha256'],'artifacts':{n:hashlib.sha256((work/n).read_bytes()).hexdigest() for n in artifacts}},indent=2))

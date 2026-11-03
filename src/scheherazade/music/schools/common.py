@@ -2,9 +2,9 @@
 from fractions import Fraction
 import math
 import random
-from music21 import clef, dynamics, expressions, instrument, metadata, meter, note, stream, tempo
+from music21 import chord, clef, dynamics, expressions, instrument, metadata, meter, note, stream, tempo
 
-VERSION = 1
+VERSION = 2
 # Conservative practical ranges, not extended techniques. C4 = MIDI 60.
 RANGES = {'piano': (21,108), 'violin': (55,103), 'viola': (48,88),
           'cello': (36,84), 'bass': (28,67), 'flute': (60,96),
@@ -12,6 +12,8 @@ RANGES = {'piano': (21,108), 'violin': (55,103), 'viola': (48,88),
           'tenor': (48,69), 'bass_voice': (40,62)}
 ENSEMBLES = {
     'piano': ['piano', 'piano'],
+    'pulse': ['piano'] * 4,
+    'strings_piano': ['violin', 'viola', 'cello', 'piano'],
     'string_quartet': ['violin','violin','viola','cello'],
     'chamber': ['flute','clarinet','violin','cello','piano'],
     'string_orchestra': ['violin']*4 + ['viola']*2 + ['cello']*2 + ['bass']*2,
@@ -98,7 +100,12 @@ def nearest(pc, target, low, high):
 def put(part, at, length, pitch, articulation=None):
     if length <= 0:
         return None
-    n = note.Rest(quarterLength=length) if pitch is None else note.Note(int(pitch),quarterLength=length)
+    n = note.Rest(quarterLength=length) if pitch is None else (chord.Chord(pitch, quarterLength=length) if isinstance(pitch, (list, tuple)) else note.Note(float(pitch),quarterLength=length))
+    # music21's diatonic instrument transpose loses 1.5-semitone accidentals.
+    # Equivalent half-flat spellings survive MusicXML transposition exactly.
+    for written in n.pitches:
+        if written.accidental and abs(written.accidental.alter) > 1:
+            written.getEnharmonic(inPlace=True)
     if articulation and pitch is not None:
         n.articulations.append(articulation)
     part.insert(at,n)
@@ -126,7 +133,7 @@ def analyze(score, plan):
     total, _ = validate(plan)
     result = []
     for part,name in zip(score.parts, ENSEMBLES[plan['ensemble']], strict=True):
-        pitches = [p.midi for n in part.recurse().notes for p in n.pitches]
+        pitches = [p.ps for n in part.recurse().notes for p in n.pitches]
         low,high = RANGES[name]
         if not pitches or any(not low <= p <= high for p in pitches):
             raise ValueError(f'empty or out-of-range part: {part.id}')

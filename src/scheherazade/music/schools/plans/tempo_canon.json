@@ -1,0 +1,38 @@
+{
+  "title": "tempo_canon",
+  "school": "tempo_canon",
+  "seed": 20261112,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "pulse",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 60,
+      "character": "dissolving",
+      "density": 0.25,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}

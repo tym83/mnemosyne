@@ -1,0 +1,38 @@
+{
+  "title": "feldman",
+  "school": "feldman",
+  "seed": 20261103,
+  "duration": 240,
+  "tempo": 60,
+  "ensemble": "strings_piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 80,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 80,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 80,
+      "character": "dissolving",
+      "density": 0.25,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}

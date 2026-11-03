@@ -1,0 +1,56 @@
+{
+  "title": "fibonacci",
+  "school": "fibonacci",
+  "seed": 20261114,
+  "duration": 248,
+  "tempo": 60,
+  "ensemble": "string_quartet",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 16,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 24,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 40,
+      "character": "dissolving",
+      "density": 0.25,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 64,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 104,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}

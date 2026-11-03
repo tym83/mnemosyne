@@ -1,0 +1,40 @@
+{
+  "title": "scelsi",
+  "school": "scelsi",
+  "seed": 20261116,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "string_quartet",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 60,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 60,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 60,
+      "character": "dissolving",
+      "density": 0.25,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ],
+  "audio_profile": "technique_synthesis",
+  "centre": 62
+}

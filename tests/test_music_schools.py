@@ -19,7 +19,7 @@ def fingerprint(score):
     # Object IDs and serialization dates are not musical content.
     return [[(type(e).__name__,float(e.getOffsetInHierarchy(p)),
               float(e.quarterLength),str(getattr(e,'value','')),
-              tuple(x.midi for x in getattr(e,'pitches',())),
+              tuple(x.ps for x in getattr(e,'pitches',())),
               tuple(type(a).__name__ for a in getattr(e,'articulations',())),
               str(getattr(e,'tie','')),str(getattr(e,'content','')))
              for e in p.recurse() if not e.isStream] for p in score.parts]
