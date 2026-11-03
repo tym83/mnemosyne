@@ -2,7 +2,7 @@
 
 The artist writes a short script with these words; the kit turns it into a
 sheet: a section, an elevation, a perspective or an axonometric view, in
-ink, wash or chiaroscuro. Units are metres, Z is up.
+etching, aquatint or ink_line. Units are metres, Z is up.
 
 Everything here is plain bpy; a script may also call bpy directly.
 """
@@ -15,7 +15,7 @@ import bmesh
 import bpy
 from mathutils import Vector
 
-_STYLE = {"name": "chiaroscuro"}
+_STYLE = {"name": "etching"}
 
 PALETTE = {
     "stone": ((0.62, 0.58, 0.52), 0.85),
@@ -34,20 +34,25 @@ PALETTE = {
 }
 
 
-def reset(style: str = "chiaroscuro"):
-    """Start an empty sheet. style: ink | wash | chiaroscuro | color."""
+def reset(style: str = "etching"):
+    """Start an engraved plate. style: etching | aquatint | ink_line.
+    Architecture dominates; no text in the scene. Captions belong below the image."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    aliases = {"ink": "ink_line", "wash": "aquatint", "chiaroscuro": "etching", "color": "etching"}
+    style = aliases.get(style, style)
+    if style not in ("etching", "aquatint", "ink_line"):
+        raise ValueError(f"Unknown plate style: {style}")
     _STYLE["name"] = style
     sc = bpy.context.scene
     sc.unit_settings.system = "METRIC"
     w = bpy.data.worlds.new("World")
     sc.world = w
     w.use_nodes = True
-    world(0.6 if style in ("ink", "wash") else 0.08)
+    world(0.12)
 
 
 def world(strength: float = 0.1, color=(0.85, 0.83, 0.78)):
-    """Ambient light from the sky dome; low for chiaroscuro, high for ink."""
+    """Quiet ambient light; prefer one raking sun for the plate."""
     bg = bpy.context.scene.world.node_tree.nodes["Background"]
     bg.inputs[0].default_value = (*color, 1)
     bg.inputs[1].default_value = strength
@@ -61,13 +66,16 @@ def mat(name: str, color=None, rough: float | None = None, emit: float = 0.0):
     base, r = PALETTE.get(name, ((0.7, 0.7, 0.7), 0.8))
     color = color or base
     rough = r if rough is None else rough
-    if _STYLE["name"] == "ink" and name != "ink":
+    if _STYLE["name"] == "ink_line" and name not in ("ink", "figure"):
         color = (0.92, 0.91, 0.88)
     m = bpy.data.materials.new(key)
     m.use_nodes = True
     p = m.node_tree.nodes["Principled BSDF"]
     p.inputs["Base Color"].default_value = (*color, 1)
     p.inputs["Roughness"].default_value = rough
+    if name in ("ink", "figure"):
+        p.inputs["Base Color"].default_value = (0.006, 0.006, 0.006, 1)
+        p.inputs["Roughness"].default_value = 1
     if name == "glass":
         p.inputs["Transmission Weight"].default_value = 0.9
     if emit:
@@ -315,8 +323,11 @@ POSES = {
 
 
 def figure(x, y, z=0, pose="stand", facing=0, scale=1.0, material="figure", name="figure"):
-    """Staffage: a small human figure for scale, as in Piranesi or Boullée.
+    """Faceless black silhouette for scale, never a protagonist.
+    The runner limits projected height to 1/15 of the frame; never add facial features.
+    Custom figures must carry the boolean custom property staffage=True.
     pose: stand | walk | carry | sit | sit_ledge | recline | kneel."""
+    material = "ink"
     j = POSES[pose]
     L = _local(x, y, z, facing)
     s = lambda p, side=0.0: L(p[0] * scale, (p[1] + side) * scale, p[2] * scale)
@@ -328,7 +339,15 @@ def figure(x, y, z=0, pose="stand", facing=0, scale=1.0, material="figure", name
         parts += [rod(s(j["hip"], side), s(knee, side), r, material), rod(s(knee, side), s(foot, side), r, material)]
         parts += [rod(s(j["neck"], side * 1.8), s(j["elbow"], side * 2.2), r * 0.8, material),
                   rod(s(j["elbow"], side * 2.2), s(j["hand"], side * 1.5), r * 0.7, material)]
-    return join(parts, name)
+    obj = join(parts, name)
+    obj["staffage"] = True
+    # Put the origin at the feet so the frame guard preserves the footing.
+    origin = Vector((x, y, z))
+    delta = obj.matrix_world.inverted() @ origin
+    for vertex in obj.data.vertices:
+        vertex.co -= delta
+    obj.location = origin
+    return obj
 
 
 # --- light, camera, drawing -------------------------------------------------
@@ -450,17 +469,19 @@ def ground(size=200, z=0.0, material="earth"):
 
 
 def render(path, width=1800, height=1200, samples=96, lines=None, line_width=1.2):
-    """Draw the sheet. lines: add ink contours (default on for ink/wash)."""
+    """Render the source and a world-normal pass for engraving in the pod.
+    Pen contours are on by default. The runner enforces scene guards."""
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
     sc.cycles.device = "CPU"
     sc.cycles.samples = samples
     sc.cycles.use_denoising = True
     sc.render.resolution_x, sc.render.resolution_y = width, height
-    sc.render.film_transparent = False
+    sc.render.resolution_percentage = 100
+    sc.render.film_transparent = True
     sc.view_settings.view_transform = "AgX"
-    sc.view_settings.look = "AgX - Punchy" if _STYLE["name"] == "chiaroscuro" else "None"
-    use_lines = _STYLE["name"] in ("ink", "wash") if lines is None else lines
+    sc.view_settings.look = "None"
+    use_lines = True if lines is None else lines
     sc.render.use_freestyle = use_lines
     if use_lines:
         sc.render.line_thickness_mode = "ABSOLUTE"
@@ -474,4 +495,34 @@ def render(path, width=1800, height=1200, samples=96, lines=None, line_width=1.2
         ls.linestyle.color = (0.08, 0.07, 0.06)
     sc.render.image_settings.file_format = "PNG"
     sc.render.filepath = path
+    # Encode signed world normals into a linear RGB PNG, independently of AgX.
+    from pathlib import Path
+    sc.view_layers[0].use_pass_normal = True
+    sc.use_nodes = True
+    tree = sc.node_tree
+    tree.nodes.clear()
+    layers = tree.nodes.new("CompositorNodeRLayers")
+    composite = tree.nodes.new("CompositorNodeComposite")
+    tree.links.new(layers.outputs["Image"], composite.inputs[0])
+    scale = tree.nodes.new("CompositorNodeMixRGB")
+    scale.blend_type = "MULTIPLY"
+    scale.inputs[0].default_value = 1
+    scale.inputs[2].default_value = (0.5, 0.5, 0.5, 1)
+    tree.links.new(layers.outputs["Normal"], scale.inputs[1])
+    bias = tree.nodes.new("CompositorNodeMixRGB")
+    bias.blend_type = "ADD"
+    bias.inputs[0].default_value = 1
+    bias.inputs[2].default_value = (0.5, 0.5, 0.5, 1)
+    tree.links.new(scale.outputs[0], bias.inputs[1])
+    output = tree.nodes.new("CompositorNodeOutputFile")
+    output.base_path = str(Path(path).parent)
+    output.file_slots[0].path = Path(path).stem + "_normals_"
+    output.format.file_format = "PNG"
+    output.format.color_mode = "RGB"
+    output.format.color_depth = "16"
+    output.file_slots[0].save_as_render = False
+    tree.links.new(bias.outputs[0], output.inputs[0])
     bpy.ops.render.render(write_still=True)
+    normal_path = Path(path).with_name(Path(path).stem + "_normals.png")
+    Path(output.base_path, output.file_slots[0].path + f"{sc.frame_current:04d}.png").replace(normal_path)
+    Path(path).with_suffix(".style").write_text(_STYLE["name"])

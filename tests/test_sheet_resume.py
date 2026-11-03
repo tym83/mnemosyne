@@ -8,47 +8,48 @@ from scheherazade.drawing.sheets import draw
 
 
 class SheetResume(unittest.TestCase):
-    def test_existing_draft_and_plate_skip_workshop(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("scheherazade.drawing.sheets.kube") as kube:
-            for name in ("sheet01_draft1", "sheet01_plate"):
-                png = Path(tmp) / f"{name}.png"
-                png.write_bytes(b"existing image")
-                png.with_suffix(".py").write_text("original")
-                self.assertEqual(draw("original", png), "")
-            kube.assert_not_called()
-
-    def test_changed_script_failure_then_resume(self):
+    def test_fingerprint_resume_and_metadata_change(self):
         with tempfile.TemporaryDirectory() as tmp:
-            png = Path(tmp) / "sheet01_draft1.png"
-            png.write_bytes(b"old image")
-            png.with_suffix(".py").write_text("old")
-            with patch("scheherazade.drawing.sheets.kube",
-                       return_value=subprocess.CompletedProcess([], 1, stdout="render failed")) as kube:
-                self.assertEqual(draw("new", png), "render failed")
-                self.assertTrue(kube.called)
-            self.assertEqual(png.with_suffix(".render-state").read_text(), "pending")
+            png = Path(tmp) / 'draft.png'
 
-            def render(*args, **kwargs):
-                if args[0] == "cp" and args[-1] == str(png):
-                    png.write_bytes(b"new image")
-                return subprocess.CompletedProcess([], 0, stdout="")
+            def workshop(*args, **kwargs):
+                if args[0] == 'cp' and args[1].startswith('studio-1:'):
+                    Path(args[2]).write_bytes(b'new image')
+                return subprocess.CompletedProcess([], 0, stdout='', stderr='')
 
-            with patch("scheherazade.drawing.sheets.kube", side_effect=render) as kube:
-                self.assertEqual(draw("new", png), "")
-                self.assertTrue(kube.called)
+            with patch('scheherazade.drawing.sheets.kube', side_effect=workshop) as kube:
+                self.assertEqual(draw('original', png), '')
                 kube.reset_mock()
-                self.assertEqual(draw("new", png), "")
+                self.assertEqual(draw('original', png), '')
                 kube.assert_not_called()
-            self.assertEqual(png.read_bytes(), b"new image")
+                self.assertEqual(draw('original', png, title='Changed'), '')
+                self.assertTrue(kube.called)
 
-    def test_missing_png_renders(self):
-        with tempfile.TemporaryDirectory() as tmp, patch("scheherazade.drawing.sheets.kube",
-                return_value=subprocess.CompletedProcess([], 1, stdout="no image")) as kube:
-            png = Path(tmp) / "sheet01_draft1.png"
-            png.with_suffix(".py").write_text("original")
-            self.assertEqual(draw("original", png), "no image")
-            self.assertTrue(kube.called)
+    def test_legacy_image_does_not_skip_and_failure_stays_pending(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            png = Path(tmp) / 'draft.png'
+            png.write_bytes(b'old image')
+            png.with_suffix('.py').write_text('original')
+            with patch('scheherazade.drawing.sheets.kube', return_value=
+                       subprocess.CompletedProcess([], 1, stdout='render failed', stderr='')):
+                self.assertEqual(draw('original', png), 'render failed')
+            self.assertEqual(png.with_suffix('.render-state').read_text(), 'pending')
+            self.assertEqual(png.read_bytes(), b'old image')
+
+    def test_failed_postprocess_does_not_copy_stale_image(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            png = Path(tmp) / 'draft.png'
+
+            def workshop(*args, **kwargs):
+                if '/work/venv/bin/python' in args:
+                    return subprocess.CompletedProcess([], 1, stdout='etch failed', stderr='')
+                return subprocess.CompletedProcess([], 0, stdout='', stderr='')
+
+            with patch('scheherazade.drawing.sheets.kube', side_effect=workshop):
+                self.assertEqual(draw('original', png), 'etch failed')
+            self.assertFalse(png.exists())
+            self.assertEqual(png.with_suffix('.render-state').read_text(), 'pending')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

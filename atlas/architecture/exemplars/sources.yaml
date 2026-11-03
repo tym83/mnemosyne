@@ -1,0 +1,22 @@
+exemplars:
+- file: piranesi_carceri_xiv.jpg
+  source_url: https://commons.wikimedia.org/wiki/File:Giovanni_Battista_Piranesi_-_Le_Carceri_d%27Invenzione_-_First_Edition_-_1750_-_14_-_The_Gothic_Arch.jpg
+  image_url: https://upload.wikimedia.org/wikipedia/commons/b/be/Giovanni_Battista_Piranesi_-_Le_Carceri_d%27Invenzione_-_First_Edition_-_1750_-_14_-_The_Gothic_Arch.jpg
+  author: Giovanni Battista Piranesi
+  year: 1745–1750
+  licence: PD-old-70; PD-US-expired
+  public_domain: true
+- file: boullee_newton.jpg
+  source_url: https://commons.wikimedia.org/wiki/File:%C3%89tienne-Louis_Boull%C3%A9e_Memorial_Newton_Day.jpg
+  image_url: https://upload.wikimedia.org/wikipedia/commons/1/15/%C3%89tienne-Louis_Boull%C3%A9e_Memorial_Newton_Day.jpg
+  author: Étienne-Louis Boullée
+  year: 1784
+  licence: PD-Art; PD-old-100
+  public_domain: true
+- file: boullee_library.jpg
+  source_url: https://commons.wikimedia.org/wiki/File:Boull%C3%A9e%2C_Etienne-Louis_-_Project_for_a_library.jpg
+  image_url: https://upload.wikimedia.org/wikipedia/commons/3/3a/Boull%C3%A9e%2C_Etienne-Louis_-_Project_for_a_library.jpg
+  author: Étienne-Louis Boullée
+  year: 1785
+  licence: PD-Art; PD-old-100-expired
+  public_domain: true
