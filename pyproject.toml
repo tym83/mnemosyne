@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.3.0",
+    "cryptography>=46",
     "ezdxf>=1.4.5",
     "music21>=10.5.2",
     "numpy>=2.5.4",
