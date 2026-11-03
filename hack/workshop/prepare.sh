@@ -1,8 +1,8 @@
 #!/bin/sh
 # Runs inside a studio pod: tools, Python packages, NotaGen and its weights.
 set -e
-apt-get update -qq
-apt-get install -y -qq lilypond fluidsynth fluid-soundfont-gm abcmidi git fonts-dejavu-core >/dev/null
+nice -n 19 ionice -c 3 apt-get update -qq
+nice -n 19 ionice -c 3 apt-get install -y -qq lilypond fluidsynth fluid-soundfont-gm ffmpeg poppler-utils abcmidi git fonts-dejavu-core >/dev/null
 python -m venv /work/venv
 . /work/venv/bin/activate
 pip install -q --upgrade pip
