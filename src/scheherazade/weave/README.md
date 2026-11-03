@@ -1,3 +1,11 @@
+# State backup transport
+
+`state.collect` now collects live Kubernetes API state into canonical tar.zst.
+`fountain.py`, `catalogue.py` and `backup.py` encrypt once, produce authenticated
+redundant work frames, replicate a JSON catalogue into each work package's
+metadata and recover after loss. See [usage and limits](../state/README.md).
+The following v1 musical transport remains compatible and unchanged.
+
 # Music surface proof (v1)
 
 The nocturne now carries one authenticated **partial envelope frame**, decoded
