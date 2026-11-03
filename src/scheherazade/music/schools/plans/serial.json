@@ -1,0 +1,46 @@
+{
+  "title": "serial",
+  "school": "serial",
+  "seed": 20261103,
+  "duration": 40,
+  "ensemble": "chamber",
+  "tempo": 72,
+  "form": [
+    {
+      "duration": 10.0,
+      "character": "still",
+      "density": 0.4,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 10.0,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 10.0,
+      "character": "luminous",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 10.0,
+      "character": "dissolving",
+      "density": 0.4,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}

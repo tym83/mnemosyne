@@ -66,9 +66,9 @@ def diagnostics(score):
 
 
 def note_events(score):
-    return [sorted((float(n.getOffsetInHierarchy(part)), float(n.quarterLength),
+    return [sorted((float(n.offset), float(n.quarterLength),
                     tuple(sorted(p.midi for p in n.pitches)))
-                   for n in part.recurse().notes)
+                   for n in part.flatten().notes)
             for part in score.parts]
 
 
@@ -188,6 +188,123 @@ def main():
                 print(f'FAILED {abc.name}: {exc}; see {out}/.drafts', file=sys.stderr, flush=True)
         if failed:
             raise SystemExit(1)
+
+
+
+def render_score(score, plan, destination, soundfont):
+    """Publish a school score only after XML, engraving and audio validation.
+
+    Keep every attempt in .drafts; a nonempty destination is never overwritten.
+    The sample conversion manifest and licence travel with the work.
+    """
+    from music21 import converter
+    from .schools.common import analyze
+    from .schools.performance import write_midi
+    import numpy as np
+    import xml.etree.ElementTree as ET
+
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    if (destination/'render.json').exists():
+        raise FileExistsError(f'Already rendered: {destination}; select a new destination')
+    if plan['ensemble'] == 'satb':
+        # VSCO contains no choir: use an explicit, separately licensed GM profile.
+        soundfont = FONT
+        license_file = Path('/usr/share/doc/fluid-soundfont-gm/copyright')
+        if not soundfont.is_file() or not license_file.is_file():
+            raise FileNotFoundError('SATB requires fluid-soundfont-gm and its copyright notice')
+        sample_info = {'library':'FluidR3_GM', 'license':'MIT',
+            'sf2_sha256':hashlib.sha256(soundfont.read_bytes()).hexdigest(),
+            'samples':[{'program':53,'low':0,'high':127,'lovel':0,'hivel':127}]}
+    else:
+        soundfont = Path(soundfont).resolve()
+        sample_manifest = soundfont.parent/'manifest.json'
+        license_file = soundfont.parent/'LICENSE'
+        if not soundfont.is_file() or not sample_manifest.is_file():
+            raise FileNotFoundError('Build the licensed sample bank with music.sample_bank first')
+        sample_info = json.loads(sample_manifest.read_text())
+        if hashlib.sha256(soundfont.read_bytes()).hexdigest() != sample_info['sf2_sha256']:
+            raise ValueError('sample bank checksum mismatch')
+    info = analyze(score,plan)
+    # Ensure the chosen sample bank actually covers every played note/velocity.
+    from music21 import dynamics
+    for part in score.parts:
+        program = part.recurse().getElementsByClass("Instrument").first().midiProgram
+        if program==40 and plan['ensemble']=='string_orchestra':
+            program=48
+        for n in part.recurse().notes:
+            d = n.getContextByClass(dynamics.Dynamic)
+            velocity = max(20,min(110,round(127*(d.volumeScalar if d else .5))))
+            if not any(z['program']==program and z['low']<=n.pitch.midi<=z['high'] and z['lovel']<=velocity<=z['hivel'] for z in sample_info['samples']):
+                raise ValueError(f'Sample bank does not cover {part.id} MIDI {n.pitch.midi}, velocity {velocity}')
+    (destination/'.drafts').mkdir(exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix='attempt-',dir=destination/'.drafts'))
+    log = work/'render.log'
+    (work/'plan.json').write_text(json.dumps(plan,indent=2)+'\n')
+    xml = work/'score.musicxml'
+    score.write('musicxml',fp=str(xml))
+    tree = ET.parse(xml)
+    for identification in tree.findall('identification'):
+        for creator in list(identification.findall('creator')):
+            if creator.text=='Music21':
+                identification.remove(creator)
+    tree.write(xml,encoding='utf-8',xml_declaration=True)
+    recovered = converter.parse(str(xml))
+    # Some instruments are transposing; exported notation must round-trip to sound.
+    recovered.toSoundingPitch(inPlace=True)
+    if note_events(score.stripTies())!=note_events(recovered.stripTies()):
+        raise RuntimeError('MusicXML round trip changed sounding events')
+    analyze(recovered,plan)
+    midi = work/'score.mid'
+    write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra')
+    run(['musicxml2ly','-o',work/'score.ly',xml],log)
+    run(['lilypond','-dno-point-and-click','-o',work/'score',work/'score.ly'],log)
+    run(['fluidsynth','-ni','-o','synth.cpu-cores=1','-g','0.6','-R','1','-C','0',
+         '-F',work/'score.wav','-r','44100',soundfont,midi],log)
+    if any('error:' in line.lower() or 'failed to load' in line.lower() for line in log.read_text().splitlines()):
+        raise RuntimeError(f'Renderer reported an error; see {log}')
+    raw_audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.wav'),
+        '-ac','1','-ar','44100','-f','f32le','-'])
+    raw = np.frombuffer(raw_audio,dtype='<f4')
+    raw_peak = float(np.max(np.abs(raw)))
+    raw_rms = float(np.sqrt(np.mean(raw**2)))
+    if raw_rms < 1e-9:
+        raise RuntimeError('Silent sample render')
+    # Raise quiet raw samples above loudnorm's absolute gating threshold first.
+    pregain = min(.8/max(raw_peak,1e-9), .1/raw_rms)
+    info['raw_rms'] = raw_rms
+    info['pregain'] = pregain
+    # Preserve the planned silence; allow a documented two-second reverb tail.
+    run(['ffmpeg','-nostdin','-v','warning','-i',work/'score.wav','-af',
+         f'volume={pregain},loudnorm=I=-20:TP=-2:LRA=12,apad','-t',str(plan['duration']+2),
+         '-codec:a','libmp3lame','-q:a','2','-threads','1',work/'score.mp3'],log)
+    audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),
+        '-ac','1','-ar','44100','-f','f32le','-'])
+    data = np.frombuffer(audio,dtype='<f4')
+    info.update(audio_seconds=len(data)/44100,tail_seconds=2,
+                peak=float(np.max(np.abs(data))),rms=float(np.sqrt(np.mean(data**2))))
+    if info['rms'] < .001 or info['peak'] >= 1 or abs(info['audio_seconds']-plan['duration']-2)>.1:
+        raise RuntimeError(f'Audio validation failed: {info}')
+    info['warnings'] = [l for l in log.read_text().splitlines() if not l.startswith('$') and ('warning' in l.lower() or 'error' in l.lower())]
+    (work/'analysis.json').write_text(json.dumps(info,indent=2))
+    shutil.copy2(Path(__file__).with_name('sample_libraries.yaml'),work/'sample_libraries.yaml')
+    (work/'samples.json').write_text(json.dumps(sample_info,indent=2))
+    shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
+    sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__),Path(__file__).with_name('sample_bank.py')]
+    (work/'sources.json').write_text(json.dumps({str(p.relative_to(Path(__file__).parent)):p.read_text() for p in sources},indent=2))
+    artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3',
+                 'analysis.json','render.log','sample_libraries.yaml','samples.json','SAMPLE_LICENSE.txt']
+    for filename in artifacts:
+        path = work/filename
+        if not path.exists() or not path.stat().st_size:
+            raise RuntimeError(f'Missing artifact {path}')
+    for filename in artifacts:
+        shutil.copy2(work/filename,destination/filename)
+    (destination/'render.json').write_text(json.dumps({'renderer_version':2,'draft':str(work),
+        'python':sys.version,'music21':__import__('music21').__version__,
+        'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
+        'sample_sha256':sample_info['sf2_sha256'],'artifacts':{n:hashlib.sha256((work/n).read_bytes()).hexdigest() for n in artifacts}},indent=2))
+    print(json.dumps({'school':plan['school'],**info}),flush=True)
 
 
 if __name__ == '__main__':

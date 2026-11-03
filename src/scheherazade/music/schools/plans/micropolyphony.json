@@ -1,0 +1,37 @@
+{
+  "title": "micropolyphony",
+  "school": "micropolyphony",
+  "seed": 20261103,
+  "duration": 60,
+  "ensemble": "string_quartet",
+  "tempo": 60,
+  "form": [
+    {
+      "duration": 20.0,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 20.0,
+      "character": "flowing",
+      "density": 0.85,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 20.0,
+      "character": "dissolving",
+      "density": 0.25,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}

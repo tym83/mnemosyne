@@ -1,0 +1,31 @@
+checked: '2026-11-03'
+libraries:
+  vsco_2_ce:
+    used: true
+    author: Versilian Studios / Sam Gossner / Simon Dalzell
+    license: CC0-1.0
+    source: https://github.com/sgossner/VSCO-2-CE
+    revision: 6dd651d55dde97fd4028699be9d4481f26917891
+    license_url: https://github.com/sgossner/VSCO-2-CE/blob/6dd651d55dde97fd4028699be9d4481f26917891/LICENSE
+    permissions: Use, modification, redistribution and commercial use permitted by CC0.
+    credit: VSCO 2 Community Edition — Versilian Studios, Sam Gossner and Simon Dalzell.
+    notes: README requests credit; preserve it and the full LICENSE with each render.
+    conversion: SFZ zones to mono 16-bit 44100 Hz SF2; first round robin; SFZ key/velocity mapping with extended edge zones; region gain with peak protection; no added loops.
+    converter: scheherazade.music.sample_bank
+  salamander_grand_piano:
+    used: false
+    author: Alexander Holm
+    license: CC-BY-3.0
+    source: https://github.com/sfzinstruments/SalamanderGrandPiano
+    license_url: https://github.com/sfzinstruments/SalamanderGrandPiano/blob/master/LICENSE
+    permissions: Use and adaptation including commercial use with attribution and licence notice.
+    credit: Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0.
+    notes: Verified alternative, not downloaded or used by this rendering profile.
+  fluid_r3_gm:
+    used: satb_only
+    author: Frank Wen
+    license: MIT
+    source: https://sources.debian.org/src/fluid-soundfont/3.1-5.3/debian/copyright/
+    local_evidence: /usr/share/doc/fluid-soundfont-gm/copyright
+    permissions: Use, modification and redistribution with copyright and permission notice.
+    notes: Explicit SATB voice profile and existing NotaGen renderer; no automatic fallback on loading errors.
