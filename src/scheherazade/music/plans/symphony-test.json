@@ -1,0 +1,671 @@
+{
+  "version": 1,
+  "title": "Memory of distance",
+  "seed": 19,
+  "concept": "A near contour becomes distant, breaks apart, and returns with space around it.",
+  "method": "Cyclic interval contour; sonata conflict, slow arch, developing variations. No literal cluster events.",
+  "themes": {
+    "distance": {
+      "pitches": [
+        62,
+        64,
+        65,
+        69,
+        67,
+        64
+      ],
+      "durations": [
+        1,
+        1,
+        2,
+        2,
+        1,
+        1
+      ],
+      "source": {
+        "kind": "rule-derived",
+        "school": "tintinnabuli",
+        "reservoir": {
+          "plan": {
+            "school": "tintinnabuli",
+            "title": "tintinnabuli material reservoir",
+            "ensemble": "string_quartet",
+            "duration": 32,
+            "tempo": 60,
+            "tonic": 62,
+            "centre": 62,
+            "fundamental": 38,
+            "form": [
+              {
+                "duration": 32,
+                "character": "flowing",
+                "density": 0.6,
+                "register": [
+                  48,
+                  84
+                ]
+              }
+            ]
+          },
+          "seed": 19,
+          "events": [
+            [
+              0.0,
+              1.5,
+              65.0
+            ],
+            [
+              0.0,
+              1.5,
+              65.0
+            ],
+            [
+              0.0,
+              1.5,
+              69.0
+            ],
+            [
+              0.0,
+              1.5,
+              69.0
+            ],
+            [
+              2.0,
+              1.5,
+              62.0
+            ],
+            [
+              2.0,
+              1.5,
+              64.0
+            ],
+            [
+              2.0,
+              1.5,
+              65.0
+            ],
+            [
+              2.0,
+              1.5,
+              67.0
+            ],
+            [
+              4.0,
+              1.5,
+              62.0
+            ],
+            [
+              4.0,
+              1.5,
+              62.0
+            ],
+            [
+              4.0,
+              1.5,
+              65.0
+            ],
+            [
+              4.0,
+              1.5,
+              65.0
+            ],
+            [
+              6.0,
+              1.5,
+              57.0
+            ],
+            [
+              6.0,
+              1.5,
+              60.0
+            ],
+            [
+              6.0,
+              1.5,
+              62.0
+            ],
+            [
+              6.0,
+              1.5,
+              64.0
+            ],
+            [
+              8.0,
+              1.5,
+              62.0
+            ],
+            [
+              8.0,
+              1.5,
+              62.0
+            ],
+            [
+              8.0,
+              1.5,
+              65.0
+            ],
+            [
+              8.0,
+              1.5,
+              65.0
+            ],
+            [
+              10.0,
+              1.5,
+              62.0
+            ],
+            [
+              10.0,
+              1.5,
+              64.0
+            ],
+            [
+              10.0,
+              1.5,
+              65.0
+            ],
+            [
+              10.0,
+              1.5,
+              67.0
+            ],
+            [
+              12.0,
+              1.5,
+              65.0
+            ],
+            [
+              12.0,
+              1.5,
+              65.0
+            ],
+            [
+              12.0,
+              1.5,
+              69.0
+            ],
+            [
+              12.0,
+              1.5,
+              69.0
+            ],
+            [
+              14.0,
+              1.5,
+              62.0
+            ],
+            [
+              14.0,
+              1.5,
+              64.0
+            ],
+            [
+              14.0,
+              1.5,
+              65.0
+            ],
+            [
+              14.0,
+              1.5,
+              67.0
+            ],
+            [
+              16.0,
+              1.5,
+              65.0
+            ],
+            [
+              16.0,
+              1.5,
+              65.0
+            ],
+            [
+              16.0,
+              1.5,
+              69.0
+            ],
+            [
+              16.0,
+              1.5,
+              69.0
+            ],
+            [
+              18.0,
+              1.5,
+              62.0
+            ],
+            [
+              18.0,
+              1.5,
+              64.0
+            ],
+            [
+              18.0,
+              1.5,
+              65.0
+            ],
+            [
+              18.0,
+              1.5,
+              67.0
+            ],
+            [
+              20.0,
+              1.5,
+              65.0
+            ],
+            [
+              20.0,
+              1.5,
+              65.0
+            ],
+            [
+              20.0,
+              1.5,
+              69.0
+            ],
+            [
+              20.0,
+              1.5,
+              69.0
+            ],
+            [
+              22.0,
+              1.5,
+              65.0
+            ],
+            [
+              22.0,
+              1.5,
+              67.0
+            ],
+            [
+              22.0,
+              1.5,
+              69.0
+            ],
+            [
+              22.0,
+              1.5,
+              70.0
+            ],
+            [
+              24.0,
+              1.5,
+              69.0
+            ],
+            [
+              24.0,
+              1.5,
+              69.0
+            ],
+            [
+              24.0,
+              1.5,
+              72.0
+            ],
+            [
+              24.0,
+              1.5,
+              74.0
+            ],
+            [
+              26.0,
+              1.5,
+              69.0
+            ],
+            [
+              26.0,
+              1.5,
+              70.0
+            ],
+            [
+              26.0,
+              1.5,
+              74.0
+            ],
+            [
+              26.0,
+              1.5,
+              74.0
+            ],
+            [
+              28.0,
+              1.5,
+              69.0
+            ],
+            [
+              28.0,
+              1.5,
+              69.0
+            ],
+            [
+              28.0,
+              1.5,
+              72.0
+            ],
+            [
+              28.0,
+              1.5,
+              74.0
+            ],
+            [
+              30.0,
+              1.5,
+              69.0
+            ],
+            [
+              30.0,
+              1.5,
+              70.0
+            ],
+            [
+              30.0,
+              1.5,
+              74.0
+            ],
+            [
+              30.0,
+              1.5,
+              74.0
+            ]
+          ]
+        },
+        "editing": "six-note diatonic cell designed for this authorized test plan"
+      }
+    }
+  },
+  "orchestra": [
+    {
+      "instrument": "flute",
+      "count": 2
+    },
+    {
+      "instrument": "oboe",
+      "count": 2
+    },
+    {
+      "instrument": "clarinet",
+      "count": 2
+    },
+    {
+      "instrument": "bassoon",
+      "count": 2
+    },
+    {
+      "instrument": "horn",
+      "count": 4
+    },
+    {
+      "instrument": "trumpet",
+      "count": 2
+    },
+    {
+      "instrument": "trombone",
+      "count": 2
+    },
+    {
+      "instrument": "tuba",
+      "count": 1
+    },
+    {
+      "instrument": "timpani",
+      "count": 1
+    },
+    {
+      "instrument": "cymbals",
+      "count": 1
+    },
+    {
+      "instrument": "harp",
+      "count": 1
+    },
+    {
+      "instrument": "violin_1_section",
+      "players": 16
+    },
+    {
+      "instrument": "violin_2_section",
+      "players": 14
+    },
+    {
+      "instrument": "viola_section",
+      "players": 12
+    },
+    {
+      "instrument": "cello_section",
+      "players": 10
+    },
+    {
+      "instrument": "bass_section",
+      "players": 8
+    }
+  ],
+  "movements": [
+    {
+      "title": "Approach",
+      "tempo": 64,
+      "character": "restrained, then urgent",
+      "centre": 62,
+      "schools": [
+        "tintinnabuli"
+      ],
+      "form": "sonata",
+      "sections": [
+        {
+          "role": "primary",
+          "bars": 16,
+          "theme": "distance",
+          "transform": "identity",
+          "shift": 0,
+          "tension": [
+            0.2,
+            0.45
+          ]
+        },
+        {
+          "role": "transition",
+          "bars": 8,
+          "theme": "distance",
+          "transform": "fragmentation",
+          "shift": 2,
+          "tension": [
+            0.45,
+            0.6
+          ]
+        },
+        {
+          "role": "secondary",
+          "bars": 16,
+          "theme": "distance",
+          "transform": "augmentation",
+          "shift": 7,
+          "tension": [
+            0.3,
+            0.5
+          ]
+        },
+        {
+          "role": "development",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "inversion",
+          "shift": 3,
+          "tension": [
+            0.5,
+            0.95
+          ]
+        },
+        {
+          "role": "retransition",
+          "bars": 8,
+          "theme": "distance",
+          "transform": "fragmentation",
+          "shift": 7,
+          "tension": [
+            0.85,
+            0.55
+          ]
+        },
+        {
+          "role": "recapitulation",
+          "bars": 16,
+          "theme": "distance",
+          "transform": "reharmonisation",
+          "shift": 0,
+          "tension": [
+            0.55,
+            0.8
+          ]
+        },
+        {
+          "role": "coda",
+          "bars": 8,
+          "theme": "distance",
+          "transform": "augmentation",
+          "shift": 0,
+          "tension": [
+            0.7,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Distance",
+      "tempo": 64,
+      "character": "suspended, inward",
+      "centre": 65,
+      "schools": [
+        "tintinnabuli",
+        "feldman"
+      ],
+      "form": "arch",
+      "sections": [
+        {
+          "role": "A",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "augmentation",
+          "shift": 0,
+          "tension": [
+            0.15,
+            0.3
+          ]
+        },
+        {
+          "role": "B",
+          "bars": 20,
+          "theme": "distance",
+          "transform": "inversion",
+          "shift": -2,
+          "tension": [
+            0.3,
+            0.6
+          ]
+        },
+        {
+          "role": "C",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "fragmentation",
+          "shift": 6,
+          "tension": [
+            0.6,
+            0.82
+          ]
+        },
+        {
+          "role": "B_return",
+          "bars": 20,
+          "theme": "distance",
+          "transform": "reharmonisation",
+          "shift": -2,
+          "tension": [
+            0.55,
+            0.3
+          ]
+        },
+        {
+          "role": "A_return",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "augmentation",
+          "shift": 0,
+          "tension": [
+            0.3,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Return with space",
+      "tempo": 80,
+      "character": "gathering, then released",
+      "centre": 62,
+      "schools": [
+        "tintinnabuli",
+        "additive"
+      ],
+      "form": "variations",
+      "sections": [
+        {
+          "role": "theme",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "identity",
+          "shift": 0,
+          "tension": [
+            0.25,
+            0.45
+          ]
+        },
+        {
+          "role": "variation",
+          "bars": 28,
+          "theme": "distance",
+          "transform": "inversion",
+          "shift": 5,
+          "tension": [
+            0.4,
+            0.7
+          ]
+        },
+        {
+          "role": "variation",
+          "bars": 32,
+          "theme": "distance",
+          "transform": "fragmentation",
+          "shift": 3,
+          "tension": [
+            0.6,
+            0.85
+          ]
+        },
+        {
+          "role": "variation",
+          "bars": 32,
+          "theme": "distance",
+          "transform": "reharmonisation",
+          "shift": 7,
+          "tension": [
+            0.75,
+            1
+          ]
+        },
+        {
+          "role": "coda",
+          "bars": 24,
+          "theme": "distance",
+          "transform": "augmentation",
+          "shift": 0,
+          "tension": [
+            0.8,
+            0.08
+          ]
+        }
+      ]
+    }
+  ]
+}

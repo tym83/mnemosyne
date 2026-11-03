@@ -5,7 +5,8 @@ A nocturne is one piece; a symphony is four movements bound into one
 score with a title page and movement titles. Each movement is transposed
 to its place in the key plan (tonic, subdominant or relative, tonic,
 tonic), the score and the parts are engraved with LilyPond, and the sound
-is rendered with FluidSynth from the MIDI.
+uses the shared instrumentarium and native stereo SFZ renderer.
+The former FluidSynth path is available only for explicit legacy replay.
 """
 
 from __future__ import annotations
@@ -75,13 +76,17 @@ KEY_PLAN = {
 }
 
 
-def symphony(choice: dict, cands: dict[int, Path], out: Path, title: str, tonic: str, mode: str) -> dict:
+def symphony(choice: dict, cands: dict[int, Path], out: Path, title: str, tonic: str, mode: str, *,
+             native_bank: Path | None = Path("/work/samples/instrumentarium"),
+             orchestration_plan: dict | None = None) -> dict:
+    if out.exists() and any(out.iterdir()):
+        raise FileExistsError(f"Preserved existing symphony: {out}; choose a new destination")
     out.mkdir(parents=True, exist_ok=True)
     movements, info = [], []
     base = pitch.Pitch(tonic)
     for (role, shift), mv in zip(KEY_PLAN[mode], sorted(choice["chosen"])):
         xml = analyze.to_musicxml(cands[mv] / choice["chosen"][mv])
-        s = converter.parse(str(xml))
+        s = converter.parse(str(xml)).toSoundingPitch()
         target = base.transpose(shift)
         m = "major" if role in ("subdominant", "relative major", "tonic major") or mode == "major" else "minor"
         s, tr = _transpose_to(s, target.name, m)
@@ -89,8 +94,20 @@ def symphony(choice: dict, cands: dict[int, Path], out: Path, title: str, tonic:
         s.metadata = metadata.Metadata(title=f"{title} — {mv}. {name}", composer="Scheherazade")
         x = out / f"mv{mv}.musicxml"
         s.write("musicxml", fp=str(x))
+        if native_bank is None:
+            rendered={**render(x, out, f"mv{mv}"), **engrave(x, out, f"mv{mv}")}
+        else:
+            from .orchestration import orchestrate_existing
+            from .orchestra_render import render_orchestra
+            arranged,plan,assignment=orchestrate_existing(s,orchestration_plan)
+            plan['transposition']=tr
+            destination=out/f'mv{mv}-orchestrated'
+            render_orchestra(arranged,plan,assignment,destination,native_bank)
+            rendered={'score':str(destination/'score.musicxml'),'audio':str(destination/'score.mp3'),
+                      'pdf':str(destination/'score.pdf'),'parts':str(destination/'parts'),
+                      'manifest':str(destination/'render.json'),'original_score':str(x)}
         movements.append({"n": mv, "name": name, "role": role, "score": str(x), "transposition": tr,
-                          **render(x, out, f"mv{mv}"), **engrave(x, out, f"mv{mv}")})
+                          **rendered})
     return {"title": title, "key": f"{tonic} {mode}", "movements": movements}
 
 
@@ -104,13 +121,18 @@ def main():
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--title", required=True)
     ap.add_argument("--key", default="D- major", help="tonic and mode, e.g. 'D- major' or 'C# minor'")
+    ap.add_argument('--sample-bank',type=Path,default=Path('/work/samples/instrumentarium'))
+    ap.add_argument('--orchestration-plan',type=Path,help='Explicit ensemble/colour/line assignments for symphony')
+    ap.add_argument('--legacy-soundfont',action='store_true',help='Replay the former GM symphony renderer')
     a = ap.parse_args()
     choice = json.loads(a.choice.read_text())
     tonic, mode = a.key.split()
     if a.kind == "nocturne":
         r = nocturne(choice, a.candidates, a.out, a.title, tonic, mode)
     else:
-        r = symphony(choice, {i: a.candidates / f"mv{i}" for i in range(1, 5)}, a.out, a.title, tonic, mode)
+        r = symphony(choice, {i: a.candidates / f"mv{i}" for i in range(1, 5)}, a.out, a.title, tonic, mode,
+                     native_bank=None if a.legacy_soundfont else a.sample_bank,
+                     orchestration_plan=json.loads(a.orchestration_plan.read_text()) if a.orchestration_plan else None)
     (a.out / "work.json").write_text(json.dumps(r, ensure_ascii=False, indent=1))
     print(json.dumps(r, ensure_ascii=False)[:600])
 
