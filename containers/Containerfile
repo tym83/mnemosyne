@@ -1,0 +1,50 @@
+# Built only by repository Actions. No local or pod image builds.
+FROM python:3.12-slim-bookworm AS base
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HOME=/tmp \
+    OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+WORKDIR /opt/mnemosyne
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
+COPY atlas ./atlas
+ENV MNEMO_ASSETS=/opt/mnemosyne
+RUN pip install --no-cache-dir uv==0.11.14 && uv sync --frozen --extra operator --no-dev
+ENV PATH=/opt/mnemosyne/.venv/bin:$PATH
+RUN groupadd -g 10001 mnemosyne && useradd -u 10001 -g 10001 -M mnemosyne
+
+FROM base AS controller
+USER 10001:10001
+CMD ["kopf", "run", "--standalone", "-m", "mnemosyne.operator.controller"]
+
+FROM base AS studio
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    lilypond fluidsynth fluid-soundfont-gm ffmpeg poppler-utils git ca-certificates \
+    cmake make g++ pkg-config libsndfile1-dev libsamplerate0-dev libjack-jackd2-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG SFIZZ_REF=1.2.3
+RUN git clone --branch "$SFIZZ_REF" --depth 1 --recurse-submodules https://github.com/sfztools/sfizz.git /tmp/sfizz \
+    && cmake -S /tmp/sfizz -B /tmp/sfizz-build -DSFIZZ_JACK=OFF -DSFIZZ_RENDER=ON \
+    && cmake --build /tmp/sfizz-build -j2 \
+    && cmake --install /tmp/sfizz-build --prefix /usr/local && ldconfig \
+    && find /tmp/sfizz-build -type f -name sfizz_render -exec install {} /usr/local/bin/sfizz_render \; \
+    && mkdir -p /opt/licenses && cp /tmp/sfizz/LICENSE /opt/licenses/sfizz-LICENSE
+# Pinned libraries and complete licence notices are retained by existing fetchers.
+RUN python -m mnemosyne.music.sample_bank /opt/samples/vsco \
+    && python -m mnemosyne.music.native_bank /opt/samples/native \
+    && cp /usr/share/doc/fluid-soundfont-gm/copyright /opt/licenses/FluidR3-copyright
+ENV MNEMO_SFIZZ=/usr/local/bin/sfizz_render \
+    MNEMO_SF2_BANK=/opt/samples/vsco/vsco-schools.sf2 \
+    MNEMO_NATIVE_BANK=/opt/samples/native MNEMOSYNE_NOTAGEN=disabled
+USER 10001:10001
+CMD ["python", "-m", "mnemosyne.operator.worker"]
+
+# Optional; owner supplies a reviewed upstream revision and mounts licensed weights.
+FROM studio AS studio-notagen
+USER root
+ARG NOTAGEN_REVISION
+RUN test -n "$NOTAGEN_REVISION" \
+    && git clone https://github.com/ElectricAlexis/NotaGen.git /opt/NotaGen \
+    && git -C /opt/NotaGen checkout "$NOTAGEN_REVISION" \
+    && python -m venv /opt/notagen-venv \
+    && /opt/notagen-venv/bin/pip install --no-cache-dir torch -r /opt/NotaGen/requirements.txt
+ENV MNEMO_NOTAGEN_PYTHON=/opt/notagen-venv/bin/python PYTHONPATH=/opt/mnemosyne/src MNEMOSYNE_NOTAGEN=self-hosted NOTAGEN_DIR=/opt/NotaGen/gradio
+USER 10001:10001

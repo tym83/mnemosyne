@@ -1,0 +1,11 @@
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!src/
+!src/**
+!containers/
+!containers/**
+**/__pycache__
+!atlas/
+!atlas/**
