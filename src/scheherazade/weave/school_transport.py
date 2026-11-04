@@ -7,7 +7,7 @@ import tempfile
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from scheherazade.music.schools import SCHOOLS
-from . import frames, fountain, payload, schools, surface
+from . import frames, fountain, payload, schools, surface, registry
 
 
 def main():
@@ -42,6 +42,8 @@ def main():
         xml=Path(directory)/'score.musicxml'
         score.write('musicxml',fp=xml)
         root=schools.prepare(surface.read(xml),plan['school'])
+    registry.mark(root, (plan['school'], 'dynamics-fountain' if args.mode=='fountain'
+                        else 'dynamics-multipart', '1'))
     cap=schools.capacity(root)
     overhead=frames.OVERHEAD if args.mode=='frames' else fountain.OVERHEAD+12
     if cap <= overhead:

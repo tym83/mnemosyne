@@ -120,7 +120,7 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz='/work/sfizz-b
     samples=round((plan['duration']+TAIL)*RATE)
     mix=np.zeros((samples,2),dtype=np.float32)
     stems=[]
-    for player in assignment['players']:
+    for player_index, player in enumerate(assignment['players']):
         groups={}
         for e in player['events']:groups.setdefault((e['technique'],e['gain_db']),[]).append(e)
         for index,((technique,gain),events) in enumerate(sorted(groups.items())):
@@ -135,10 +135,18 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz='/work/sfizz-b
             raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(wav),'-ar',str(RATE),'-ac','2','-f','f32le','-'])
             data=np.frombuffer(raw,dtype='<f4').reshape(-1,2)
             if not len(data) or float(np.max(np.abs(data)))<1e-8:raise ValueError(f'Silent stem: {base}')
+            # Realize the authenticated numeric dynamics from the woven score.
+            # Apply once in audio (stem MIDI intentionally has no expression).
+            curve = getattr(score.parts[player_index].editorial, 'school_expression', None)
+            if curve:
+                at, values = zip(*curve)
+                times = np.arange(len(data)) / RATE * plan['tempo'] / 60
+                data = data * np.interp(times, at, values)[:, None]
             pan=player['pan']
             gains=np.array([math.sqrt(1-max(0,pan)),math.sqrt(1+min(0,pan))])*10**(gain/20)
             n=min(len(data),samples);mix[:n]+=data[:n]*gains
             stems.append({'player':player['id'],'technique':technique,'gain_db':gain,'pan':pan,
+                          'expression_knots':len(curve or []),
                           'wav_sha256':sha(wav),'peak':float(np.max(np.abs(data)))})
     # Float intermediate keeps headroom; normalize only after the complete mix.
     raw_peak=float(np.max(np.abs(mix)));raw_rms=float(np.sqrt(np.mean(mix**2)))

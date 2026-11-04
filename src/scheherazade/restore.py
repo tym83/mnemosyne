@@ -87,15 +87,22 @@ def recover_works(directory, key):
             if path.stat().st_size > 32 * 1024 * 1024:
                 raise DecodeError('MusicXML exceeds size limit')
             decoded = registry.decode(path, key)
-            if decoded.transport == 'fountain-v1':
-                snapshot, _, k, size, total, _ = fountain.unpack(decoded.frame, key)
+            if decoded.transport in ('fountain-v1', 'fountain-batch-v1'):
+                batch = decoded.frame if decoded.transport == 'fountain-batch-v1' else [decoded.frame]
+                identities = [fountain.unpack(frame, key) for frame in batch]
+                if not identities or len({(s, k, z, t) for s, i, k, z, t, v in identities}) != 1:
+                    raise DecodeError('mixed or empty fountain batch')
+                snapshot, _, k, size, total, _ = identities[0]
                 group = ('fountain-v1', snapshot.hex(), k, size, total)
             elif decoded.transport == 'multipart-v1':
                 f = decoded.frame
                 group = ('multipart-v1', f['bundle'].hex(), f['count'], f['total'], f['chunk_size'])
             else:
                 raise DecodeError('unsupported frame transport')
-            groups[group].append(decoded.frame)
+            if decoded.transport == 'fountain-batch-v1':
+                groups[group].extend(decoded.frame)
+            else:
+                groups[group].append(decoded.frame)
             report['decoded'].append(str(path.relative_to(directory)))
         except (OSError, ValueError, IndexError, KeyError, TypeError, AttributeError):
             report['rejected'].append(str(path.relative_to(directory)))

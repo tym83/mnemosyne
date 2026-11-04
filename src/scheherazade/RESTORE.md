@@ -13,6 +13,9 @@ MP3/PDF/MXL are not decoder inputs. See [retained codecs](weave/codecs/README.md
 
 Frames are authenticated before grouping. Fountain snapshots and legacy
 multipart bundles are reconstructed separately; duplicates do not add rank.
+School dynamics v1 and variable-capacity v2 frame batches are supported by
+retained codecs. Multiple equations in one work are lost together; redundancy
+must therefore be measured over whole works, not individual frames.
 Envelope AEAD is checked before reading tar.zst. Exactly one distinct complete
 state archive must be recoverable; multiple complete snapshots fail rather
 than choosing a date implicitly. Incomplete unrelated bundles are reported.
