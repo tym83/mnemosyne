@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mnemosyne-rd
+version: 0.2.0
+type: application
+description: Platform registration and shared prerequisites for tenant ateliers

@@ -1,0 +1,25 @@
+# Enable only after supplying release digests, a key reference and commissions.
+enabled: false
+mode: chamber
+suspend: true
+resourcesPreset: s1.small
+resources: {}
+size: 20Gi
+storageClass: ''
+existingClaim: ''
+images:
+  controller: {repository: ghcr.io/tym83/mnemosyne-controller, digest: ''}
+  studio: {repository: ghcr.io/tym83/mnemosyne-studio, digest: ''}
+imagePullSecrets: []
+keySecretName: ''
+commissions: []
+models: {endpoints: {}, roles: {}}
+window: {kind: night, timeZone: Etc/UTC, startHour: 1, endHour: 6}
+# Existing tenant bucket; provision through the platform's Bucket application.
+s3:
+  bucket: ''
+  endpoint: ''
+  prefix: '' # defaults to namespace/release; prevents two ateliers sharing a prefix
+  credentialsSecretName: ''
+  accessKeyField: accessKey
+  secretKeyField: secretKey

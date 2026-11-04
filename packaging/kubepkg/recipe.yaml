@@ -1,0 +1,86 @@
+# Staging recipe: prepare.py supplies the core and release image pins.
+apiVersion: kubepkg.dev/v1
+kind: Recipe
+metadata:
+  name: mnemosyne
+  annotations:
+    kubepkg.dev/description: Mnemosyne portable atelier and retained works
+    kubepkg.dev/home: https://github.com/tym83/scheherazade
+spec:
+  version: 0.2.0
+  build: 1
+  sources:
+    core:
+      dir: charts/mnemosyne
+  charts:
+    mnemosyne:
+      from:
+      - core
+  package:
+    provides:
+    - mnemosyne
+    - api:mnemosyne.art/v1alpha1
+    crds:
+    - ateliers.mnemosyne.art
+    - leitmotifs.mnemosyne.art
+    - opera.mnemosyne.art
+    - notebooks.mnemosyne.art
+    - sketches.mnemosyne.art
+    - artists.mnemosyne.art
+    - biographies.mnemosyne.art
+    - reviews.mnemosyne.art
+    - audiencelogs.mnemosyne.art
+    - editions.mnemosyne.art
+    images: []
+    rollback:
+      safe: false
+    variants:
+    - name: default
+      components:
+      - name: mnemosyne
+        path: mnemosyne
+        install:
+          namespace: mnemosyne
+          releaseName: mnemosyne
+          upgradeCRDs: CreateReplace
+          readyWhen:
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: ateliers.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: leitmotifs.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: opera.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: notebooks.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: sketches.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: artists.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: biographies.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: reviews.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: audiencelogs.mnemosyne.art
+            condition: Established
+          - apiVersion: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: editions.mnemosyne.art
+            condition: Established

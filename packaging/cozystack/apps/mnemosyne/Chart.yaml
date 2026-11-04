@@ -1,0 +1,9 @@
+apiVersion: v2
+name: mnemosyne
+description: Per-tenant Mnemosyne atelier
+version: 0.2.0
+type: application
+dependencies:
+  - name: cozy-lib
+    version: 0.0.0
+    repository: file://charts/cozy-lib

@@ -1,0 +1,73 @@
+{{- $resources := include "cozy-lib.resources.defaultingSanitize" (list .Values.resourcesPreset .Values.resources $) | fromYaml }}
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: {{ .Release.Name }}-system
+  labels: {sharding.fluxcd.io/key: tenants}
+spec:
+  releaseName: {{ .Release.Name }}-system
+  chartRef:
+    kind: ExternalArtifact
+    name: mnemosyne-application-default-mnemosyne-core
+    namespace: cozy-system
+  interval: 5m
+  timeout: 10m
+  install:
+    crds: Skip
+    remediation: {retries: 0}
+  upgrade:
+    crds: Skip
+    remediation: {retries: 0}
+  values:
+    models: {{ .Values.models | toJson }}
+    addon:
+      enabled: {{ .Values.enabled }}
+      rbacScope: namespace
+      manageQuota: false
+      snapshotNamespace: {{ .Release.Namespace | quote }}
+      includeSecrets: false
+      priorityClassName: mnemosyne-background
+      mode: {{ .Values.mode }}
+      suspend: {{ .Values.suspend }}
+      images: {{ .Values.images | toJson }}
+      imagePullSecrets: {{ .Values.imagePullSecrets | toJson }}
+      key: {secretName: {{ .Values.keySecretName | quote }}}
+      commissions: {{ .Values.commissions | toJson }}
+      window: {{ .Values.window | toJson }}
+      resources: {{ $resources | toJson }}
+      inventory:
+        - {apiVersion: v1, kind: ConfigMap, resource: configmaps}
+        - {apiVersion: v1, kind: Service, resource: services}
+        - {apiVersion: v1, kind: ServiceAccount, resource: serviceaccounts}
+        - {apiVersion: v1, kind: PersistentVolumeClaim, resource: persistentvolumeclaims}
+        - {apiVersion: apps/v1, kind: Deployment, resource: deployments}
+        - {apiVersion: apps/v1, kind: StatefulSet, resource: statefulsets}
+        - {apiVersion: apps/v1, kind: DaemonSet, resource: daemonsets}
+        - {apiVersion: networking.k8s.io/v1, kind: NetworkPolicy, resource: networkpolicies}
+        - {apiVersion: networking.k8s.io/v1, kind: Ingress, resource: ingresses}
+        - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, resource: roles}
+        - {apiVersion: rbac.authorization.k8s.io/v1, kind: RoleBinding, resource: rolebindings}
+        {{- range list "Atelier:ateliers" "Leitmotif:leitmotifs" "Opus:opera" "Notebook:notebooks" "Sketch:sketches" "Artist:artists" "Biography:biographies" "Review:reviews" "AudienceLog:audiencelogs" "Edition:editions" }}
+        {{- $pair := splitList ":" . }}
+        - {apiVersion: mnemosyne.art/v1alpha1, kind: {{ first $pair }}, resource: {{ last $pair }}}
+        {{- end }}
+      artifacts:
+        size: {{ .Values.size | quote }}
+        existingClaim: {{ .Values.existingClaim | quote }}
+        {{- with .Values.storageClass }}
+        storageClass: {{ . | quote }}
+        {{- end }}
+        keep: true
+        s3:
+          bucket: {{ .Values.s3.bucket | quote }}
+          endpoint: {{ .Values.s3.endpoint | quote }}
+          prefix: {{ .Values.s3.prefix | default (printf "%s/%s" .Release.Namespace .Release.Name) | quote }}
+      {{- if .Values.s3.credentialsSecretName }}
+      env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef: {name: {{ .Values.s3.credentialsSecretName | quote }}, key: {{ .Values.s3.accessKeyField | quote }}}
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef: {name: {{ .Values.s3.credentialsSecretName | quote }}, key: {{ .Values.s3.secretKeyField | quote }}}
+      {{- end }}

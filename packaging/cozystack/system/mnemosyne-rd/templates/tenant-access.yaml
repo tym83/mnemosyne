@@ -1,0 +1,11 @@
+# The base admin role enumerates applications; an external app must add its own grant.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cozy:tenant:admin:mnemosyne
+  labels:
+    rbac.cozystack.io/aggregate-to-tenant-admin: 'true'
+rules:
+- apiGroups: [apps.cozystack.io]
+  resources: [mnemosynes]
+  verbs: [create, update, patch, delete]

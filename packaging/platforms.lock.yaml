@@ -1,0 +1,9 @@
+# Read-only reference checkouts used for the wrapper conventions.
+cozystack:
+  commit: 3b2526aa1edf2e29ed6c2833e4acc6ba024e5d6c
+  cozyLibChartVersion: 0.0.0
+kubepkg:
+  commit: 949701e2970dd959ccd9ce5c478ce035fc5ca98d
+  cliVersion: dev # Final checks use a binary built from this commit into out/.
+kubepkg-recipes:
+  commit: f2f766d86cfd8ba031e01e5014c9e7bf5ef6f92a

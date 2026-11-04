@@ -1,0 +1,34 @@
+apiVersion: cozystack.io/v1alpha1
+kind: WorkloadMonitor
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    workloads.cozystack.io/resource-preset: {{ .Values.resourcesPreset | quote }}
+spec:
+  replicas: {{ ternary 1 0 .Values.enabled }}
+  minReplicas: {{ ternary 1 0 .Values.enabled }}
+  kind: mnemosyne
+  type: atelier
+  selector:
+    app.kubernetes.io/name: {{ .Release.Name }}-system-atelier-controller
+  version: {{ .Chart.Version }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: {{ .Release.Name }}-dashboard-resources}
+rules:
+- apiGroups: [cozystack.io]
+  resources: [workloadmonitors]
+  resourceNames: [{{ .Release.Name }}]
+  verbs: [get, list, watch]
+- apiGroups: [mnemosyne.art]
+  resources: [ateliers]
+  resourceNames: [{{ .Release.Name }}-system-atelier]
+  verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: {{ .Release.Name }}-dashboard-resources}
+subjects:
+{{ include "cozy-lib.rbac.subjectsForTenantAndAccessLevel" (list "view" .Release.Namespace) }}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ .Release.Name }}-dashboard-resources}
