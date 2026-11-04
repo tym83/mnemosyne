@@ -38,7 +38,7 @@
       "dynamic": "p"
     }
   ],
-  "audio_profile": "native_sfz",
+  "audio_profile": "technique_synthesis",
   "orchestration": "string_orchestra",
   "colour": "glassy",
   "doublings": false,
@@ -47,5 +47,7 @@
     "sul_ponticello",
     "col_legno",
     "bow_pressure"
-  ]
+  ],
+  "sound_origin": "synthesized",
+  "hall_profile": "openair_jack_lyons"
 }

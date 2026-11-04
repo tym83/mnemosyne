@@ -19,3 +19,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 put(part, at, min(.5, end-at), pitch, articulations.Accent())
                 at += 2 if s % 2 == 0 else 4
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Pitch blocks and forceful accents remain fixed; tiny intensity shades preserve their hierarchy.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

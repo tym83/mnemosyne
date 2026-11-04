@@ -80,6 +80,12 @@ def write_midi(score, path, bpm, orchestral=False):
         def bend(semitones):
             value = max(0, min(16383, 8192+round(semitones/12*8192)))
             return bytes([0xE0|channel, value & 127, (value >> 7) & 127])
+        # CC11 realizes sustained-tone dynamics; decoding still uses source XML,
+        # because standard MIDI quantizes expression to seven bits.
+        curve = getattr(part.editorial, 'school_expression', None)
+        if curve:
+            for at, gain in curve:
+                events.append((round(at*960), 1, bytes([0xB0|channel, 11, max(0,min(127,round(96*gain)))])))
         for at, length, pitches, strength, glide in sounding_events(part):
             tick = round(at*960)
             keys = [round(p) for p in pitches]

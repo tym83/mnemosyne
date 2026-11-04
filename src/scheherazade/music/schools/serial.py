@@ -32,3 +32,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
             pitch = nearest(pc,target,low,high)
             put(score.parts[i],at,.25,pitch,articulations.Staccato() if j%2 else articulations.Tenuto())
     return finish(score,total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Pitch row and its order remain fixed; this grammar does not serialize dynamics.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

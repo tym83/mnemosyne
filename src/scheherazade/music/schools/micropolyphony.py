@@ -26,3 +26,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
                 at += speed
                 j += 1
     return finish(score,total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Canonic strands and pitch bands remain fixed; independent strand intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

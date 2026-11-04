@@ -56,6 +56,11 @@ def main():
             else:
                 path=Path(__file__).with_name('schools')/'orchestrated_plans'/f'{name}.json'
                 plan=json.loads(path.read_text())
+                if plan.get('audio_profile') == 'technique_synthesis':
+                    from .render import render_score
+                    source=SCHOOLS[name].compose(plan,plan['seed'])
+                    render_score(source,plan,destination,args.bank)
+                    continue
                 if plan.get('required_techniques'):
                     raise ValueError('Native sample realization unavailable for required techniques: '+', '.join(plan['required_techniques']))
                 source=SCHOOLS[name].compose(plan,plan['seed']);lines=school_lines(source,plan)

@@ -29,3 +29,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
                 # A Poisson process before grid quantization; no global RNG state.
                 at += max(.25,round(rng.expovariate(.25+3*sec['density'])*4)/4)
     return finish(score,total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Pitch/density distributions and realized attacks remain fixed; local intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

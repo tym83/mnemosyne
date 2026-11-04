@@ -28,3 +28,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 repeats[i] = 0
             next_at[i] = at
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Module sequence and common pulse remain fixed; performers choose local touch.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

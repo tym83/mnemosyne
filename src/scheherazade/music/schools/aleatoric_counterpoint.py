@@ -19,3 +19,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 at += step
                 j += 1
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Independent lines retain their ordering and entries; local intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

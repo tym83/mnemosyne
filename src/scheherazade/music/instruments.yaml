@@ -2363,7 +2363,9 @@ instruments:
       patches: {}
       unavailable:
       - sustain
-      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      audio_available: false
+      notation_available: true
+      reason: No verified free solo voice samples; unavailable for audio by decision. Choir substitution is forbidden.
       key_ranges: {}
   soprano_choir:
     family: voice
@@ -2457,7 +2459,9 @@ instruments:
       patches: {}
       unavailable:
       - sustain
-      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      audio_available: false
+      notation_available: true
+      reason: No verified free solo voice samples; unavailable for audio by decision. Choir substitution is forbidden.
       key_ranges: {}
   alto_choir:
     family: voice
@@ -2551,7 +2555,9 @@ instruments:
       patches: {}
       unavailable:
       - sustain
-      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      audio_available: false
+      notation_available: true
+      reason: No verified free solo voice samples; unavailable for audio by decision. Choir substitution is forbidden.
       key_ranges: {}
   tenor_choir:
     family: voice
@@ -2645,7 +2651,9 @@ instruments:
       patches: {}
       unavailable:
       - sustain
-      reason: No verified free solo voice sample set yet; choir substitution is forbidden.
+      audio_available: false
+      notation_available: true
+      reason: No verified free solo voice samples; unavailable for audio by decision. Choir substitution is forbidden.
       key_ranges: {}
   bass_voice_choir:
     family: voice

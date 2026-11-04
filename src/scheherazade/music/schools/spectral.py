@@ -23,3 +23,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 put(part, at, min(8, end-at), fit(pitch, name, sec))
                 at += 8
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Partial-derived harmony remains fixed; individual partial intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

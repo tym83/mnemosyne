@@ -22,3 +22,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 put(part, at, min(length, end-at), None if silence else pitch)
                 at += length
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Oracle pitch, rest and duration outcomes remain fixed; preparation attack intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

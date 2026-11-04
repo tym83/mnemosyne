@@ -72,6 +72,8 @@ def notation_clef(name):
 
 def sample_patch(name, technique):
     spec = REGISTRY[name]['samples']
+    if spec.get('audio_available') is False:
+        raise ValueError(f'{name}: no licensed sample available for audio; {spec["reason"]}')
     # A glissando is a continuous pitch trajectory, not a substitute sample.
     if technique == 'glissando':
         technique = 'arco' if REGISTRY[name]['family']=='strings' else 'sustain'

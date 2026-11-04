@@ -21,3 +21,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 part.insert(at, spanner.Glissando(n, m, lineType='solid'))
                 at += length + rng.choice([0, 1, 2])
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Glissando fields and bow techniques remain fixed; local pressure/intensity shading is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

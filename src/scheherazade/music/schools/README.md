@@ -8,16 +8,37 @@ the plan, seed, grammar source/version and Python/music21 versions for replay.
 Every composer also accepts keyword-only `choices: ChoiceSource | None` (see
 `choices.py`). A supplied source owns all grammar draws and supersedes the seed;
 the caller owns its state. Omitting it preserves the previous seeded output.
-This interface is not yet an invertible payload channel. Six schools have only
-two or three possible scores per plan, and some other schools discard RNG
-outcomes. Changing the RNG cannot recover discarded information or expand that
-support without changing the musical grammar.
+The original grammar draws alone are not invertible: some outcomes are discarded.
+The approved surface expansion is separate from those draws. Every school now
+states `FREE_CHANNELS` beside its rules. `weave.schools.ArithmeticChoices` drives
+16 small performance-dynamics variants around the existing marked level,
+at sounding onsets and half-quarter knots inside sustained notation. No pitch,
+rest, rhythmic proportion, row order or technique is changed by this channel.
+The remaining authorized freedoms (microtonal contours, bowing, entry order,
+etc.) are not required for the measured target and are not silently rewritten.
 
-Run `uv run python -m scheherazade.weave.school_capacity` to create
-`out/works/music/schools/CAPACITY.md`. It measures the six single-choice schools
-through MusicXML and distinguishes source-alphabet upper bounds from unmeasured
-capacity for the remaining schools. Existing reports are preserved; use
-`--output` for a new audit. Grammar expansion needs the author's decision.
+`weave.school_audit` measures all nineteen schools after actual XML serialization,
+checks pitch/duration invariants and tamper rejection, compares woven/unwoven
+histograms and recovers both compact frame series and task-08 fountain series.
+Run the full audit in a studio:
+
+```sh
+python -m scheherazade.weave.school_audit --out /work/gen/school-weave-RUN
+```
+
+Its `CAPACITY.md` contains measured three-minute capacities, net frame data and
+statistics. `school_capacity.py` retains the historical raw-grammar support
+functions for regression tests; these are not capacities of the new surface.
+`weave.schools.performance_score(path)` preserves the numeric performance knots
+when importing into the atelier: music21 alone ignores `sound/dynamics`.
+Synthesis interpolates gain continuously; the MIDI adapter emits CC11 (quantized).
+Only original MusicXML is a supported backup decoder input.
+
+Solo S/A/T/B remain available for notation, unavailable for sampled audio.
+Vocal realizations use the explicit choir instruments. Sonorism and chance
+use the authorized procedural profile with `sound_origin: synthesized` and the
+same measured hall as the sample renderer; no choir or sustain patch substitutes
+for a missing solo voice or extended technique.
 
 ## Plan contract
 

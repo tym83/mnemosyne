@@ -38,12 +38,14 @@
       "dynamic": "f"
     }
   ],
-  "audio_profile": "native_sfz",
+  "audio_profile": "technique_synthesis",
   "orchestration": "two_pianos",
   "colour": "woody",
   "doublings": false,
   "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment.",
   "required_techniques": [
     "prepared_piano"
-  ]
+  ],
+  "sound_origin": "synthesized",
+  "hall_profile": "openair_jack_lyons"
 }

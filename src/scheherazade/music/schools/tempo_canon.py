@@ -24,3 +24,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 put(part, at, min(next_at-at, end-at), fit(60+cell[j % 9], name, sec))
                 j += 1
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Tempo ratios and canon entries remain fixed; local intensity is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

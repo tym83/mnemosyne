@@ -2,7 +2,8 @@
 
 This is a forward-generation interface, not an invertible music channel.
 Several grammars discard random outcomes or have less than a byte of entropy.
-An arithmetic source alone cannot make those grammars carry an envelope.
+The approved surface uses weave.schools.ArithmeticChoices separately; discarded
+grammar RNG draws are not counted as payload capacity.
 """
 import random
 from collections.abc import MutableSequence, Sequence

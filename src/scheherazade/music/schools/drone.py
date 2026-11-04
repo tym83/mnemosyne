@@ -30,3 +30,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
             n = put(part, begin, end-begin, rounded)
             n.editorial.just_pitch = pitch
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'Partial pitches and entry structure remain fixed; sustained partial amplitude may breathe.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

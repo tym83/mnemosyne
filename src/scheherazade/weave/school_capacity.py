@@ -1,4 +1,4 @@
-"""Audit existing grammar limits; this is not a school payload codec.
+"""Audit existing grammar limits; historical raw grammar, excluding approved free surfaces.
 
 Run with python -m scheherazade.weave.school_capacity. Exhaustively measures
 the MusicXML support for single-choice schools; bounds others where possible.
@@ -66,7 +66,7 @@ def bound(name, plan):
 
 def report():
     lines = ['# School capacity audit', '',
-             'No school payload codec or authenticated round trip is implemented.',
+             'Historical raw-grammar support only; see school_audit for the implemented surface codec.',
              'Measured rows enumerate every possible score for the supplied plan,',
              'export MusicXML and count distinct recovered sounding-event sequences.',
              'Other numeric rows are source-alphabet upper bounds, NOT measured capacity.',
@@ -84,7 +84,7 @@ def report():
             evidence = 'Upper bound; inversion unimplemented' if bits is not None else 'Unmeasured; inversion unimplemented'
         values = ('—', '—') if bits is None else (f'{bits:.6f}', f'{bits*60/plan["duration"]:.6f}')
         lines.append(f'| {name} | {values[0]} | {values[1]} | {evidence} |')
-    lines += ['', '## Blocking constraints', '',
+    lines += ['', '## Historical constraints of the raw grammar', '',
               f'The existing payload envelope has {OVERHEAD} bytes ({OVERHEAD*8} bits) of overhead,',
               'before compressed data. Even an alternative authenticated codec cannot encode',
               'an arbitrary byte in a grammar with only two or three possible scores.',
@@ -95,10 +95,10 @@ def report():
               'stochastic rounds continuous gaps and discards the last gap. An arithmetic',
               'decoder must operate on observable equivalence classes with their aggregate',
               'probabilities, rather than recover these discarded random draws.', '',
-              'Required decision: approve additional independent musical choices, or change',
-              'the requirement to a sequence of works. Neither is silently introduced here.',
-              'Woven/unwoven histograms and tamper tests remain unimplemented because there',
-              'is no feasible all-school channel under the current constraints.', '']
+              'The author approved additional surface choices and series transport. The old',
+              'raw grammar remains unchanged; see weave.schools and school_audit.',
+              'Woven/unwoven histograms and tamper tests are implemented in school_audit; there',
+              'was no feasible all-school channel under the original raw-grammar constraints.', '']
     return '\n'.join(lines)
 
 

@@ -33,3 +33,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
             step = max(-3,min(3,step+rng.choice([-1,1])))
             at += length
     return finish(score,total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'M/T pitch rules remain fixed; touch within each written dynamic is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}

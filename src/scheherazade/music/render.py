@@ -215,7 +215,7 @@ def render_score(score, plan, destination, soundfont):
     synthetic = plan.get('audio_profile') == 'technique_synthesis'
     if synthetic:
         from .schools.synthesis import LICENSE, render_synthesis
-        sample_info = {'library': 'Original technique synthesis', 'license': 'CC0-1.0',
+        sample_info = {'sound_origin': 'synthesized', 'library': 'Original technique synthesis', 'license': 'CC0-1.0',
             'sf2_sha256': None, 'samples': [], 'limitations': 'Procedural approximation, no acoustic technique samples'}
     elif plan['ensemble'] == 'satb':
         # VSCO contains no choir: use an explicit, separately licensed GM profile.
@@ -253,7 +253,21 @@ def render_score(score, plan, destination, soundfont):
     log = work/'render.log'
     (work/'plan.json').write_text(json.dumps(plan,indent=2)+'\n')
     xml = work/'score.musicxml'
-    score.write('musicxml',fp=str(xml))
+    export_score = score
+    if synthetic:
+        # Preparation applies throughout; repeating its label at every oracle
+        # outcome obscures the staff without adding an instruction to perform.
+        from copy import deepcopy
+        from music21 import expressions
+        export_score = deepcopy(score)
+        for part in export_score.parts:
+            seen_preparation = False
+            for text in list(part.recurse().getElementsByClass(expressions.TextExpression)):
+                if text.content == 'Prepared resonance (synthesis)':
+                    if seen_preparation:
+                        text.activeSite.remove(text)
+                    seen_preparation = True
+    export_score.write('musicxml',fp=str(xml))
     tree = ET.parse(xml)
     for identification in tree.findall('identification'):
         for creator in list(identification.findall('creator')):
@@ -269,6 +283,9 @@ def render_score(score, plan, destination, soundfont):
     midi = work/'score.mid'
     write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra')
     run(['musicxml2ly','-o',work/'score.ly',xml],log)
+    if synthetic:
+        with (work/'score.ly').open('a') as file:
+            file.write('\n#(set-global-staff-size 16)\n')
     run(['lilypond','-dno-point-and-click','-o',work/'score',work/'score.ly'],log)
     if synthetic:
         render_synthesis(score, plan, work/'score.wav')
@@ -277,7 +294,23 @@ def render_score(score, plan, destination, soundfont):
              '-F',work/'score.wav','-r','44100',soundfont,midi],log)
     if any('error:' in line.lower() or 'failed to load' in line.lower() for line in log.read_text().splitlines()):
         raise RuntimeError(f'Renderer reported an error; see {log}')
-    raw_audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.wav'),
+    audio_source = work/'score.wav'
+    tail = 2
+    if synthetic and plan.get('hall_profile') == 'openair_jack_lyons':
+        bank = Path(soundfont)
+        tail = 4
+        run(['ffmpeg','-nostdin','-v','warning','-i',bank/'hall.wav','-af',
+             'pan=stereo|c0=0.7071*c0+0.5*c1+0.5*c2|c1=0.7071*c0+0.5*c1-0.5*c2',
+             '-ar','22050','-c:a','pcm_f32le',work/'hall-stereo.wav'],log)
+        graph = "[0:a]apad,asplit[d][s];[s][1:a]afir=dry=1:wet=1:irfmt=input[r];[d][r]amix=inputs=2:weights='1 0.25':normalize=0[out]"
+        audio_source = work/'hall-mix.wav'
+        run(['ffmpeg','-nostdin','-v','warning','-i',work/'score.wav','-i',work/'hall-stereo.wav',
+             '-filter_complex',graph,'-map','[out]','-t',plan['duration']+tail,
+             '-c:a','pcm_f32le',audio_source],log)
+        from .native_bank import LIBRARIES
+        sample_info['hall'] = {**LIBRARIES['openair_jack_lyons'],
+                              'sha256':hashlib.sha256((bank/'hall.wav').read_bytes()).hexdigest()}
+    raw_audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(audio_source),
         '-ac','1','-ar','44100','-f','f32le','-'])
     raw = np.frombuffer(raw_audio,dtype='<f4')
     raw_peak = float(np.max(np.abs(raw)))
@@ -288,16 +321,16 @@ def render_score(score, plan, destination, soundfont):
     pregain = min(.8/max(raw_peak,1e-9), .1/raw_rms)
     info['raw_rms'] = raw_rms
     info['pregain'] = pregain
-    # Preserve the planned silence; allow a documented two-second reverb tail.
-    run(['ffmpeg','-nostdin','-v','warning','-i',work/'score.wav','-af',
-         f'volume={pregain},apad','-t',str(plan['duration']+2),
+    # Preserve the planned silence; allow the documented synthesis or measured-hall tail.
+    run(['ffmpeg','-nostdin','-v','warning','-i',audio_source,'-af',
+         f'volume={pregain},apad','-t',str(plan['duration']+tail),
          '-codec:a','libmp3lame','-q:a','2','-threads','1',work/'score.mp3'],log)
     audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),
         '-ac','1','-ar','44100','-f','f32le','-'])
     data = np.frombuffer(audio,dtype='<f4')
-    info.update(audio_seconds=len(data)/44100,tail_seconds=2,
+    info.update(audio_seconds=len(data)/44100,tail_seconds=tail,
                 peak=float(np.max(np.abs(data))),rms=float(np.sqrt(np.mean(data**2))))
-    if info['rms'] < .001 or info['peak'] >= 1 or abs(info['audio_seconds']-plan['duration']-2)>.1:
+    if info['rms'] < .001 or info['peak'] >= 1 or abs(info['audio_seconds']-plan['duration']-tail)>.1:
         raise RuntimeError(f'Audio validation failed: {info}')
     info['warnings'] = [l for l in log.read_text().splitlines() if not l.startswith('$') and ('warning' in l.lower() or 'error' in l.lower())]
     (work/'analysis.json').write_text(json.dumps(info,indent=2))
@@ -320,6 +353,7 @@ def render_score(score, plan, destination, soundfont):
     (destination/'render.json').write_text(json.dumps({'renderer_version':3,'draft':str(work),
         'python':sys.version,'music21':__import__('music21').__version__,
         'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
+        'sound_origin': 'synthesized' if synthetic else 'sampled',
         'sample_sha256':sample_info['sf2_sha256'],'artifacts':{n:hashlib.sha256((work/n).read_bytes()).hexdigest() for n in artifacts}},indent=2))
     print(json.dumps({'school':plan['school'],**info}),flush=True)
 

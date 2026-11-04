@@ -55,6 +55,10 @@ def render_synthesis(score, plan, path):
                 signal += voice/max(1,len(pitches))
             attack = .008 if school == 'chance' else min(.5, len(t)/rate/4)
             envelope = np.minimum(t/attack, 1)*np.minimum((n-1-np.arange(n))/rate/.08, 1)
+            curve = getattr(part.editorial, 'school_expression', None)
+            if curve:
+                times, gains = zip(*curve)
+                envelope *= np.interp(at+t/seconds, times, gains)
             signal = (signal*envelope*(velocity/127)**1.5*.15/max(1,len(score.parts))**.5).astype(np.float32)
             audio[start:start+n, 0] += signal*np.sqrt(1-pan)
             audio[start:start+n, 1] += signal*np.sqrt(pan)

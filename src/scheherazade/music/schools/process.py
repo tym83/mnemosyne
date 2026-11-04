@@ -19,3 +19,7 @@ def compose(plan, seed, *, choices: ChoiceSource | None = None):
                 put(part, at, min(.25, end-at), None if pitch is None else fit(pitch, name, sec))
                 j += 1
     return finish(score, total)
+
+
+# Authorized performance freedom; the note grammar above remains invariant.
+FREE_CHANNELS = {'dynamics': 'The gradual process and phase relationships remain fixed; local touch is free.', 'period_quarters': 0.5, 'levels': 16, 'step_percent': 0.25, 'max_deviation_percent': 1.875}
