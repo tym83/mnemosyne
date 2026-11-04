@@ -1,0 +1,568 @@
+"""An idea-led night. Writer stays with the notebook; music runs in a studio pod.
+
+No rejected idea becomes a finished work. Insufficient carrier capacity leaves
+an explicit pending snapshot, never a claim that the archive was recovered.
+"""
+from __future__ import annotations
+
+import argparse
+from copy import deepcopy
+from datetime import datetime
+import hashlib
+import json
+import math
+import os
+import random
+from pathlib import Path
+import subprocess
+from typing import Literal
+from uuid import uuid4
+
+from pydantic import BaseModel, Field
+from .. import artist as ideas
+from ..atelier import Atelier, obj
+from ..lineage import Lineage
+from ..literature import Writer
+from ..climate import tendencies, year_shape, feel, temperament
+from ..mood import words
+
+
+class Method(BaseModel):
+    kind: Literal['school', 'notagen', 'cross', 'broken_principle', 'invent_school']
+    school: str
+    sources: list[str]
+    principle: str
+    transformation: str
+    concept: str
+    reason: str
+    notagen_prompt: str  # period|composer|instrumentation, or empty
+    form: Literal['school', 'symphony']
+
+
+class PlanText(BaseModel):
+    # JSON text keeps the Writer's strict outer schema compatible with the
+    # different versioned grammars. The parsed document is validated below.
+    plan_json: str
+    diary: str
+
+
+class Listening(BaseModel):
+    verdict: Literal['accept', 'rewrite', 'repetition']
+    reasons: str
+    corrections: list[str]
+    matters: bool
+    quality: float = Field(ge=0, le=1)
+
+
+class Chapter(BaseModel):
+    text: str
+
+
+def dump(path, value):
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + '.tmp')
+    tmp.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + '\n')
+    tmp.replace(path)
+
+
+def validate_plan(plan, method, *, sketch=False):
+    from .schools import SCHOOLS
+    if method.kind == 'invent_school':
+        raise NotImplementedError('school birth requires a reviewed grammar and decoder')
+    if method.form == 'symphony':
+        from .symphony import validate
+        validate(plan, study=sketch)
+        used = {name for mv in plan['movements'] for sec in mv['sections']
+                for name in sec.get('schools', mv.get('schools', []))}
+        if method.kind == 'cross' and (len(set(method.sources)) < 2 or not set(method.sources) <= used):
+            raise ValueError('a cross must realize at least two declared source schools')
+        if method.kind == 'broken_principle' and (not method.principle or not method.transformation):
+            raise ValueError('name the broken principle and its concrete transformation')
+        return plan
+    from .schools.plan import SchoolPlan
+    if method.school not in SCHOOLS or plan.get('school') != method.school:
+        raise ValueError('plan must name the chosen existing school')
+    if type(plan.get('seed')) is not int or not plan.get('title'):
+        raise ValueError('integer seed and title required')
+    SchoolPlan.model_validate(plan)
+    from .schools.common import validate
+    validate(plan)
+    if method.kind in ('cross', 'broken_principle'):
+        raise ValueError('crosses and broken principles use a symphony plan with explicit material development')
+    return plan
+
+
+def plan_contract(method):
+    from .schools import SCHOOLS
+    if method.form == 'symphony':
+        from .symphony import FORMS, TRANSFORMS
+        return {'version': 1, 'forms': FORMS, 'transforms': sorted(TRANSFORMS),
+                'contract': 'symphony.validate: 3–5 movements, 20–45 minutes (sketch study may be shorter)',
+                'example': json.loads((Path(__file__).parent/'plans/symphony-test.json').read_text())}
+    if method.school not in SCHOOLS:
+        raise ValueError('unknown school')
+    from .schools.plan import SchoolPlan
+    return {'schema': SchoolPlan.model_json_schema(), 'contract': 'schools.common.validate; durations in seconds; sounding MIDI; '
+                        'sum(form.duration)=duration; duration*tempo/60 on sixteenth grid; '
+                        'each section >=4 quarters; register overlaps every instrument by an octave',
+            'example': json.loads((Path(__file__).parent/'schools/plans'/f'{method.school}.json').read_text()),
+            'grammar': Path(SCHOOLS[method.school].__file__).read_text()}
+
+
+class Studio:
+    """Fixed namespace/node boundary. Isolated source and run directory per night."""
+    def __init__(self, root: Path, pod='studio-0'):
+        if pod not in ('studio-0', 'studio-1'):
+            raise ValueError('only studio-0/ws1 and studio-1/ws4 are allowed')
+        self.root, self.pod = root, pod
+        self.remote = '/work/composer/' + uuid4().hex
+        self.kube = ['kubectl', '--kubeconfig', str(Path('~/workshop.txt').expanduser()),
+                     '--context', 'admin@workshop', '-n', 'tenant-scheherazade']
+
+    def call(self, args, **kwargs):
+        return subprocess.run(self.kube + args, check=True, **kwargs)
+
+    def setup(self):
+        data = json.loads(self.call(['get', 'pod', self.pod, '-o', 'json'],
+                                   capture_output=True, text=True).stdout)
+        expected = {'studio-0': 'ws1', 'studio-1': 'ws4'}[self.pod]
+        if data['spec'].get('nodeName') != expected:
+            raise RuntimeError('studio is on an unauthorized node')
+        self.call(['exec', self.pod, '--', 'mkdir', '-p', self.remote + '/src'])
+        self.call(['cp', str(Path(__file__).resolve().parents[1]),
+                   self.pod + ':' + self.remote + '/src/scheherazade'])
+        self.call(['exec', self.pod, '--', 'ln', '-s', 'scheherazade',
+                   self.remote + '/src/mnemosyne'])
+
+    def run(self, request, destination):
+        destination.mkdir(parents=True, exist_ok=False)
+        dump(destination/'request.json', request)
+        remote = self.remote + '/' + destination.name
+        self.call(['exec', self.pod, '--', 'mkdir', '-p', remote])
+        self.call(['cp', str(destination/'request.json'), self.pod + ':' + remote + '/request.json'])
+        command = ['exec', self.pod, '--', 'nice', '-n', '19', 'env',
+                   'PYTHONPATH=' + self.remote + '/src:/work/lineage-check/deps',
+                   'OMP_NUM_THREADS=1', 'OPENBLAS_NUM_THREADS=1',
+                   *[k + '=' + os.environ[k] for k in ('MNEMOSYNE_NOTAGEN', 'NOTAGEN_DIR',
+                       'NOTAGEN_WEIGHTS', 'NOTAGEN_DEVICE') if k in os.environ],
+                   '/work/venv/bin/python', '-m', 'mnemosyne.music.composer_worker',
+                   remote + '/request.json', '--out', remote + '/result']
+        error = None
+        with (destination/'studio.log').open('w') as log:
+            try:
+                self.call(command, stdout=log, stderr=subprocess.STDOUT, timeout=14400)
+            except Exception as exc:
+                error = exc
+        # Fetch failed attempts too; never delete the remote notebook.
+        try:
+            self.call(['cp', self.pod + ':' + remote + '/result', str(destination/'result')])
+        except subprocess.CalledProcessError:
+            if error is None:
+                raise
+        if error:
+            raise error
+        return json.loads((destination/'result/result.json').read_text())
+
+
+def feature_vector(summary):
+    """Fixed measurable descriptors; these are not an aesthetic quality score."""
+    density = summary.get('density', [])
+    return [min(1., (summary.get('bpm') or 60)/240),
+            min(1., (sum(density)/max(1, len(density)))/100),
+            min(1., summary.get('parts', 1)/32), float(summary.get('reprise', 0))]
+
+
+def art_sketch(sketch):
+    return {k: sketch[k] for k in ('plan', 'analysis', 'form') if k in sketch}
+
+
+class Night:
+    def __init__(self, life, artist_id, root, studio, *, backend=None):
+        self.life = life
+        self.artist = next(a for a in life.artists if a.id == artist_id)
+        if self.artist.status not in ('working', 'ill'):
+            raise ValueError('a living working artist is required')
+        self.work_id = f'{artist_id}-w{len(self.artist.catalogue):05d}'
+        self.root, self.studio, self.backend = Path(root), studio, backend
+        self.root.mkdir(parents=True, exist_ok=False)
+        studio_record = {'pod': getattr(studio, 'pod', None), 'remote': getattr(studio, 'remote', None)}
+        self.entries, self.sketches = [], []
+        self.record = {'version': 1, 'artist': artist_id, 'opus': self.work_id,
+                       'night': life.night, 'chronicle': life.cluster+'-lives',
+                       'studio': studio_record, 'status': 'searching', 'entries': self.entries,
+                       'sketches': self.sketches}
+        self.writer = Writer(self.entries, backend=backend, data_class="art")
+        self.work = None
+        self.save()
+
+    def save(self):
+        atelier = Atelier(self.life.cluster, self.root/'atelier')
+        for sk in self.sketches:
+            sk['file_refs'] = [atelier.store.put(self.root/p) for p in sk.get('files', [])]
+        if self.work is not None:
+            self.work['process']['composer'] = deepcopy(self.record)
+        dump(self.root/'notebook.json', self.record)
+        dump(self.root/'lineage.json', self.life.state())
+        atelier.lineage(self.life)
+        # Pending/failed nights are ordinary state too, before _work is called.
+        if self.work is None:
+            atelier.objects.extend([
+                obj('Opus', self.work_id, {'artist': self.artist.id, 'art': 'music',
+                    'notebook': self.work_id+'-notebook', 'phase': self.record['status']}),
+                obj('Notebook', self.work_id+'-notebook', deepcopy(self.record))])
+        else:
+            for o in atelier.objects:
+                if o['kind'] == 'Notebook' and o['metadata']['name'] == self.work['notebook']:
+                    o['spec']['composer'] = deepcopy(self.record)
+        for sk in self.sketches:
+            files = [atelier.store.put(self.root/p) for p in sk.get('files', [])]
+            if sk['id'] == self.record.get('final'):
+                for o in atelier.objects:
+                    if o['kind'] == 'Opus' and o['metadata']['name'] == self.work_id:
+                        o['spec'].update(files=files, art='music', final_sketch=sk['id'])
+            if not any(o['kind'] == 'Sketch' and o['metadata']['name'] == sk['id'] for o in atelier.objects):
+                atelier.objects.append(obj('Sketch', sk['id'], {**sk, 'artist': self.artist.id,
+                    'opus': self.work_id, 'notebook': self.work_id+'-notebook', 'files': files}))
+        atelier.write()
+        self.objects = atelier.objects
+
+    def ask(self, system, prompt, schema, step, **kwargs):
+        try:
+            return self.writer.ask(system, prompt, schema, step, **kwargs)
+        finally:
+            self.save()
+
+    def plan(self, method, context, step, *, sketch=False):
+        contract = plan_contract(method)
+        prompt = json.dumps({'task': 'Write the complete plan as JSON text in plan_json. '
+                    'Choose every musical parameter yourself; no cluster facts. '
+                    + ('Short study of the method.' if sketch else 'Complete work, derived from the sketches.'),
+                    'context': context, 'contract': contract}, ensure_ascii=False)
+        for attempt in range(3):
+            answer = self.ask(self.system, prompt, PlanText, f'{step}:{attempt}',
+                              images=[self.root/p for p in context.get('candidate_images', [])])
+            try:
+                plan = validate_plan(json.loads(answer.plan_json), method, sketch=sketch)
+                if method.kind == 'notagen':
+                    materials = [c.get('material') for c in context['notagen_candidates']['candidates']
+                                 if c.get('material')]
+                    if plan.get('notagen_material') not in materials:
+                        raise ValueError('use one archived candidate material verbatim as notagen_material')
+                    if not any('notagen' in sec.get('schools', mv.get('schools', []))
+                               for mv in plan['movements'] for sec in mv['sections']):
+                        raise ValueError('NotaGen material must actually participate in the work')
+                self.entries.append({'step': step, 'plan': plan, 'diary': answer.diary})
+                self.save()
+                return plan
+            except (ValueError, TypeError, KeyError) as exc:
+                self.entries.append({'step': step, 'invalid_plan': answer.plan_json, 'error': str(exc)})
+                self.save()
+                prompt += '\nCorrect the plan without discarding the idea: ' + str(exc)
+        raise ValueError('artist plan failed validation three times')
+
+    def music(self, plan, method, label):
+        result = self.studio.run({'action': 'compose', 'plan': plan,
+                                  'form': method.form}, self.root/label)
+        folder = self.root/label/'result'
+        files = [str(p.relative_to(self.root)) for p in sorted(folder.rglob('*'))
+                 if p.is_file() and '.drafts' not in p.parts]
+        sk = {'id': self.work_id+'-'+label, 'stage': label, 'plan': plan,
+              'analysis': result['analysis'], 'files': files,
+              'score': str((folder/result['score']).relative_to(self.root)),
+              'form': method.form,
+              'carriers': [{**c, 'score': str((folder/c['score']).relative_to(self.root))}
+                           for c in result.get('carriers', [])],
+              'images': [str((folder/p).relative_to(self.root)) for p in result['images']]}
+        self.sketches.append(sk)
+        self.save()
+        return sk
+
+    def run(self, inner, *, drafts=3, key=None):
+        a = self.artist
+        sensed = feel(self.life.climate, a.sensitivity or temperament(a.id))
+        inner = words(sensed, False, False) + '\n' + inner
+        name = 'художник' if a.name == a.id else a.name
+        names = {b.id: ('художник' if b.name == b.id else b.name) for b in self.life.artists}
+        teachers = [names.get(t, t) for t in a.teachers]
+        self.system = (f'Ты композитор {name}. {a.portrait}\nУчителя: {teachers}. '
+                       'Художественные решения принимаешь ты. Не упоминай инфраструктуру. '
+                       'Слушай через анализ и изображения партитуры; это не непосредственное прослушивание.')
+        try:
+            if not a.portrait or a.portrait == '[portrait awaiting words]':
+                portrait = ideas.self_portrait({'born': a.birth, 'age_days': a.age,
+                    'teachers': teachers, 'catalogue': [w.get('idea') for w in a.catalogue if w.get('idea')]},
+                    self.entries, backend=self.backend, inner=inner)
+                a.name, a.portrait = portrait.name, portrait.portrait
+                name = a.name
+                self.system = (f'Ты композитор {a.name}. {a.portrait}. Учителя: {teachers}. '
+                               'Не упоминай инфраструктуру. Принимай художественные решения по идее, '
+                               'анализу звучания и изображениям партитуры.')
+                self.record['portrait'] = portrait.model_dump()
+                self.save()
+            portrait = ideas.SelfPortrait(name=name, portrait=a.portrait + '\nУчителя: '+', '.join(teachers),
+                what_i_am_as_artist=a.portrait, wounds=[], loves=[], fears=[], inner_critic={**a.inner_critic, 'teachers': teachers})
+            st, history = ideas.statement(portrait, 'музыка',
+                [json.dumps({k: w.get(k) for k in ('idea', 'method', 'verdict')}, ensure_ascii=False)
+                 for w in a.catalogue], self.entries, backend=self.backend,
+                contemporaries=[str(w['idea']) for b in self.life.artists if b.id != a.id
+                                for w in b.catalogue if w.get('idea')],
+                illumination=self.life.idea_seed(a.id), inner=inner, interrogator="Шахрияр")
+            self.record.update(statement=st.model_dump(), interrogation=history)
+            self.save()
+            if history[-1]['interrogation']['verdict'].strip().lower() != 'accept':
+                self.record['status'] = 'idea_rejected'
+                return self.record
+            from .schools.catalog import LISTEN
+            method = self.ask(self.system, json.dumps({'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,
+                'task': 'Choose school, NotaGen period style, cross, broken principle, or invent_school. '
+                'For a cross or broken principle choose form=symphony and name the exact development. '
+                'invent_school is a request only: its reviewed grammar is future work.'}, ensure_ascii=False),
+                Method, 'method')
+            self.record['method'] = method.model_dump()
+            if method.kind == 'invent_school':
+                self.life.school_attempts.append({'artist': a.id, 'night': self.life.night,
+                    'status': 'needs_grammar', 'proposal': method.model_dump(), 'notebook': self.work_id+'-notebook'})
+                self.record['status'] = 'school_birth_hook'
+                return self.record
+            shades = ideas.halftones(portrait, st, method.concept, inner, self.entries, backend=self.backend)
+            self.record['halftones'] = shades.model_dump()
+            rng = random.Random(int.from_bytes(hashlib.sha256(self.work_id.encode()).digest()[:8]))
+            structural = tendencies(sensed, a.inner_critic, method.model_dump(), rng)
+            context = {'statement': st.model_dump(), 'method': method.model_dump(), 'halftones': shades.model_dump(),
+                       'structural_tendencies': structural,
+                       'structure_instruction': 'These sampled tendencies are weighted suggestions, not fixed mappings. '
+                           'Interpret through the idea and chosen method; retain your reasons in the diary.'}
+            occasion = next((o for o in self.life.occasions if o['moment'] <= self.life.night), None)
+            if occasion:
+                context['occasion'] = {k: occasion[k] for k in ('genre', 'moment')}
+            if method.form == 'symphony' and self.life.climate_history:
+                context['year_shape'] = year_shape(self.life.climate_history[-365:])
+                context['structure_instruction'] += ' Derive proportions and tension from this abstract curve, never calendar sections.'
+            self.record['climate_structure'] = deepcopy(context)
+
+            if method.kind == 'notagen':
+                if os.environ.get('MNEMOSYNE_NOTAGEN') != 'self-hosted':
+                    raise RuntimeError('NotaGen was selected but is not enabled')
+                candidates = self.studio.run({'action': 'notagen', 'prompt': method.notagen_prompt},
+                                             self.root/'notagen')
+                self.record['notagen'] = candidates
+                # NotaGen supplies archived reservoirs to an artist-authored cyclic plan.
+                method.form = 'symphony'
+                context['notagen_candidates'] = candidates
+                self.record['method'] = method.model_dump()
+                context['method'] = method.model_dump()
+                context['candidate_images'] = []
+                folder = self.root/'notagen/result'
+                for i, candidate in enumerate(candidates['candidates']):
+                    sk = {'id': self.work_id+f'-notagen-{i}', 'stage': 'notagen',
+                          'candidate': candidate, 'files': []}
+                    if candidate.get('image'):
+                        image = str((folder/candidate['image']).relative_to(self.root))
+                        context['candidate_images'].append(image)
+                        sk['score'] = str((folder/candidate['score']).relative_to(self.root))
+                    sk['files'] = [str(p.relative_to(self.root)) for p in folder.rglob('*')
+                                   if p.is_file() and '.drafts' not in p.parts and
+                                   (p.stem == Path(candidate['file']).stem or p.name == candidate.get('image'))]
+                    self.sketches.append(sk)
+                self.save()
+            sketch_plan = self.plan(method, context, 'sketch-plan', sketch=True)
+            sketch = self.music(sketch_plan, method, 'sketch-00')
+            context['sketch'] = art_sketch(sketch)
+            review = self.ask(self.system, json.dumps(context, ensure_ascii=False), Listening, 'listen:sketch',
+                              images=[self.root/p for p in sketch['images']])
+            context['sketch_review'] = review.model_dump()
+            final = None
+            for i in range(drafts):
+                scale = ('форма и драматургия', 'фактура и голосоведение', 'нюансы и детали')[min(i, 2)]
+                context['correction_scale'] = scale
+                plan = self.plan(method, context, f'draft-plan:{i}')
+                final = self.music(plan, method, f'draft-{i:02d}')
+                review = self.ask(self.system, json.dumps({'context': context, 'draft': art_sketch(final),
+                    'task': f'Проверь идею, метод и звучание по анализу и нотам. Исправления: {scale}. '
+                            'accept только если работа завершена. Оцени, нужна ли глава Жизнеописаний.'},
+                    ensure_ascii=False), Listening, f'listen:draft:{i}',
+                    images=[self.root/p for p in final['images']])
+                context.update(previous_plan=plan, correction=review.model_dump())
+                if review.verdict == 'accept':
+                    break
+            if final is None:
+                raise ValueError('at least one draft required')
+            self.record.update(final=final['id'], verdict=review.model_dump(),
+                               status='accepted' if review.verdict == 'accept' else 'unfinished')
+            vector = feature_vector(final['analysis'])
+            prior = [w['feature'] for w in a.catalogue if not w.get('synthetic', True)]
+            novelty = min(1., min((math.dist(vector, v) for v in prior), default=1.))
+            a.method, a.school = method.concept, method.school
+            self.work = self.life.record_work(a.id, {'feature': vector, 'novelty': novelty,
+                'quality': review.quality, 'verdict': review.verdict, 'idea': st.idea,
+                'process': {'composer': deepcopy(self.record)}})
+            self.work['halftones'] = shades.model_dump()
+            self.life.note(a, 'composer_notebook', opus=self.work_id, notebook=self.work['notebook'])
+            if review.matters:
+                event = self.life.event(a, 'composer_work', work=self.work_id, verdict=review.verdict)
+                self.record['chronicle_event'] = event['id']
+                chronicler = ('летописец' if self.life.chronicler == f'{self.life.cluster}: chronicler of the Lives'
+                             else self.life.chronicler)
+                chapter = self.ask(f'Ты {chronicler}. Пиши Жизнеописания об искусстве.',
+                    json.dumps({'artist': name, 'idea': st.idea, 'verdict': review.model_dump(),
+                        'previous': [c['text'] for c in self.life.biographies[a.id].chapters[-4:] if c.get('text')]}, ensure_ascii=False),
+                    Chapter, 'lives-chapter')
+                self.life.biographies[a.id].chapters[-1]['text'] = chapter.text
+            self.save()
+            if key is not None:
+                self.backup(key)
+            return self.record
+        except Exception as exc:
+            self.record.update(status='failed', error=f'{type(exc).__name__}: {exc}')
+            raise
+        finally:
+            if self.work is not None:
+                self.work['process']['composer'] = deepcopy(self.record)
+            self.save()
+
+    def backup(self, key):
+        from ..state.collect import archive
+        from ..atelier import crds, NS
+        from ..weave import catalogue, fountain, payload, schools, surface, registry, school_series
+        from ..restore import recover_works
+        data = archive([*crds(), {'apiVersion': 'v1', 'kind': 'Namespace',
+                                  'metadata': {'name': NS}}, *self.objects])
+        (self.root/'state.tar.zst').write_bytes(data)
+        envelope = payload.seal(data, key.public_key(), context=fountain.DOMAIN)
+        roots = []
+        for sketch in self.sketches:
+            if 'plan' not in sketch:
+                continue  # NotaGen sources stay retained; their developed works carry frames.
+            plan = sketch['plan']
+            school = 'symphony' if sketch.get('form') == 'symphony' else plan['school']
+            carriers = sketch.get('carriers') or [{'score': sketch['score']}]
+            for c in carriers:
+                carrier = {**sketch, **c, 'carrier_school': school, 'carrier_object': sketch['id']}
+                if 'movement_index' in c:
+                    carrier['id'] += f"-mv{c['movement_index']+1}"
+                    carrier['stage'] += f"-mv{c['movement_index']+1}"
+                root = schools.prepare(surface.read(self.root/c['score']), school)
+                capacity = schools.capacity(root) - school_series.OVERHEAD
+                if capacity > fountain.OVERHEAD:
+                    roots.append((carrier, root, capacity))
+        sizes = {min(1024, cap) for _, _, cap in roots}
+        sizes = {size for size in sizes if math.ceil(len(envelope)/(size-fountain.OVERHEAD)) <= fountain.MAX_K}
+        if not sizes:
+            report = {'archive_bytes': len(data), 'archive_sha256': hashlib.sha256(data).hexdigest(),
+                      'archive_recovered': False, 'frame_decode_verified': False,
+                      'reason': 'no carrier large enough for authenticated frame dimensions'}
+            self.record.update(status='backup_pending_capacity', backup=report)
+            (self.root/'pending-envelope.bin').write_bytes(envelope)
+            dump(self.root/'decode.json', report)
+            return
+        frame_size = max(sizes, key=lambda size: sum(cap//size for _, _, cap in roots)*(size-fountain.OVERHEAD))
+        encoder = fountain.Encoder(envelope, frame_size, key)
+        assignments = [(sk, root, cap//frame_size) for sk, root, cap in roots if cap >= frame_size]
+        count = sum(n for _, _, n in assignments)
+        # Several frames may belong to one work. Distinct frame slots retain the
+        # actual carrier identity as a prefix; the mapping is archived explicitly.
+        ids = [sk['id']+f'/frame-{j}' for sk, _, n in assignments for j in range(n)]
+        cat = catalogue.create(encoder, ids, carrier_ids=[sk['carrier_object']
+            for sk, _, n in assignments for _ in range(n)])
+        dump(self.root/'catalogue.json', cat)
+        woven = self.root/'woven'
+        woven.mkdir()
+        frames = []
+        index = 0
+        for sk, root, n in assignments:
+            registry.mark(root, (sk['carrier_school'], 'dynamics-fountain', '2'))
+            metadata = [{'carrier': sk['id'], **catalogue.metadata(cat, i)} for i in range(index, index+n)]
+            import xml.etree.ElementTree as ET
+            misc = root.find('./identification/miscellaneous')
+            ET.SubElement(misc, 'miscellaneous-field', name='mnemosyne.catalogue').text = json.dumps(metadata)
+            batch = [encoder.frame(i) for i in range(index, index+n)]
+            result = school_series.encode_many(root, batch, key)
+            path = woven/(sk['id']+'.musicxml')
+            surface.write(result, path)
+            decoded = registry.decode(path, key).frame
+            for frame, meta in zip(decoded, metadata, strict=True):
+                catalogue.validate_work(frame, meta, key)
+            frames.extend(decoded)
+            dump(path.with_suffix('.catalogue.json'), metadata)
+            index += n
+        report = {'archive_bytes': len(data), 'archive_sha256': hashlib.sha256(data).hexdigest(),
+                  'frames': count, 'required_source_frames': encoder.k,
+                  'frame_decode_verified': True, 'archive_recovered': False,
+                  'snapshot_boundary': 'after final verdict and biography, before weave/render/decode',
+                  'loss_tolerance_verified': False}
+        if count >= encoder.k:
+            recovered = fountain.recover(frames, key)
+            if recovered != data:
+                raise RuntimeError('archive differs after decode')
+            # Exercise the restore entry point on scores only, without sidecars.
+            restored, _, _ = recover_works(woven, key)
+            if restored != data:
+                raise RuntimeError('restore entry point differs')
+            report['archive_recovered'] = True
+        else:
+            report['pending_source_frames'] = encoder.k-count
+            (self.root/'pending-envelope.bin').write_bytes(envelope)
+        self.record['backup'] = report
+        self.record['catalogue'] = cat
+        dump(self.root/'decode.json', report)
+        # Rendering the woven surfaces must consume expression_curves, not a
+        # re-export that silently loses continuous dynamics.
+        for sk, _, _ in assignments:
+            xml = woven/(sk['id']+'.musicxml')
+            assignment_path = (self.root/sk['score']).parent/'orchestration.json'
+            assignment = json.loads(assignment_path.read_text()) if assignment_path.exists() else None
+            self.studio.run({'action': 'woven', 'xml': xml.read_text(), 'plan': sk['plan'],
+                             'assignment': assignment,
+                             'form': sk.get('form', 'school'), 'movement_index': sk.get('movement_index')},
+                            self.root/('woven-render-'+sk['stage']))
+        for path in woven.glob('*.musicxml'):
+            registry.decode(path, key)
+        for sk, _, _ in assignments:
+            original = next(s for s in self.sketches if s['id'] == sk['id'] or
+                            sk['id'].startswith(s['id']+'-mv'))
+            files = [woven/(sk['id']+'.musicxml'), woven/(sk['id']+'.catalogue.json')]
+            files += [p for p in (self.root/('woven-render-'+sk['stage'])).rglob('*')
+                      if p.is_file() and '.drafts' not in p.parts]
+            original.setdefault('files', []).extend(str(p.relative_to(self.root)) for p in files)
+            original.setdefault('carried_frames', []).extend(
+                json.loads((woven/(sk['id']+'.catalogue.json')).read_text()))
+        report['post_render_decode_verified'] = True
+        dump(self.root/'decode.json', report)
+        self.record['status'] = 'complete' if report['archive_recovered'] else 'backup_pending_capacity'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--lineage', type=Path, required=True)
+    parser.add_argument('--artist')
+    parser.add_argument('--scenarios', type=Path, default=Path('out/scenarios'))
+    parser.add_argument('--out', type=Path, default=Path('out/works/composer'))
+    parser.add_argument('--run-id', help='New notebook directory name when retaining an earlier failed attempt')
+    parser.add_argument('--pod', choices=['studio-0', 'studio-1'], default='studio-0')
+    parser.add_argument('--drafts', type=int, default=3)
+    parser.add_argument('--key', type=Path, required=True, help='External existing or new X25519 private key')
+    args = parser.parse_args()
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+    from ..weave.backup import write_new
+    life = Lineage.restore(json.loads(args.lineage.read_text()))
+    a = next(a for a in life.artists if a.id == args.artist) if args.artist else next(a for a in life.artists if a.status == 'working')
+    work = f'{a.id}-w{len(a.catalogue):05d}'
+    if args.run_id and (Path(args.run_id).name != args.run_id or args.run_id in (".", "..")):
+        parser.error("run-id must be a single directory name")
+    root = args.out/a.id/(args.run_id or work)
+    if root.exists():
+        raise FileExistsError(f'Preserved existing notebook: {root}')
+    if not args.key.exists():
+        args.key.parent.mkdir(parents=True, exist_ok=True)
+        write_new(args.key, X25519PrivateKey.generate().private_bytes_raw())
+    key = X25519PrivateKey.from_private_bytes(args.key.read_bytes())
+    studio = Studio(root, args.pod)
+    night = Night(life, a.id, root, studio, backend=os.environ.get('WRITER'))
+    studio.setup()
+    inner = ideas.inner_life(args.scenarios, life.cluster, datetime.fromisoformat(life.date()))
+    result = night.run(inner, drafts=args.drafts, key=key)
+    print(json.dumps({'notebook': str(root), 'status': result['status']}, ensure_ascii=False))
+
+
+if __name__ == '__main__':
+    main()
