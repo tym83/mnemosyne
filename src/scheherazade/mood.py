@@ -36,9 +36,11 @@ def mood(scenarios: Path, cluster: str, until: datetime, half_life_days: float =
     # cluster's own usual week: a bank's empty nights are not a storm.
     week = 7 * 288
     idx = np.arange(n) % week
-    base = np.array([np.median(load[idx == k]) if (idx == k).any() else 1.0 for k in range(week)])
+    # Weekly groups are strided views. Avoid scanning the whole year for each
+    # five-minute slot when a lineage asks for mood on every night.
+    base = np.array([np.median(load[k::week]) if k < n else 1.0 for k in range(week)])
     ratio = load / np.maximum(base[idx], 1e-6)
-    lat_base = np.array([np.median(lat[idx == k]) if (idx == k).any() else 1.0 for k in range(week)])
+    lat_base = np.array([np.median(lat[k::week]) if k < n else 1.0 for k in range(week)])
     lat_ratio = lat / np.maximum(lat_base[idx], 1e-6)
     logmap = lambda frac, lo, span: float(np.clip((np.log10(max(frac, 1e-7)) - lo) / span, 0, 1))
     # Ranges are set so four very different clusters spread over [0, 1].

@@ -171,7 +171,8 @@ def self_portrait(fate: dict, nb: list, backend: str | None = None, inner: str |
 
 def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, world: str | None = None,
               backend: str | None = None, rounds: int = 3,
-              contemporaries: list[str] | None = None) -> tuple[Statement, list]:
+              contemporaries: list[str] | None = None,
+              illumination: dict | None = None) -> tuple[Statement, list]:
     w = Writer(nb, backend=backend)
     system = (f"Ты — {portrait.name}. Твой автопортрет:\n{portrait.portrait}\n\n"
               f"Ты задумываешь новую работу. Искусство: {art}. Отвечай честно, конкретно, от первого лица. "
@@ -190,6 +191,12 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
         base += "\n\nТвои прежние работы (не повторяй себя):\n" + "\n".join(f"- {c}" for c in catalogue)
     if world:
         base += "\n\nЧто происходит в мире сейчас:\n" + world
+    if illumination and illumination.get("idea"):
+        # A lineage insight seeds the idea, never exempts it from Shahryar.
+        base += ("\n\nПосле инкубации пришло озарение: " + illumination["idea"] +
+                 "\nРазверни его в замысел и проверь; сила переживания ещё не доказывает ценность идеи.")
+        if illumination.get("problem"):
+            base += "\nОставленная прежде задача: " + illumination["problem"]
     history = []
     prompt = base
     for r in range(rounds):

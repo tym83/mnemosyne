@@ -4,7 +4,9 @@ Everything the artist owns lives as ordinary Kubernetes objects in its
 namespace, so the record loop backs it up with the rest of the cluster
 and a restored cluster wakes the artist with it:
 
-* Atelier — the biography: period, temperament, teachers and their weights;
+* Atelier — the lineage, its resumable fate engine and growing book;
+* Artist — a life, catalogue, periods, teachers and creative state;
+* Biography — the chronicler's chapters linked to works and drafts;
 * Leitmotif — one per character: archetype, colour, room, accord, theme;
 * Opus — a finished or unfinished work: window, art, files, status;
 * Notebook — the search behind a work: brief, choices, rejected trials,
@@ -35,6 +37,8 @@ KINDS = {
     "Opus": "opera",
     "Notebook": "notebooks",
     "Sketch": "sketches",
+    "Artist": "artists",
+    "Biography": "biographies",
 }
 
 
@@ -105,10 +109,55 @@ class Atelier:
         self.objects: list[dict] = []
 
     def biography(self, born: datetime, period: str, temperament: str, teachers: dict):
+        """Legacy single-portrait export; new lives use lineage()."""
         self.objects.append(obj("Atelier", "artist", {
             "cluster": self.cluster, "born": born.isoformat(), "period": period,
             "temperament": temperament, "teachers": teachers,
         }))
+
+    def lineage(self, life):
+        """Persist the complete resumable lineage and its book as ordinary state.
+
+        Artist and Biography are first-class objects; Opus/Notebook/Sketch
+        references resolve even for synthetic, unfinished and refused works.
+        """
+        from dataclasses import asdict
+
+        if life.cluster != self.cluster:
+            raise ValueError('lineage belongs to another atelier')
+        state = life.state()
+        self.objects.append(obj('Atelier', slug(self.cluster), {
+            'lineage': {k: v for k, v in state.items() if k not in ('artists', 'biographies')},
+            'artists': [a.id for a in life.artists],
+            'book': f'{self.cluster}-lives',
+        }))
+        book_path = self.out / 'lives.md'
+        self.out.mkdir(parents=True, exist_ok=True)
+        book_path.write_text(life.markdown())
+        book_ref = self.store.put(book_path)
+        self.objects.append(obj('Opus', f'{self.cluster}-lives', {
+            'art': 'literature', 'title': 'Lives', 'files': [book_ref],
+            'biographies': list(life.biographies), 'carrier': 'ordinary-state-until-literature-channel',
+        }, status={'phase': 'growing'}))
+        for a in life.artists:
+            self.objects.append(obj('Artist', a.id, asdict(a)))
+            self.objects.append(obj('Biography', a.id, {
+                **asdict(life.biographies[a.id]), 'book': f'{self.cluster}-lives',
+            }))
+            self.objects.append(obj('Notebook', a.id, {'artist': a.id, 'entries': a.notebook}))
+            for w in a.catalogue:
+                self.objects.append(obj('Opus', w['id'], {'artist': a.id, **w},
+                                        status={'phase': w['verdict']}))
+                self.objects.append(obj('Notebook', w['notebook'], {
+                    'opus': w['id'], 'artist': a.id, 'idea': w['idea'],
+                    'idea_seed': w['idea_seed'], 'method': w['method'],
+                    'influences': w['influences'], 'verdict': w['verdict'],
+                    'halftones': w['halftones'], 'drafts': [w['draft']],
+                    'process': w['process'],
+                }))
+                self.objects.append(obj('Sketch', w['draft'], {
+                    'opus': w['id'], 'synthetic': w['synthetic'], 'feature': w['feature'],
+                }))
 
     def leitmotif(self, character: dict, colour: str, room: str, accord: str, theme: dict | None = None):
         cid = character["id"]
