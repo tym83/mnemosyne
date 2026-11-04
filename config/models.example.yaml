@@ -1,0 +1,39 @@
+# All model names and URLs are owner choices. No credentials in this file.
+endpoints:
+  text:
+    backend: openai
+    location: cluster
+    base_url: http://127.0.0.1:8080/v1
+    model: Qwen3-30B-A3B
+    max_tokens: 8192
+    timeout: 1800
+  eye:
+    backend: openai
+    location: cluster
+    base_url: http://127.0.0.1:8081/v1
+    model: owner-selected-vision-model
+    vision: true
+  external:
+    backend: openai
+    location: external
+    base_url: https://owner-selected-provider.example/v1
+    model: owner-selected-model
+    key_env: MNEMOSYNE_TEXT_KEY
+    vision: true
+  anthropic:
+    backend: anthropic
+    location: external
+    base_url: https://api.anthropic.com/v1
+    model: owner-selected-model
+    key_env: MNEMOSYNE_ANTHROPIC_KEY
+    vision: true
+  dev:
+    backend: codex
+    location: dev
+    vision: true
+roles:
+  artist: [text]
+  critic: [text]
+  chronicler: [text]
+  eye: [eye]
+# Opt in to an external fallback explicitly, e.g. artist: [text, external].

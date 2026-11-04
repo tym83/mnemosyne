@@ -1,0 +1,22 @@
+{{- $components := .Values.servers }}
+{{- if .Values.notagen.enabled }}
+{{- $components = append $components (dict "name" "notagen" "weights" .Values.notagen.weights) }}
+{{- end }}
+{{- range $components }}
+{{- if not .weights.existingClaim }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}-weights
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .weights.storageClass }}
+  storageClassName: {{ .weights.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests: {storage: {{ .weights.size }}}
+{{- end }}
+{{- end }}

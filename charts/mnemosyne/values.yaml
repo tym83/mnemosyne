@@ -1,0 +1,114 @@
+# No model, pod or weights provisioned by default (chamber/library mode).
+models:
+  endpoints: {}
+  roles: {}
+work:
+  enabled: false
+  schedule: '0 1 * * *'
+  timeZone: Etc/UTC
+  image: '' # image containing Mnemosyne and the selected worker dependencies
+  command: [] # e.g. [python, -m, mnemosyne.music.composer, ...]
+  activeDeadlineSeconds: 21600
+  # Existing lowest-priority class (negative value, preemptionPolicy: Never).
+  # No cluster-scoped objects or permissions are created by this tenant chart.
+  priorityClassName: ''
+  nodes: [] # optional explicit hostname allowlist
+  resources:
+    requests: {cpu: '1', memory: 1Gi}
+    limits: {cpu: '4', memory: 8Gi}
+  env: {}
+  credentials: [] # [{env: MUSIC_TEXT_KEY, secretKeyRef: {name: model-key, key: token}}]
+  artifacts:
+    existingClaim: '' # required; generated works survive completion/failure
+servers: []
+# Native sidecars live only for the work Job; PVC retains weights after unload.
+# - name: text
+#   image: ghcr.io/ggml-org/llama.cpp:server (pin a tested digest)
+#   command: [llama-server]
+#   args: [--model, /models/text.gguf, --host, 0.0.0.0, --port, '8080',
+#          --ctx-size, '16384', --threads, '4', --n-gpu-layers, '0']
+#   port: 8080
+#   healthPath: /health
+#   resources: {requests: {cpu: '1', memory: 24Gi}, limits: {cpu: '4', memory: 28Gi}}
+#   weights: {existingClaim: model-weights, size: 40Gi, storageClass: ''}
+# Use another sidecar/port with --mmproj for a vision model. vLLM or Ollama
+# can use the same contract: explicit command, args, readiness and GPU resources.
+notagen:
+  enabled: false
+  directory: /opt/NotaGen/gradio
+  device: cpu
+  weightsFile: /notagen/model.ckpt
+  weights: {existingClaim: '', size: 10Gi, storageClass: ''}
+
+# Portable addon. Enable after Actions supplies real digests and an owner commission.
+addon:
+  enabled: false
+  # namespace uses only Role/RoleBinding and requires an existing priority class.
+  rbacScope: cluster
+  # Platforms with tenant quotas can manage this externally.
+  manageQuota: true
+  controllerReplicas: 1
+  images:
+    controller: {repository: ghcr.io/tym83/mnemosyne-controller, digest: ''}
+    studio: {repository: ghcr.io/tym83/mnemosyne-studio, digest: ''}
+  imagePullSecrets: []
+  mode: chamber
+  gpuResource: '' # e.g. the extended resource advertised by the installed device plugin
+  render: true # score, PDF and audio; false only for source-bootstrap codec tests
+  suspend: false
+  window: {kind: night, timeZone: Etc/UTC, startHour: 1, endHour: 6}
+  deadlineSeconds: 21600
+  # Empty = all namespaces for this explicit inventory. Extend for installed APIs.
+  snapshotNamespace: ''
+  includeSecrets: false
+  inventory:
+    - {apiVersion: v1, kind: Namespace, resource: namespaces}
+    - {apiVersion: v1, kind: ConfigMap, resource: configmaps}
+    - {apiVersion: v1, kind: Service, resource: services}
+    - {apiVersion: v1, kind: ServiceAccount, resource: serviceaccounts}
+    - {apiVersion: v1, kind: PersistentVolumeClaim, resource: persistentvolumeclaims}
+    - {apiVersion: apps/v1, kind: Deployment, resource: deployments}
+    - {apiVersion: apps/v1, kind: StatefulSet, resource: statefulsets}
+    - {apiVersion: apps/v1, kind: DaemonSet, resource: daemonsets}
+    - {apiVersion: networking.k8s.io/v1, kind: NetworkPolicy, resource: networkpolicies}
+    - {apiVersion: networking.k8s.io/v1, kind: Ingress, resource: ingresses}
+    - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, resource: roles}
+    - {apiVersion: rbac.authorization.k8s.io/v1, kind: RoleBinding, resource: rolebindings}
+    - {apiVersion: apiextensions.k8s.io/v1, kind: CustomResourceDefinition, resource: customresourcedefinitions}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Atelier, resource: ateliers}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Leitmotif, resource: leitmotifs}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Opus, resource: opera}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Notebook, resource: notebooks}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Sketch, resource: sketches}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Artist, resource: artists}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Biography, resource: biographies}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Review, resource: reviews}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: AudienceLog, resource: audiencelogs}
+    - {apiVersion: mnemosyne.art/v1alpha1, kind: Edition, resource: editions}
+  commissions: [] # required in chamber: [{idea: ..., method: ..., plan: {...}}]
+  priorityClassName: '' # empty creates release-scoped minimum integer priority
+  resources:
+    requests: {cpu: '100m', memory: 512Mi}
+    limits: {cpu: '1', memory: 2Gi}
+  quota: {requests.cpu: '2', requests.memory: 3Gi, limits.cpu: '3', limits.memory: 4Gi, pods: '3'}
+  artifacts:
+    existingClaim: ''
+    size: 20Gi
+    storageClass: null # null uses default; empty string means no dynamic provisioner
+    keep: true
+    s3: {bucket: '', endpoint: '', prefix: mnemosyne}
+  # 32 raw X25519 bytes, mounted only in studio. No Secret API reads for keys.
+  key:
+    provider: file # file (including Secret/CSI), vault (KV v2), or kms (AWS Decrypt)
+    vault: {address: '', path: '', tokenFile: /key/token, field: recipient, namespace: ''}
+    kms: {keyId: '', region: '', ciphertextFile: /key/recipient.enc, encryptionContext: {}}
+    secretName: ''
+    secretKey: recipient.key
+    # Alternatively a CSI/PVC/projected volume supplied by Vault/KMS integration.
+    volume: {}
+    path: /key/recipient.key
+  env: [] # env/valueFrom for model or S3 credentials
+  volumes: [] # optional model/sample mounts
+  volumeMounts: []
+  nodeSelector: {}
+  tolerations: []

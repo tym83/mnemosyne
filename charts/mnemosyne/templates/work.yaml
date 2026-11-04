@@ -1,0 +1,90 @@
+{{- if .Values.work.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-work
+spec:
+  schedule: {{ .Values.work.schedule | quote }}
+  timeZone: {{ .Values.work.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: {{ .Values.work.activeDeadlineSeconds }}
+      template:
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          priorityClassName: {{ required "work.priorityClassName must reference the existing lowest-priority class" .Values.work.priorityClassName }}
+          {{- if .Values.work.nodes }}
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: {{ .Values.work.nodes | toJson }}
+          {{- end }}
+          {{- if .Values.servers }}
+          initContainers:
+          {{- range .Values.servers }}
+          - name: {{ .name }}
+            image: {{ required "server image required" .image | quote }}
+            restartPolicy: Always
+            command: {{ .command | toJson }}
+            args: {{ .args | toJson }}
+            startupProbe:
+              httpGet: {path: {{ .healthPath | quote }}, port: {{ .port }}}
+              failureThreshold: 360
+              periodSeconds: 10
+            resources: {{ .resources | toJson }}
+            volumeMounts:
+            - {name: {{ .name }}-weights, mountPath: /models, readOnly: true}
+          {{- end }}
+          {{- end }}
+          containers:
+          - name: work
+            image: {{ required "work.image required" .Values.work.image | quote }}
+            command: {{ required "work.command required" .Values.work.command | toJson }}
+            resources: {{ .Values.work.resources | toJson }}
+            env:
+            - {name: MNEMOSYNE_MODELS, value: /config/models.yaml}
+            - {name: WRITER_CACHE, value: /works/cache}
+            - {name: MNEMOSYNE_NOTAGEN, value: {{ ternary "self-hosted" "disabled" .Values.notagen.enabled | quote }}}
+            {{- if .Values.notagen.enabled }}
+            - {name: NOTAGEN_DIR, value: {{ .Values.notagen.directory | quote }}}
+            - {name: NOTAGEN_WEIGHTS, value: {{ .Values.notagen.weightsFile | quote }}}
+            - {name: NOTAGEN_DEVICE, value: {{ .Values.notagen.device | quote }}}
+            {{- end }}
+            {{- range $key, $value := .Values.work.env }}
+            - {name: {{ $key }}, value: {{ $value | quote }}}
+            {{- end }}
+            {{- range .Values.work.credentials }}
+            - name: {{ .env }}
+              valueFrom:
+                secretKeyRef: {{ .secretKeyRef | toJson }}
+            {{- end }}
+            volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: works, mountPath: /works}
+            {{- if .Values.notagen.enabled }}
+            - {name: notagen-weights, mountPath: /notagen, readOnly: true}
+            {{- end }}
+          volumes:
+          - name: config
+            configMap: {name: {{ .Release.Name }}-models}
+          - name: works
+            persistentVolumeClaim:
+              claimName: {{ required "work.artifacts.existingClaim required" .Values.work.artifacts.existingClaim }}
+          {{- range .Values.servers }}
+          - name: {{ .name }}-weights
+            persistentVolumeClaim:
+              claimName: {{ .weights.existingClaim | default (printf "%s-%s-weights" $.Release.Name .name) }}
+          {{- end }}
+          {{- if .Values.notagen.enabled }}
+          - name: notagen-weights
+            persistentVolumeClaim:
+              claimName: {{ .Values.notagen.weights.existingClaim | default (printf "%s-notagen-weights" .Release.Name) }}
+          {{- end }}
+{{- end }}

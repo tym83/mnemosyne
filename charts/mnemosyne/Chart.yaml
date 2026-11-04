@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mnemosyne
+version: 0.2.0
+description: Portable atelier controller, retained works, studio Jobs and optional model runner
+kubeVersion: '>=1.29.0-0'
+type: application

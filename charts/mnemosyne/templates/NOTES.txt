@@ -1,0 +1,15 @@
+{{ if .Values.addon.enabled }}
+Mnemosyne atelier: {{ .Release.Namespace }}/{{ .Release.Name }}-atelier
+Check: mnemo status --namespace {{ .Release.Namespace }}
+Works: mnemo works list --namespace {{ .Release.Namespace }}
+Export PVC works from a studio: mnemo works export --source /works --output /export/works
+Keep the 32-byte recipient key separately. Export is NOT a backup of that key.
+Restore: mnemo restore --works /export/works/<atelier>/<night>/woven --key recipient.key --apply --kubeconfig NEW --context NEW
+The declared resource inventory is the backup boundary; PVC volume contents are not backed up.
+Uninstall retains works PVC, CRDs and Atelier. Do not delete the namespace or PVC before export.
+For explicit disposal set addon.artifacts.keep=false before uninstall (external claims remain external).
+No images have been built by this chart. Use digests from the repository Actions workflow.
+{{ else }}
+Addon disabled: supply Actions image digests, key reference and owner-authored commissions,
+then set addon.enabled=true. Existing model/window runner remains available.
+{{ end }}

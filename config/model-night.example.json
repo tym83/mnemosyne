@@ -1,0 +1,14 @@
+{
+  "models": "/work/model-check/models.yaml",
+  "lineage": "/work/model-check/input-lineage.json",
+  "inner": "/work/model-check/inner.txt",
+  "drafts": 3,
+  "deadline_seconds": 21600,
+  "servers": [
+    {
+      "command": ["/work/llama.cpp/build/bin/llama-server", "--model", "/work/models/Qwen3-30B-A3B-Q4_K_M.gguf", "--host", "127.0.0.1", "--port", "8080", "--ctx-size", "16384", "--threads", "4", "--n-gpu-layers", "0"],
+      "health": "http://127.0.0.1:8080/health",
+      "startup_seconds": 900
+    }
+  ]
+}

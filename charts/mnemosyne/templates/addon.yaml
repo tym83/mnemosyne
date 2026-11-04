@@ -1,0 +1,181 @@
+{{- if .Values.addon.enabled }}
+{{- $a := .Values.addon }}
+{{- $tenant := eq $a.rbacScope "namespace" }}
+{{- if $tenant }}
+{{- if ne $a.snapshotNamespace .Release.Namespace }}{{ fail "namespace RBAC requires snapshotNamespace equal to release namespace" }}{{ end }}
+{{- if not $a.priorityClassName }}{{ fail "namespace RBAC requires an existing priorityClassName" }}{{ end }}
+{{- if eq $a.window.kind "idle" }}{{ fail "namespace RBAC does not support cluster-wide idle detection" }}{{ end }}
+{{- end }}
+{{- $name := printf "%s-atelier" .Release.Name }}
+{{- $priority := $a.priorityClassName | default (printf "%s-%s-lowest" .Release.Namespace .Release.Name) }}
+{{- $claim := $a.artifacts.existingClaim | default (printf "%s-works" .Release.Name) }}
+{{- $controller := printf "%s@%s" $a.images.controller.repository (required "Actions controller digest required" $a.images.controller.digest) }}
+{{- $studio := printf "%s@%s" $a.images.studio.repository (required "Actions studio digest required" $a.images.studio.digest) }}
+{{- if and (eq $a.mode "chamber") (not $a.commissions) }}{{ fail "chamber requires owner-authored addon.commissions" }}{{ end }}
+{{- if and (not $a.key.secretName) (not $a.key.volume) }}{{ fail "provide addon.key.secretName or addon.key.volume (file/CSI)" }}{{ end }}
+{{- if and (eq $a.mode "GPU") (or (not $a.gpuResource) (not (index $a.resources.limits $a.gpuResource))) }}{{ fail "GPU mode requires addon.gpuResource and its explicit resource limit" }}{{ end }}
+{{- $keyVolume := $a.key.volume }}
+{{- if $a.key.secretName }}
+{{- $keyVolume = dict "secret" (dict "secretName" $a.key.secretName "defaultMode" 288 "items" (list (dict "key" $a.key.secretKey "path" "recipient.key"))) }}
+{{- end }}
+{{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets "commissions" $a.commissions }}
+{{- if $a.snapshotNamespace }}{{ $_ := set $runtime "snapshotNamespace" $a.snapshotNamespace }}{{ end }}
+{{- $env := concat (list (dict "name" "MNEMO_NAMESPACE" "value" .Release.Namespace) (dict "name" "MNEMO_STORAGE" "value" "/runtime/storage.json") (dict "name" "MNEMO_KEY_FILE" "value" $a.key.path) (dict "name" "MNEMOSYNE_MODELS" "value" "/config/models.yaml") (dict "name" "WRITER_CACHE" "value" "/works/cache")) $a.env }}
+{{- $mounts := concat (list (dict "name" "works" "mountPath" "/works") (dict "name" "runtime" "mountPath" "/runtime" "readOnly" true) (dict "name" "models" "mountPath" "/config" "readOnly" true) (dict "name" "key" "mountPath" "/key" "readOnly" true) (dict "name" "tmp" "mountPath" "/tmp")) $a.volumeMounts }}
+{{- $volumes := concat (list (dict "name" "works" "persistentVolumeClaim" (dict "claimName" $claim)) (dict "name" "runtime" "configMap" (dict "name" $name)) (dict "name" "models" "configMap" (dict "name" (printf "%s-models" .Release.Name))) (merge (dict "name" "key") $keyVolume) (dict "name" "tmp" "emptyDir" dict)) $a.volumes }}
+{{- $security := dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) "readOnlyRootFilesystem" true }}
+{{- $pod := dict "serviceAccountName" (printf "%s-studio" $name) "priorityClassName" $priority "securityContext" (dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "fsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault")) "imagePullSecrets" $a.imagePullSecrets "nodeSelector" $a.nodeSelector "tolerations" $a.tolerations "volumes" $volumes "containers" (list (dict "name" "studio" "image" $studio "command" (list "python" "-m" "mnemosyne.operator.worker") "resources" $a.resources "securityContext" $security "env" $env "volumeMounts" $mounts)) }}
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: {{ $name }}}
+data:
+  runtime.json: {{ dict "pod" $pod | toJson | quote }}
+  storage.json: {{ $a.artifacts.s3 | toJson | quote }}
+  key.json: {{ $a.key | toJson | quote }}
+---
+apiVersion: mnemosyne.art/v1alpha1
+kind: Atelier
+metadata:
+  name: {{ $name }}
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  runtime: {{ $runtime | toJson }}
+---
+{{- range $role := list "controller" "studio" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: {{ $name }}-{{ $role }}}
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: {{ $name }}-controller}
+rules:
+- apiGroups: [mnemosyne.art]
+  resources: [ateliers, ateliers/status]
+  verbs: [get, list, watch, patch]
+- apiGroups: [batch]
+  resources: [jobs]
+  verbs: [get, list, watch, create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: {{ $name }}-studio}
+rules:
+- apiGroups: [mnemosyne.art]
+  resources: [ateliers, ateliers/status, artists, artists/status, opera, opera/status, notebooks, notebooks/status, sketches, sketches/status, biographies, biographies/status, reviews, reviews/status, leitmotifs, leitmotifs/status, audiencelogs, audiencelogs/status, editions, editions/status]
+  verbs: [get, create, patch]
+---
+{{- range $role := list "controller" "studio" }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: {{ $name }}-{{ $role }}}
+subjects:
+- {kind: ServiceAccount, name: {{ $name }}-{{ $role }}, namespace: {{ $.Release.Namespace }}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: {{ $name }}-{{ $role }}}
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: {{ ternary "Role" "ClusterRole" $tenant }}
+metadata: {name: {{ .Release.Namespace }}-{{ $name }}-reader}
+rules:
+{{- if not $tenant }}
+- nonResourceURLs: [/api, /api/*, /apis, /apis/*]
+  verbs: [get]
+{{- end }}
+{{- range $a.inventory }}
+{{- if and (or (contains "secret" (lower .kind)) (contains "secret" (lower .resource))) (not $a.includeSecrets) }}{{ fail "Secret inventory requires addon.includeSecrets" }}{{ end }}
+- apiGroups: [{{ ternary (first (splitList "/" .apiVersion)) "" (contains "/" .apiVersion) | quote }}]
+  resources: [{{ .resource | quote }}]
+  verbs: [get, list, watch]
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: {{ ternary "RoleBinding" "ClusterRoleBinding" $tenant }}
+metadata: {name: {{ .Release.Namespace }}-{{ $name }}-reader}
+subjects:
+- {kind: ServiceAccount, name: {{ $name }}-studio, namespace: {{ .Release.Namespace }}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: {{ ternary "Role" "ClusterRole" $tenant }}, name: {{ .Release.Namespace }}-{{ $name }}-reader}
+---
+{{- if eq $a.window.kind "idle" }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: {{ .Release.Namespace }}-{{ $name }}-idle}
+rules:
+- apiGroups: ['']
+  resources: [nodes, pods]
+  verbs: [get, list]
+- apiGroups: [metrics.k8s.io]
+  resources: [nodes]
+  verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: {{ .Release.Namespace }}-{{ $name }}-idle}
+subjects:
+- {kind: ServiceAccount, name: {{ $name }}-controller, namespace: {{ .Release.Namespace }}}
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: {{ .Release.Namespace }}-{{ $name }}-idle}
+---
+{{- end }}
+{{- if not $a.priorityClassName }}
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata: {name: {{ $priority }}}
+value: -2147483648
+globalDefault: false
+preemptionPolicy: Never
+description: Mnemosyne yields to all higher-priority workloads.
+---
+{{- end }}
+{{- if not $a.artifacts.existingClaim }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $claim }}
+  {{- if $a.artifacts.keep }}
+  annotations: {helm.sh/resource-policy: keep}
+  {{- end }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if ne $a.artifacts.storageClass nil }}
+  storageClassName: {{ $a.artifacts.storageClass | quote }}
+  {{- end }}
+  resources: {requests: {storage: {{ $a.artifacts.size }}}}
+---
+{{- end }}
+{{- if $a.manageQuota }}
+apiVersion: v1
+kind: ResourceQuota
+metadata: {name: {{ $name }}}
+spec:
+  scopeSelector:
+    matchExpressions:
+    - {scopeName: PriorityClass, operator: In, values: [{{ $priority | quote }}]}
+  hard: {{ $a.quota | toJson }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: {{ $name }}-controller}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: {{ $name }}-controller}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: {{ $name }}-controller}}
+    spec:
+      serviceAccountName: {{ $name }}-controller
+      imagePullSecrets: {{ $a.imagePullSecrets | toJson }}
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, runAsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+      - name: controller
+        image: {{ $controller | quote }}
+        command: [kopf, run, --standalone, --namespace, {{ .Release.Namespace | quote }}, -m, mnemosyne.operator.controller]
+        env: [{name: MNEMO_RUNTIME, value: /runtime/runtime.json}]
+        resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {cpu: 250m, memory: 256Mi}}
+        securityContext: {{ $security | toJson }}
+        volumeMounts: [{name: runtime, mountPath: /runtime, readOnly: true}, {name: tmp, mountPath: /tmp}]
+      volumes:
+      - {name: runtime, configMap: {name: {{ $name }}}}
+      - {name: tmp, emptyDir: {}}
+{{- end }}
