@@ -7,11 +7,11 @@ import unittest
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from music21 import converter
-from scheherazade.music.schools import SCHOOLS
-from scheherazade.music.instrumentarium import REGISTRY, sample_patch, notation_instrument
-from scheherazade.music.render import note_events
-from scheherazade.weave import DecodeError, frames, fountain, payload, schools, surface
-from scheherazade.weave.school_audit import plan_for
+from mnemosyne.music.schools import SCHOOLS
+from mnemosyne.music.instrumentarium import REGISTRY, sample_patch, notation_instrument
+from mnemosyne.music.render import note_events
+from mnemosyne.weave import DecodeError, frames, fountain, payload, schools, surface
+from mnemosyne.weave.school_audit import plan_for
 
 
 class SchoolWeaveTests(unittest.TestCase):
@@ -88,7 +88,7 @@ class SchoolWeaveTests(unittest.TestCase):
             # First serial onset is at zero; there must be no measure-offset drift.
             self.assertEqual(min(at for curve in curves for at,gain in curve),0)
             self.assertLess(max(at for curve in curves for at,gain in curve),216)
-            from scheherazade.music.schools.performance import write_midi
+            from mnemosyne.music.schools.performance import write_midi
             from music21 import midi
             target=Path(directory)/'score.mid'
             write_midi(score,target,72)
@@ -101,7 +101,7 @@ class SchoolWeaveTests(unittest.TestCase):
         import wave
         import numpy as np
         from music21 import note, stream
-        from scheherazade.music.schools.synthesis import render_synthesis
+        from mnemosyne.music.schools.synthesis import render_synthesis
         score=stream.Score();part=stream.Part();part.append(note.Note('C4',quarterLength=1));score.insert(0,part)
         plan={'duration':1,'tempo':60,'seed':42,'school':'chance'}
         with tempfile.TemporaryDirectory() as directory:

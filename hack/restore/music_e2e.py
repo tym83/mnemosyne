@@ -17,10 +17,10 @@ import time
 
 import yaml
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.state.collect import archive, normalize
-from scheherazade.restore import Kubectl, identity, read_archive
-from scheherazade.weave import fountain, payload, registry, schools, school_series, surface
-from scheherazade.weave.backup import write_new
+from mnemosyne.state.collect import archive, normalize
+from mnemosyne.restore import Kubectl, identity, read_archive
+from mnemosyne.weave import fountain, payload, registry, schools, school_series, surface
+from mnemosyne.weave.backup import write_new
 
 FRAME_BYTES = 256
 SCHOOL_CYCLE = ('tempo_canon', 'sonorism', 'drone')
@@ -31,9 +31,9 @@ def save(path, value):
 
 
 def prepare(source, output, count):
-    from scheherazade.music.schools import SCHOOLS
-    from scheherazade.music.orchestration import orchestrate, school_lines
-    from scheherazade.music.render import note_events
+    from mnemosyne.music.schools import SCHOOLS
+    from mnemosyne.music.orchestration import orchestrate, school_lines
+    from mnemosyne.music.render import note_events
     from music21 import converter
     output.mkdir(parents=True, exist_ok=False, mode=0o700)
     data = archive(yaml.safe_load_all(source.read_text()))
@@ -46,7 +46,7 @@ def prepare(source, output, count):
     encoder = fountain.Encoder(envelope, FRAME_BYTES, key)
     full = output/'full'; full.mkdir()
     rows = []; index = 0
-    plans = Path(__import__('scheherazade').__file__).parent/'music/schools/orchestrated_plans'
+    plans = Path(__import__('mnemosyne').__file__).parent/'music/schools/orchestrated_plans'
     for number in range(count):
         name = SCHOOL_CYCLE[number % len(SCHOOL_CYCLE)]
         work_id = f'{number:03d}-{name}'
@@ -90,11 +90,11 @@ def prepare(source, output, count):
 
 
 def render(output, only=None):
-    from scheherazade.music.schools import SCHOOLS
-    from scheherazade.music.orchestration import orchestrate, school_lines
-    from scheherazade.music.orchestra_render import render_orchestra
-    from scheherazade.music.render import render_score
-    from scheherazade.music.native_bank import sha
+    from mnemosyne.music.schools import SCHOOLS
+    from mnemosyne.music.orchestration import orchestrate, school_lines
+    from mnemosyne.music.orchestra_render import render_orchestra
+    from mnemosyne.music.render import render_score
+    from mnemosyne.music.native_bank import sha
     info = (json.loads((output/'series.json').read_text()) if (output/'series.json').exists()
             else {'works':[json.loads(p.read_text()) for p in sorted((output/'full').glob('*/backup.json'))]})
     for row in info['works']:
@@ -131,7 +131,7 @@ def notation(output):
     """Keep original PDFs; make a legible conductor export without repeated labels."""
     import xml.etree.ElementTree as ET
     from music21 import converter
-    from scheherazade.music.render import note_events, run
+    from mnemosyne.music.render import note_events, run
     for row in json.loads((output/'series.json').read_text())['works']:
         dest=output/'full'/row['id']; target=dest/'notation-v2'
         if (target/'verified.json').exists():continue
@@ -217,7 +217,7 @@ def differences(expected, actual, path=''):
 
 def apply(output,kubeconfig,context):
     start=time.monotonic()
-    command=[sys.executable,'-m','scheherazade.restore','--works',str(output/'surviving-musicxml'),
+    command=[sys.executable,'-m','mnemosyne.restore','--works',str(output/'surviving-musicxml'),
              '--key',str(output/'recipient.key'),'--apply','--output',str(output/'restored'),
              '--kubeconfig',str(kubeconfig),'--context',context]
     with (output/'restore.log').open('x') as log:subprocess.run(command,stdout=log,stderr=log,check=True)

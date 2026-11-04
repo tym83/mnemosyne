@@ -1,4 +1,4 @@
-# Scheherazade — notes for coding agents
+# Mnemosyne — notes for coding agents
 
 The cluster is an artist: it makes works in five arts (music, painting,
 architecture, literature, perfumery), and the works are also its backup —
@@ -14,19 +14,19 @@ of choosing.
 
 ## Layout
 
-- `src/scheherazade/scenario/` — simulator of a cluster's year (signals, ops, facts).
-- `src/scheherazade/mood.py` — the life of a cluster as qualities of experience.
-- `src/scheherazade/artist.py` — self-portrait → idea → critic → method → halftones.
-- `src/scheherazade/literature.py` — `Writer`: structured answers from `codex exec`,
+- `src/mnemosyne/scenario/` — simulator of a cluster's year (signals, ops, facts).
+- `src/mnemosyne/mood.py` — the life of a cluster as qualities of experience.
+- `src/mnemosyne/artist.py` — self-portrait → idea → critic → method → halftones.
+- `src/mnemosyne/literature.py` — `Writer`: structured answers from `codex exec`,
   `claude -p` or the API, cached in `out/cache`.
-- `src/scheherazade/drawing/` — paper architecture: `bpy_kit.py` (runs inside
+- `src/mnemosyne/drawing/` — paper architecture: `bpy_kit.py` (runs inside
   Blender), `run_sheet.py`, `sheets.py` (plan → draft → render → look).
-- `src/scheherazade/music/` — NotaGen batches, analysis, selection.
+- `src/mnemosyne/music/` — NotaGen batches, analysis, selection.
 - `atlas/` — methods, masters, theory of how masterpieces are made.
 - `hack/workshop/` — the studio pods in the workshop cluster.
 - `out/` — generated, not in git.
 
-Run Python with `uv run python -m scheherazade.<module>`.
+Run Python with `uv run python -m mnemosyne.<module>`.
 
 ## Principles of the art (do not break them in code)
 

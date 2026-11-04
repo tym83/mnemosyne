@@ -4,8 +4,8 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from scheherazade.drawing.etch import difference
-from scheherazade.drawing.sheets import kit_reference
+from mnemosyne.drawing.etch import difference
+from mnemosyne.drawing.sheets import kit_reference
 
 
 class PlateComparison(unittest.TestCase):

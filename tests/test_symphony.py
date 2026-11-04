@@ -6,10 +6,10 @@ from pathlib import Path
 import unittest
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from music21 import converter, note, stream, tempo
-from scheherazade.music.symphony import (test_plan,validate,transform,movement,join_scores,FORMS,write_score)
-from scheherazade.music.instrumentarium import notation_instrument
-from scheherazade.music.schools.common import finish
-from scheherazade.weave import orchestral, DecodeError
+from mnemosyne.music.symphony import (test_plan,validate,transform,movement,join_scores,FORMS,write_score)
+from mnemosyne.music.instrumentarium import notation_instrument
+from mnemosyne.music.schools.common import finish
+from mnemosyne.weave import orchestral, DecodeError
 
 
 class FormTests(unittest.TestCase):

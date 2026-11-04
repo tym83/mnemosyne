@@ -6,13 +6,13 @@ from pathlib import Path
 import tempfile
 import unittest
 from music21 import note, stream
-from scheherazade.music.schools import SCHOOLS
-from scheherazade.music.schools.performance import sounding_events, write_midi
-from scheherazade.music.schools.spectral import partial_pitch
-from scheherazade.music.schools.tempo_canon import onset, RATIOS
-from scheherazade.music.schools.messiaen import RHYTHM, MODE
+from mnemosyne.music.schools import SCHOOLS
+from mnemosyne.music.schools.performance import sounding_events, write_midi
+from mnemosyne.music.schools.spectral import partial_pitch
+from mnemosyne.music.schools.tempo_canon import onset, RATIOS
+from mnemosyne.music.schools.messiaen import RHYTHM, MODE
 
-PLANS = Path(__file__).resolve().parents[1]/'src/scheherazade/music/schools/plans'
+PLANS = Path(__file__).resolve().parents[1]/'src/mnemosyne/music/schools/plans'
 
 
 class MethodTests(unittest.TestCase):
@@ -79,7 +79,7 @@ class MethodTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(quote['source_musicxml'].encode()).hexdigest(), quote['sha256'])
 
     def test_quartertone_bends_and_simultaneous_cluster_notes(self):
-        from scheherazade.music.schools.common import setup, put, finish
+        from mnemosyne.music.schools.common import setup, put, finish
         plan = json.loads((PLANS/'chance.json').read_text())
         score, _, _, total = setup(plan, 1, 'test')
         put(score.parts[0], 0, 1, 60.5)

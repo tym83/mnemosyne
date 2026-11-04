@@ -11,19 +11,20 @@ if [[ ! "$run_id" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo 'Invalid INSTRUMENTARIUM_RUN' >&2
   exit 1
 fi
-kube cp src/scheherazade/music studio-0:/work/src/src/scheherazade/
+kube exec studio-0 -- sh -c 'test -e /work/src/src/mnemosyne || ln -s scheherazade /work/src/src/mnemosyne'
+kube cp src/mnemosyne/music studio-0:/work/src/src/scheherazade/
 kube exec studio-0 -- test -x /work/sfizz-build/library/bin/sfizz_render
 kube exec studio-0 -- nice -n 19 env PYTHONPATH=/work/src/src \
-  /work/venv/bin/python -m scheherazade.music.sample_bank --native /work/samples/instrumentarium
+  /work/venv/bin/python -m mnemosyne.music.sample_bank --native /work/samples/instrumentarium
 status=0
 kube exec studio-0 -- nice -n 19 ionice -c 3 env PYTHONPATH=/work/src/src \
   OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  /work/venv/bin/python -m scheherazade.music.ensemble_demos \
+  /work/venv/bin/python -m mnemosyne.music.ensemble_demos \
   --out "/work/gen/$run_id" "$@" || status=$?
 # Snapshot only complete works, then transfer independently verified 1 MiB chunks.
 uv run python hack/workshop/fetch_ensembles.py --run "$run_id" --out "$local_output"
 if [ -d "$local_output/schools" ]; then
-  uv run python -m scheherazade.music.distinctness "$local_output/schools" \
+  uv run python -m mnemosyne.music.distinctness "$local_output/schools" \
     --out "$local_output/distinctness.json"
 fi
 exit "$status"

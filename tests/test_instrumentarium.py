@@ -6,12 +6,12 @@ import random
 import tempfile
 import unittest
 from music21 import converter, note, stream, midi
-from scheherazade.music.instrumentarium import (REGISTRY, ENSEMBLES, ensemble,
+from mnemosyne.music.instrumentarium import (REGISTRY, ENSEMBLES, ensemble,
     notation_instrument, notation_clef, validate_registry, sample_patch, velocity_limits)
-from scheherazade.music.orchestration import Event,Line,orchestrate
-from scheherazade.music.native_bank import regions,check_coverage,playback_patch
-from scheherazade.music.schools.performance import write_midi
-from scheherazade.music.distinctness import features,compare
+from mnemosyne.music.orchestration import Event,Line,orchestrate
+from mnemosyne.music.native_bank import regions,check_coverage,playback_patch
+from mnemosyne.music.schools.performance import write_midi
+from mnemosyne.music.distinctness import features,compare
 
 
 class InstrumentariumTests(unittest.TestCase):
@@ -107,7 +107,7 @@ class InstrumentariumTests(unittest.TestCase):
                 with self.assertRaises(ValueError):check_coverage(patch,pitch,vel)
 
     def test_unpitched_midi_and_exact_divisi_player_count(self):
-        from scheherazade.music.ensemble_demos import demo
+        from mnemosyne.music.ensemble_demos import demo
         p,lines=demo('percussion_ensemble');score,assignment=orchestrate(lines,p)
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'percussion.mid';write_midi(score,path,60)
@@ -117,7 +117,7 @@ class InstrumentariumTests(unittest.TestCase):
 
     def test_existing_symphony_adapter_preserves_source_and_rejects_tempo_loss(self):
         from music21 import tempo
-        from scheherazade.music.orchestration import orchestrate_existing
+        from mnemosyne.music.orchestration import orchestrate_existing
         score=stream.Score();part=stream.Part();part.insert(0,notation_instrument('flute'))
         part.insert(0,tempo.MetronomeMark(number=60));part.append(note.Note(64,quarterLength=4));score.insert(0,part)
         arranged,plan,assignment=orchestrate_existing(score,{'ensemble':'wind_quintet'})

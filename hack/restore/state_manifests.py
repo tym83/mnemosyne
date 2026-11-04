@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from scheherazade.architecture import state_at  # noqa: E402
+from mnemosyne.architecture import state_at  # noqa: E402
 
 ORDER = ["Namespace", "ConfigMap", "Service", "Deployment", "StatefulSet", "CronJob",
          "HorizontalPodAutoscaler", "NetworkPolicy", "Ingress"]

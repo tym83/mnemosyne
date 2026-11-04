@@ -7,7 +7,7 @@ import subprocess
 
 import numpy as np
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.restore import recover_works
+from mnemosyne.restore import recover_works
 from music_e2e import save
 
 
@@ -17,7 +17,7 @@ def main():
     a=p.parse_args();root=a.out;series=json.loads((root/'series.json').read_text())
     if a.notes_only:
         from music21 import converter
-        from scheherazade.music.render import note_events
+        from mnemosyne.music.render import note_events
         rows=[]
         for w in series['works']:
             base=root/'full'/w['id']

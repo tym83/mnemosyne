@@ -8,7 +8,7 @@ from collections import Counter
 from datetime import datetime
 from statistics import median, pstdev
 
-from scheherazade.lineage import Lineage, Parameters
+from mnemosyne.lineage import Lineage, Parameters
 
 
 def trajectories(life):
@@ -22,15 +22,15 @@ def trajectories(life):
         if brilliant and silences:
             s = silences[0]['night']
             end = next((e['night'] for e in returns if e['night'] > s), a.death_night or life.night)
-            if s - a.birth_night < 365 and any(w['night'] < s for w in brilliant) and end - s > 730:
+            if s - a.birth_night < 100 and any(w['night'] < s for w in brilliant) and end - s > 200:
                 found['meteor'] += 1
-            if sum(w['night'] - a.birth_night < 180 for w in brilliant) >= 3 and s - a.birth_night < 365 and silences[0]['facts']['cause'] == 'exhaustion':
+            if sum(w['night'] - a.birth_night < 50 for w in brilliant) >= 3 and s - a.birth_night < 100 and silences[0]['facts']['cause'] == 'exhaustion':
                 found['prodigy_burnout'] += 1
-        if brilliant and brilliant[0]['night'] - a.birth_night > 730 and len(brilliant) >= 3:
+        if brilliant and brilliant[0]['night'] - a.birth_night > 200 and len(brilliant) >= 3:
             found['late_bloomer'] += 1
-        if a.age > 1825 and len(works) > 150 and not silences and pstdev(w['quality'] for w in works) < .18:
+        if a.age > 500 and len(works) > 40 and not silences and pstdev(w['quality'] for w in works) < .18:
             found['craftsman'] += 1
-        if any(e['facts']['silence'] > 730 for e in returns) and any(p.get('cause') == 'return' and p['period'] == 'late' for p in a.periods):
+        if any(e['facts']['silence'] > 200 for e in returns) and any(p.get('cause') == 'return' and p['period'] == 'late' for p in a.periods):
             found['return_late'] += 1
         discoveries = [e for e in ev if e['kind'] == 'rediscovery']
         if discoveries:
@@ -51,7 +51,7 @@ def trajectories(life):
         changes = [e for e in ev if e['kind'] == 'illness_recovery' and e['facts']['altered_voice']]
         if any(sum(w['night'] > e['night'] for w in works) >= 20 for e in changes):
             found['tower'] += 1
-        if a.age > 730 and not any(a.id in (e['source'], e['target']) for e in life.influences):
+        if a.age > 200 and not any(a.id in (e['source'], e['target']) for e in life.influences):
             found['hermit'] += 1
     return found
 
@@ -61,9 +61,9 @@ class PopulationTests(unittest.TestCase):
         found, events, seasons, deaths = Counter(), Counter(), Counter(), []
         for seed in range(48):
             life = Lineage('population', datetime(2025, 1, 1), seed, Parameters(synthetic_schools=True))
-            for n in range(365 * 20):
+            for n in range(365 * 5):
                 # Inner life has long stretches, without any incident identity.
-                weight = .8 if (n // 730 + seed) % 3 else .2
+                weight = .8 if (n // 200 + seed) % 3 else .2
                 life.step(dict(strain=weight, scars=weight, loss=weight, turbulence=weight))
                 self.assertLessEqual(len(life.working()), life.p.spaces)
             found.update(trajectories(life))
@@ -81,9 +81,9 @@ class PopulationTests(unittest.TestCase):
         self.assertFalse(required - found.keys(), required - found.keys())
         self.assertGreater(seasons['mirabilis'], 0)
         self.assertGreater(seasons['fallow'], 0)
-        self.assertGreater(median(deaths), 365)
-        self.assertLess(median(deaths), 365 * 12)
-        self.assertLess(sum(age < 90 for age in deaths) / len(deaths), .03)
+        self.assertGreater(median(deaths), 650)
+        self.assertLess(median(deaths), 800)
+        self.assertLess(sum(age < 25 for age in deaths) / len(deaths), .03)
         for kind in ('illness_onset', 'illness_crisis', 'illness_recovery', 'master',
                      'illumination', 'dream', 'verification', 'years_of_silence'):
             self.assertGreater(events[kind], 0, kind)

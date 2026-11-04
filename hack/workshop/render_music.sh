@@ -10,9 +10,10 @@ kube() {
 for pair in studio-0:nocturne studio-1:symphony; do
   pod=${pair%:*}
   set_name=${pair#*:}
-  kube cp src/scheherazade/music/render.py "$pod:/work/src/src/scheherazade/music/render.py"
+  kube exec "$pod" -- sh -c 'test -e /work/src/src/mnemosyne || ln -s scheherazade /work/src/src/mnemosyne'
+  kube cp src/mnemosyne/music/render.py "$pod:/work/src/src/scheherazade/music/render.py"
   kube exec "$pod" -- env PYTHONPATH=/work/src/src /work/venv/bin/python \
-    -m scheherazade.music.render "/work/gen/$set_name"
+    -m mnemosyne.music.render "/work/gen/$set_name"
   mkdir -p "out/works/music/$set_name"
   # Fetch only successfully published pieces, never partial or failed drafts.
   kube exec "$pod" -- nice -n 19 ionice -c 3 sh -c '

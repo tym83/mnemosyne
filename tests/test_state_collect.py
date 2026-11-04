@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import yaml
 import zstandard
-from scheherazade.state.collect import archive, collect, normalize
+from mnemosyne.state.collect import archive, collect, normalize
 
 
 def obj(kind='ConfigMap', name='test', api='v1', **fields):

@@ -5,8 +5,8 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.weave import DecodeError, frames, payload, surface
-from scheherazade.weave.nocturne import decode, encode
+from mnemosyne.weave import DecodeError, frames, payload, surface
+from mnemosyne.weave.nocturne import decode, encode
 
 
 def fixture():

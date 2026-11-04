@@ -5,11 +5,11 @@ import tempfile
 import unittest
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.music.schools import SCHOOLS
-from scheherazade.restore import recover_works
-from scheherazade.state.collect import archive
-from scheherazade.weave import DecodeError, fountain, payload, registry, schools, school_series, surface
-from scheherazade.weave.school_audit import plan_for
+from mnemosyne.music.schools import SCHOOLS
+from mnemosyne.restore import recover_works
+from mnemosyne.state.collect import archive
+from mnemosyne.weave import DecodeError, fountain, payload, registry, schools, school_series, surface
+from mnemosyne.weave.school_audit import plan_for
 
 
 class SeriesTests(unittest.TestCase):

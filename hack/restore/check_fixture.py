@@ -16,11 +16,11 @@ import xml.etree.ElementTree as ET
 
 import yaml
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.restore import Kubectl, read_archive
-from scheherazade.state.collect import archive, normalize
-from scheherazade.weave import registry
-from scheherazade.weave.backup import write_new
-from scheherazade.weave.codecs.v1 import fountain, payload, surface
+from mnemosyne.restore import Kubectl, read_archive
+from mnemosyne.state.collect import archive, normalize
+from mnemosyne.weave import registry
+from mnemosyne.weave.backup import write_new
+from mnemosyne.weave.codecs.v1 import fountain, payload, surface
 
 
 def includes(actual, expected):
@@ -69,7 +69,7 @@ def main():
     for i in surviving:
         registry.encode_fountain(source, works / f'{i:06d}.musicxml', encoder.frame(i), key)
     restored = args.output / 'restored'
-    command = [sys.executable, '-m', 'scheherazade.restore', '--works', str(works),
+    command = [sys.executable, '-m', 'mnemosyne.restore', '--works', str(works),
                '--key', str(keyfile), '--output', str(restored), '--apply',
                '--kubeconfig', str(args.kubeconfig), '--context', args.context]
     with (args.output / 'restore.log').open('x') as log:

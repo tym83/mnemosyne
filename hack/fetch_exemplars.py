@@ -22,7 +22,7 @@ WORKS = {
 
 def raw(title, depth=0):
     url = "https://ru.wikisource.org/w/index.php?" + urllib.parse.urlencode({"title": title, "action": "raw"})
-    req = urllib.request.Request(url, headers={"User-Agent": "scheherazade-atlas/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "mnemosyne-atlas/0.1"})
     t = urllib.request.urlopen(req, timeout=30).read().decode()
     m = re.match(r"#(?:REDIRECT|ПЕРЕНАПРАВЛЕНИЕ)\s*\[\[([^\]|]+)", t, re.I)
     if m and depth < 3:

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.weave import DecodeError, backup, catalogue, fountain, payload
+from mnemosyne.weave import DecodeError, backup, catalogue, fountain, payload
 
 
 class FountainTests(unittest.TestCase):

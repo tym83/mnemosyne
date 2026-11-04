@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from pydantic import BaseModel
 
-from scheherazade.literature import Writer, _transient
+from mnemosyne.literature import Writer, _transient
 
 
 class Answer(BaseModel):
@@ -16,11 +16,11 @@ class Answer(BaseModel):
 class WriterRetries(unittest.TestCase):
     def test_capacity_then_success_and_cache(self):
         notebook = []
-        writer = Writer(notebook, backend="codex")
+        writer = Writer(notebook, backend="codex", data_class="art")
         error = RuntimeError("ERROR: Selected model is at capacity. Please try a different model.")
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, WRITER_CACHE=tmp), \
                 patch.object(writer, "_codex", side_effect=[error, error, ('{"text":"ok"}', {})]) as backend, \
-                patch("scheherazade.literature.time.sleep") as sleep:
+                patch("mnemosyne.literature.time.sleep") as sleep:
             self.assertEqual(writer.ask("", "", Answer, "test").text, "ok")
             self.assertEqual(writer.ask("", "", Answer, "test").text, "ok")
             self.assertEqual(backend.call_count, 3)
@@ -29,12 +29,12 @@ class WriterRetries(unittest.TestCase):
             self.assertTrue(notebook[-1]["cached"])
 
     def test_broken_answers_have_separate_budget(self):
-        writer = Writer([], backend="codex")
+        writer = Writer([], backend="codex", data_class="art")
         # Error words in a malformed answer are not a backend outage.
         bad = ('{"wrong":"network timeout at capacity"}', {})
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, WRITER_CACHE=tmp), \
                 patch.object(writer, "_codex", side_effect=[bad, TimeoutError(), bad, bad]) as backend, \
-                patch("scheherazade.literature.time.sleep") as sleep:
+                patch("mnemosyne.literature.time.sleep") as sleep:
             with self.assertRaises(RuntimeError):
                 writer.ask("", "", Answer, "test")
             self.assertEqual(backend.call_count, 4)
@@ -47,11 +47,11 @@ class WriterRetries(unittest.TestCase):
             waits.append(seconds)
             now[0] += seconds
 
-        writer = Writer([], backend="codex")
+        writer = Writer([], backend="codex", data_class="art")
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, WRITER_CACHE=tmp), \
                 patch.object(writer, "_codex", side_effect=RuntimeError("rate limit")), \
-                patch("scheherazade.literature.time.monotonic", side_effect=lambda: now[0]), \
-                patch("scheherazade.literature.time.sleep", side_effect=sleep), patch("builtins.print"):
+                patch("mnemosyne.literature.time.monotonic", side_effect=lambda: now[0]), \
+                patch("mnemosyne.literature.time.sleep", side_effect=sleep), patch("builtins.print"):
             with self.assertRaisesRegex(RuntimeError, "rate limit"):
                 writer.ask("", "", Answer, "test")
         self.assertEqual(sum(waits), 12 * 3600)

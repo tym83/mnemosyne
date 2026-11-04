@@ -6,12 +6,13 @@ kube() {
   kubectl --kubeconfig "$HOME/workshop.txt" --context admin@workshop \
     -n tenant-scheherazade "$@"
 }
-kube cp src/scheherazade/music/schools studio-0:/work/src/src/scheherazade/music/
+kube exec studio-0 -- sh -c 'test -e /work/src/src/mnemosyne || ln -s scheherazade /work/src/src/mnemosyne'
+kube cp src/mnemosyne/music/schools studio-0:/work/src/src/scheherazade/music/
 for file in render.py sample_bank.py sample_libraries.yaml; do
-  kube cp "src/scheherazade/music/$file" "studio-0:/work/src/src/scheherazade/music/$file"
+  kube cp "src/mnemosyne/music/$file" "studio-0:/work/src/src/scheherazade/music/$file"
 done
 kube exec studio-0 -- nice -n 19 ionice -c 3 env PYTHONPATH=/work/src/src \
-  /work/venv/bin/python -m scheherazade.music.sample_bank /work/samples/vsco-schools
+  /work/venv/bin/python -m mnemosyne.music.sample_bank /work/samples/vsco-schools
 schools=("$@")
 if [ "${#schools[@]}" -eq 0 ]; then
   schools=(tintinnabuli stochastic micropolyphony serial feldman process additive in_c spectral sonorism messiaen ustvolskaya chance tempo_canon aleatoric_counterpoint fibonacci polystylism scelsi drone)
@@ -20,7 +21,7 @@ for school in "${schools[@]}"; do
   # Successful works are immutable. Fetch existing renders on a repeated run.
   if ! kube exec studio-0 -- test -s "/work/gen/schools/$school/render.json"; then
     kube exec studio-0 -- nice -n 19 ionice -c 3 env PYTHONPATH=/work/src/src \
-      /work/venv/bin/python -m scheherazade.music.schools \
+      /work/venv/bin/python -m mnemosyne.music.schools \
       "/work/src/src/scheherazade/music/schools/plans/$school.json" \
       --out "/work/gen/schools/$school"
   fi

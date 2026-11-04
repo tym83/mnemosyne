@@ -5,14 +5,14 @@ from unittest.mock import patch
 
 from PIL import Image
 
-from scheherazade.artist import SelfPortrait, Statement
-from scheherazade.drawing.sheets import Drawing, Look, Path_, Sheet, work
+from mnemosyne.artist import SelfPortrait, Statement
+from mnemosyne.drawing.sheets import Drawing, Look, Path_, Sheet, work
 
 
 class CorrectionLoop(unittest.TestCase):
     def test_exemplar_large_correction_and_unchanged_feedback(self):
         def fields(model):
-            return {name: [] if field.annotation == list[str] else 'test'
+            return {name: {} if field.annotation is dict else [] if field.annotation == list[str] else 'test'
                     for name, field in model.model_fields.items()}
 
         rec = {'portrait': fields(SelfPortrait), 'statement': fields(Statement), 'halftones': {},
@@ -34,8 +34,8 @@ class CorrectionLoop(unittest.TestCase):
             Image.new('RGB', (300, 200), 'white').save(png)
             return ''
 
-        with tempfile.TemporaryDirectory() as tmp, patch('scheherazade.drawing.sheets.Writer') as writer, \
-                patch('scheherazade.drawing.sheets.draw', side_effect=draw):
+        with tempfile.TemporaryDirectory() as tmp, patch('mnemosyne.drawing.sheets.Writer') as writer, \
+                patch('mnemosyne.drawing.sheets.draw', side_effect=draw):
             writer.return_value.ask.side_effect = ask
             result = work(rec, Path(tmp), drafts=3)
         looks = [r for r in requests if ':look' in r[0]]

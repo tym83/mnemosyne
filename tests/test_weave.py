@@ -2,8 +2,8 @@ import os
 import unittest
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-from scheherazade.weave import DecodeError
-from scheherazade.weave import arithmetic, payload
+from mnemosyne.weave import DecodeError
+from mnemosyne.weave import arithmetic, payload
 
 
 class ArithmeticTests(unittest.TestCase):
@@ -68,7 +68,7 @@ class EnvelopeTests(unittest.TestCase):
 class MusicDiagnosticsTests(unittest.TestCase):
     def test_parallel_outer_voices_and_crossing(self):
         from music21 import note, stream
-        from scheherazade.weave.music import style_check
+        from mnemosyne.weave.music import style_check
         score = stream.Score()
         upper, lower = stream.Part(), stream.Part()
         for name in ('G4', 'A4'):

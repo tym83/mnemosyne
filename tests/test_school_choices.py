@@ -4,9 +4,9 @@ import random
 import unittest
 
 from test_music_schools import fingerprint, PLANS
-from scheherazade.music.schools import SCHOOLS
-from scheherazade.music.schools.choices import SeededChoices
-from scheherazade.weave.school_capacity import SINGLE, SingleChoice, bound, support
+from mnemosyne.music.schools import SCHOOLS
+from mnemosyne.music.schools.choices import SeededChoices
+from mnemosyne.weave.school_capacity import SINGLE, SingleChoice, bound, support
 
 
 class ChoiceTests(unittest.TestCase):

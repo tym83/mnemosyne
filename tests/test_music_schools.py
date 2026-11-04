@@ -6,13 +6,13 @@ import random
 import tempfile
 import unittest
 from music21 import converter, midi
-from scheherazade.music.schools import SCHOOLS
-from scheherazade.music.schools.common import ENSEMBLES, analyze
-from scheherazade.music.schools.serial import row_forms
-from scheherazade.music.schools.performance import write_midi
-from scheherazade.music.render import note_events
+from mnemosyne.music.schools import SCHOOLS
+from mnemosyne.music.schools.common import ENSEMBLES, analyze
+from mnemosyne.music.schools.serial import row_forms
+from mnemosyne.music.schools.performance import write_midi
+from mnemosyne.music.render import note_events
 
-PLANS = Path(__file__).resolve().parents[1]/'src/scheherazade/music/schools/plans'
+PLANS = Path(__file__).resolve().parents[1]/'src/mnemosyne/music/schools/plans'
 
 
 def fingerprint(score):

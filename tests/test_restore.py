@@ -8,10 +8,10 @@ import xml.etree.ElementTree as ET
 
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
-from scheherazade import restore
-from scheherazade.state.collect import archive
-from scheherazade.weave import registry, DecodeError
-from scheherazade.weave.codecs.v1 import surface, fountain, payload, frames
+from mnemosyne import restore
+from mnemosyne.state.collect import archive
+from mnemosyne.weave import registry, DecodeError
+from mnemosyne.weave.codecs.v1 import surface, fountain, payload, frames
 
 
 def fixture(cells=600):
@@ -109,7 +109,7 @@ class RestoreTests(unittest.TestCase):
             with self.assertRaisesRegex(DecodeError, 'unsupported decoder'):
                 registry.decode(path / 'future.musicxml', key)
             # Frozen algorithms do not call the current, mutable implementation.
-            with patch('scheherazade.weave.surface.decode', side_effect=AssertionError):
+            with patch('mnemosyne.weave.surface.decode', side_effect=AssertionError):
                 registry.decode(path / '0.musicxml', key)
 
     def test_order_retries_and_owner_rebinding(self):

@@ -1,7 +1,7 @@
 [project]
-name = "scheherazade"
+name = "mnemosyne-art"
 version = "0.1.0"
-description = "Add your description here"
+description = "Mnemosyne: memory gives birth to the arts"
 readme = "README.md"
 authors = [
     { name = "tym83", email = "6355522@gmail.com" }
@@ -21,9 +21,15 @@ dependencies = [
     "zstandard>=0.25.0",
 ]
 
+[project.optional-dependencies]
+operator = ["kopf>=1.38,<2", "boto3>=1.35,<2"]
+
 [project.scripts]
-scheherazade = "scheherazade:main"
+mnemo = "mnemosyne:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]
 build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "mnemosyne"

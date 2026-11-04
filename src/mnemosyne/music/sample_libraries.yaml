@@ -1,0 +1,153 @@
+checked: '2026-11-03'
+libraries:
+  vsco_2_ce:
+    used: true
+    author: Versilian Studios / Sam Gossner / Simon Dalzell
+    license: CC0-1.0
+    source: https://github.com/sgossner/VSCO-2-CE
+    revision: 6dd651d55dde97fd4028699be9d4481f26917891
+    license_url: https://github.com/sgossner/VSCO-2-CE/blob/6dd651d55dde97fd4028699be9d4481f26917891/LICENSE
+    permissions: Use, modification, redistribution and commercial use permitted by
+      CC0.
+    credit: VSCO 2 Community Edition — Versilian Studios, Sam Gossner and Simon Dalzell.
+    notes: README requests credit; preserve it and the full LICENSE with each render.
+    conversion: SFZ zones to mono 16-bit 44100 Hz SF2; first round robin; SFZ key/velocity
+      mapping with extended edge zones; region gain with peak protection; no added
+      loops.
+    converter: mnemosyne.music.sample_bank
+  salamander_grand_piano:
+    used: false
+    author: Alexander Holm
+    license: CC-BY-3.0
+    source: https://github.com/sfzinstruments/SalamanderGrandPiano
+    license_url: https://github.com/sfzinstruments/SalamanderGrandPiano/blob/master/LICENSE
+    permissions: Use and adaptation including commercial use with attribution and
+      licence notice.
+    credit: Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0.
+    notes: Verified alternative, not downloaded or used by this rendering profile.
+  fluid_r3_gm:
+    used: satb_only
+    author: Frank Wen
+    license: MIT
+    source: https://sources.debian.org/src/fluid-soundfont/3.1-5.3/debian/copyright/
+    local_evidence: /usr/share/doc/fluid-soundfont-gm/copyright
+    permissions: Use, modification and redistribution with copyright and permission
+      notice.
+    notes: Explicit SATB voice profile and existing NotaGen renderer; no automatic
+      fallback on loading errors.
+  sso:
+    used: instrumentarium
+    repository: peastman/sso
+    revision: 32bbdb169aef636b8216029a2e056424ba7c2abb
+    source: https://github.com/peastman/sso
+    license: CC-Sampling-Plus-1.0
+    license_files:
+    - LICENSE
+    - README.md
+    license_url: https://github.com/peastman/sso/blob/32bbdb169aef636b8216029a2e056424ba7c2abb/LICENSE
+    credit: 'Sonatina Symphonic Orchestra: Mattias Westlund; continuation by Peter
+      Eastman and contributors.'
+    conversion: Native SFZ through sfizz 1.2.3; stereo, velocity layers, loops and
+      round robins retained.
+    notes: Upstream documents mixed historical provenance, including old soundfonts
+      whose original authors are unknown; retain full upstream README. Harmonics/legato
+      in some patches are transformed samples, not separately recorded techniques.
+  shinyguitar:
+    used: instrumentarium
+    repository: sfzinstruments/karoryfer.shinyguitar
+    revision: 57243cca85277dbcc120ce17c6178032f93c80f3
+    source: https://github.com/sfzinstruments/karoryfer.shinyguitar
+    license: CC0-1.0
+    license_files:
+    - LICENSE
+    - readme.txt
+    license_url: https://github.com/sfzinstruments/karoryfer.shinyguitar/blob/57243cca85277dbcc120ce17c6178032f93c80f3/LICENSE
+    credit: 'Shinyguitar: D. Smolken / Karoryfer Lecolds.'
+    conversion: Native SFZ through sfizz 1.2.3; stereo, velocity layers, loops and
+      round robins retained.
+  button_accordion:
+    used: instrumentarium
+    repository: freepats/button-accordion-HN
+    revision: d70d16456fd99305d1c24c612b205ab38846eb0f
+    source: https://github.com/freepats/button-accordion-HN
+    license: CC0-1.0
+    license_files:
+    - LICENSE.txt
+    - README.txt
+    license_url: https://github.com/freepats/button-accordion-HN/blob/d70d16456fd99305d1c24c612b205ab38846eb0f/LICENSE.txt
+    credit: Button Accordion HN, FreePats contributors.
+    conversion: Native SFZ through sfizz 1.2.3; stereo, velocity layers, loops and
+      round robins retained.
+  vcsl:
+    used: instrumentarium
+    repository: sgossner/VCSL
+    revision: c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e
+    source: https://github.com/sgossner/VCSL
+    license: CC0-1.0
+    license_files:
+    - LICENSE
+    - README.md
+    license_url: https://github.com/sgossner/VCSL/blob/c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e/LICENSE
+    credit: Versilian Community Sample Library, Sam Gossner and contributors.
+    conversion: Native SFZ through sfizz 1.2.3; stereo, velocity layers, loops and
+      round robins retained.
+    subset:
+    - Chordophones/Zithers/Dan Tranh/Normal/B1_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B1_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B1_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B2_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B2_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B3_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B3_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B3_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B4_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B4_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/B4_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#2_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#2_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#2_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#3_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#3_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#3_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#4_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#4_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/C#4_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#2_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#2_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#2_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#3_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#3_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#3_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#4_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#4_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/D#4_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#2_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#2_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#2_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#3_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#3_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#3_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#4_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#4_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/F#4_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#2_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#2_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#2_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#3_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#3_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#3_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#4_f_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#4_ff_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/G#4_mf_1.wav
+    - Chordophones/Zithers/Dan Tranh/Normal/b2_mf_1.wav
+  openair_jack_lyons:
+    used: instrumentarium
+    license: CC-BY-4.0
+    source: https://www.openair.hosted.york.ac.uk/?page_id=571
+    credit: OpenAIR, AudioLab, University of York; Jack Lyons Concert Hall, central
+      seating D22.
+    download: https://webfiles.york.ac.uk/OPENAIR/IRs/jack-lyons-concert-hall-university-york/b-format/rir_jack_lyons_lp2_96k.wav
+    license_url: https://creativecommons.org/licenses/by/4.0/
+    notes: B-format WXYZ decoded to stereo L=.7071W+.5X+.5Y, R=.7071W+.5X-.5Y; resampled
+      to 44100. Dataset page currently unavailable; licence corroborated by redistributors
+      Axion and anidoodle, not reverified directly.

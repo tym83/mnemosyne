@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from music21 import meter, note, stream
-from scheherazade.music.render import diagnostics, render
+from mnemosyne.music.render import diagnostics, render
 
 
 class RenderTests(unittest.TestCase):
@@ -52,7 +52,7 @@ class RenderTests(unittest.TestCase):
                 'source_sha256': digest, 'soundfont': str(font), 'renderer_version': 4}))
             for suffix in ('.abc', '.json', '.xml', '.pdf', '.mp3', '.mid', '.analysis.json'):
                 (out / ('piece' + suffix)).write_text('complete')
-            with patch('scheherazade.music.render.run', side_effect=RuntimeError('conversion started')) as run:
+            with patch('mnemosyne.music.render.run', side_effect=RuntimeError('conversion started')) as run:
                 render(abc, out, font, font)
                 run.assert_not_called()
                 (out / 'piece.mp3').write_bytes(b'')

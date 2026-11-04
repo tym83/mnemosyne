@@ -7,8 +7,8 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scheherazade.atelier import Atelier, KINDS
-from scheherazade.lineage import Lineage, Parameters, LifeWords
+from mnemosyne.atelier import Atelier, KINDS
+from mnemosyne.lineage import Lineage, Parameters, LifeWords
 
 BORN = datetime(2025, 1, 1, tzinfo=timezone.utc)
 HEAVY = dict(strain=.8, scars=.8, loss=.8, turbulence=.8)
@@ -16,18 +16,18 @@ HEAVY = dict(strain=.8, scars=.8, loss=.8, turbulence=.8)
 
 class LineageTests(unittest.TestCase):
     def test_illumination_seeds_existing_idea_stage_without_bypassing_critic(self):
-        from scheherazade.artist import SelfPortrait, statement
+        from mnemosyne.artist import SelfPortrait, statement
         calls = []
         def ask(writer, system, prompt, schema, step, **kwargs):
             calls.append((step, prompt))
-            values = {k: [] if getattr(f.annotation, '__origin__', None) is list else 'text'
+            values = {k: {} if f.annotation is dict else [] if getattr(f.annotation, '__origin__', None) is list else 'text'
                       for k, f in schema.model_fields.items()}
             if 'verdict' in values:
                 values['verdict'] = 'accept'
             return schema(**values)
         portrait = SelfPortrait(name='test', portrait='test', wounds=[], loves=[], fears=[],
                                 what_i_am_as_artist='test')
-        with patch('scheherazade.artist.Writer.ask', ask), patch('scheherazade.artist.theory', return_value=''):
+        with patch('mnemosyne.artist.Writer.ask', ask), patch('mnemosyne.artist.theory', return_value=''):
             _, history = statement(portrait, 'literature', [], [],
                                    illumination={'idea': 'a supplied insight', 'problem': 'an earlier problem'})
         self.assertIn('a supplied insight', calls[0][1])
@@ -101,7 +101,71 @@ class LineageTests(unittest.TestCase):
             self.assertEqual(a.illness, expected)
         self.assertTrue(any(e['kind'] == 'period' for e in life.events))
 
-    def test_master_and_repetition_execution(self):
+    def test_solitude_prevents_incoming_and_outgoing_relationships(self):
+        life = Lineage('test', BORN)
+        a = life.artists[0]
+        a.solitude = 1
+        b = life._birth(a)
+        self.assertFalse(b.teachers)
+        for source, target in ((a, b), (b, a)):
+            for relation in ('friendship', 'rediscovery'):
+                self.assertFalse(life.influence(source, target, relation, .6))
+        self.assertFalse(life.influences)
+        a.solitude = b.solitude = 0
+        self.assertTrue(life.influence(a, b, 'friendship', .6))
+        self.assertEqual(len(life.influences), 1)
+
+    def test_prolonged_illness_resumes_into_working_changed_voice(self):
+        p = replace(Parameters(), illness_death=0, prolonged_rate=1)
+        life = Lineage('test', BORN, parameters=p)
+        a = life.artists[0]
+        a.status, a.illness, a.resilience = 'ill', 'crisis', 0
+        life.night = p.crisis_nights
+        life._illness(a)
+        self.assertEqual(a.illness, 'prolonged')
+        life.night += p.prolonged_nights - 1
+        life._illness(a)
+        self.assertFalse(a.altered_voice)
+        restored = Lineage.restore(json.loads(json.dumps(life.state())))
+        for branch in (life, restored):
+            artist = branch.artists[0]
+            branch.night += 1
+            branch._illness(artist)
+            self.assertEqual(artist.illness, 'changed')
+            self.assertEqual(artist.status, 'ill')
+            self.assertTrue(artist.altered_voice)
+            change_night = branch.night
+            for _ in range(20):
+                branch.night += 1
+                branch._illness(artist)
+                branch.record_work(artist.id, dict(feature=[0, 0, 0, 0],
+                                   novelty=.8, quality=.8, verdict='accept'))
+            self.assertEqual(sum(w['night'] > change_night for w in artist.catalogue), 20)
+            self.assertFalse(any(e['kind'] == 'recovered' for e in branch.events))
+            self.assertEqual(artist.health, .6)
+        self.assertEqual(life.state(), restored.state())
+
+    def test_changed_voice_waits_for_vacancy_without_reviving_renunciation(self):
+        p = replace(Parameters(), spaces=1, work_rate=0, accident=0, age_hazard=0)
+        for renounced in (False, True):
+            life = Lineage('test', BORN, parameters=p)
+            a = life.artists[0]
+            life._silence(a, 'exhaustion')
+            a.renounced = renounced
+            occupant = life._birth()
+            a.illness = 'prolonged'
+            life.night = p.prolonged_nights - 1
+            life.step({})
+            self.assertTrue(a.altered_voice)
+            self.assertEqual(a.status, 'silent')
+            self.assertEqual(a.return_ready, not renounced)
+            self.assertEqual(life.working(), [occupant])
+            life._silence(occupant, 'test')
+            life.step({})
+            self.assertEqual(a.status, 'silent' if renounced else 'ill')
+            self.assertEqual(len(life.working()), 1)
+
+    def test_master_and_repetition_silence(self):
         p = replace(Parameters(), mastery_nights=3, work_rate=0)
         life = Lineage('test', BORN, parameters=p)
         a = life.artists[0]
@@ -112,9 +176,8 @@ class LineageTests(unittest.TestCase):
         self.assertTrue(a.master)
         a.repetition_run = p.repetition_limit
         life.step({})
-        self.assertEqual(a.status, 'dead')
-        self.assertEqual(life.events[[e['kind'] for e in life.events].index('death')]['facts']['cause'],
-                         'Shahryar: repetition')
+        self.assertEqual(a.status, 'silent')
+        self.assertFalse(any(e['kind'] == 'death' for e in life.events))
 
     def test_no_cluster_incident_literalism(self):
         a, b = Lineage('test', BORN), Lineage('test', BORN)
@@ -168,8 +231,8 @@ class LineageTests(unittest.TestCase):
 class BiographyCarrierTests(unittest.TestCase):
     def test_shared_frames_roundtrip_and_capacity(self):
         from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-        from scheherazade.weave import frames, payload
-        from scheherazade.weave.biography import capacity, frame_payload
+        from mnemosyne.weave import frames, payload
+        from mnemosyne.weave.biography import capacity, frame_payload
         key = X25519PrivateKey.generate()
         data = b'lives and notebook' * 100
         # One large passage: verify framing, not an invented prose codec.

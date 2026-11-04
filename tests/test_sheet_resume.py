@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scheherazade.drawing.sheets import draw
+from mnemosyne.drawing.sheets import draw
 
 
 class SheetResume(unittest.TestCase):
@@ -17,7 +17,7 @@ class SheetResume(unittest.TestCase):
                     Path(args[2]).write_bytes(b'new image')
                 return subprocess.CompletedProcess([], 0, stdout='', stderr='')
 
-            with patch('scheherazade.drawing.sheets.kube', side_effect=workshop) as kube:
+            with patch('mnemosyne.drawing.sheets.kube', side_effect=workshop) as kube:
                 self.assertEqual(draw('original', png), '')
                 kube.reset_mock()
                 self.assertEqual(draw('original', png), '')
@@ -30,7 +30,7 @@ class SheetResume(unittest.TestCase):
             png = Path(tmp) / 'draft.png'
             png.write_bytes(b'old image')
             png.with_suffix('.py').write_text('original')
-            with patch('scheherazade.drawing.sheets.kube', return_value=
+            with patch('mnemosyne.drawing.sheets.kube', return_value=
                        subprocess.CompletedProcess([], 1, stdout='render failed', stderr='')):
                 self.assertEqual(draw('original', png), 'render failed')
             self.assertEqual(png.with_suffix('.render-state').read_text(), 'pending')
@@ -45,7 +45,7 @@ class SheetResume(unittest.TestCase):
                     return subprocess.CompletedProcess([], 1, stdout='etch failed', stderr='')
                 return subprocess.CompletedProcess([], 0, stdout='', stderr='')
 
-            with patch('scheherazade.drawing.sheets.kube', side_effect=workshop):
+            with patch('mnemosyne.drawing.sheets.kube', side_effect=workshop):
                 self.assertEqual(draw('original', png), 'etch failed')
             self.assertFalse(png.exists())
             self.assertEqual(png.with_suffix('.render-state').read_text(), 'pending')
