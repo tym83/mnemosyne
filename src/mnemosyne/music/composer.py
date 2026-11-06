@@ -16,6 +16,7 @@ import random
 import shlex
 from pathlib import Path
 import subprocess
+import tarfile
 import time
 from typing import Literal
 from uuid import uuid4
@@ -159,6 +160,30 @@ class Studio:
                 return int(done.stdout)
         raise TimeoutError(f'composer worker did not finish in {timeout} s')
 
+    def fetch(self, remote, name, destination, tries=20):
+        """Bring notation, mp3 and metadata home; wav stems and draft attempts stay in the studio."""
+        archive = shlex.quote(name + '.tgz')
+        pack = (f'cd {shlex.quote(remote)} && tar -czf {archive} --exclude=.drafts '
+                f"--exclude='*.wav' --exclude='*.f32' {shlex.quote(name)} && sha256sum {archive}")
+        local = destination/(name + '.tgz')
+        for attempt in range(tries):
+            try:
+                if attempt == 0 or not digest:
+                    digest = self.call(['exec', self.pod, '--', 'sh', '-c', pack],
+                                       capture_output=True, text=True).stdout.split()[0]
+                with local.open('wb') as out:
+                    self.call(['exec', self.pod, '--', 'cat', remote + '/' + name + '.tgz'], stdout=out)
+                if hashlib.sha256(local.read_bytes()).hexdigest() == digest:
+                    break
+            except (subprocess.CalledProcessError, IndexError):
+                digest = None
+            time.sleep(10)
+        else:
+            raise RuntimeError(f'could not fetch {name} from the studio after {tries} tries')
+        with tarfile.open(local) as tar:
+            tar.extractall(destination, filter='data')
+        local.unlink()
+
     def run(self, request, destination):
         destination.mkdir(parents=True, exist_ok=False)
         dump(destination/'request.json', request)
@@ -185,10 +210,10 @@ class Studio:
         except Exception as exc:
             error = exc
         # Fetch failed attempts too; never delete the remote notebook.
-        for name, target in (('studio.log', destination/'studio.log'), ('result', destination/'result')):
+        for name in ('studio.log', 'result'):
             try:
-                self.call(['cp', '--retries=20', self.pod + ':' + remote + '/' + name, str(target)])
-            except subprocess.CalledProcessError:
+                self.fetch(remote, name, destination)
+            except Exception:
                 if error is None:
                     raise
         if error:
