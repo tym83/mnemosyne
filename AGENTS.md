@@ -45,7 +45,9 @@ Run Python with `uv run python -m mnemosyne.<module>`.
 - In the pods: Python with torch is `/work/venv/bin/python`; Blender is
   `/work/blender/blender`; NotaGen is in `/work/NotaGen/gradio`.
 - Heavy work runs in the pods, not on the laptop.
-- Never read or print Secrets.
+- Never read or print Secrets. One exception: the `admin-kubeconfig` Secret of a
+  test Kubernetes app created by Mnemosyne e2e inside `tenant-scheherazade` may be
+  read straight into a file under `out/` (mode 600) — never printed, logged or committed.
 
 ## Git
 
