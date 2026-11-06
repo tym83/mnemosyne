@@ -13,8 +13,10 @@ import json
 import math
 import os
 import random
+import shlex
 from pathlib import Path
 import subprocess
+import time
 from typing import Literal
 from uuid import uuid4
 
@@ -144,31 +146,51 @@ class Studio:
         self.call(['exec', self.pod, '--', 'ln', '-s', 'scheherazade',
                    self.remote + '/src/mnemosyne'])
 
+    def wait(self, remote, timeout=14400, every=30):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            time.sleep(every)
+            try:
+                done = self.call(['exec', self.pod, '--', 'cat', remote + '/exit'],
+                                 capture_output=True, text=True)
+            except subprocess.CalledProcessError:
+                continue  # not finished yet, or the link dropped
+            if done.stdout.strip():
+                return int(done.stdout)
+        raise TimeoutError(f'composer worker did not finish in {timeout} s')
+
     def run(self, request, destination):
         destination.mkdir(parents=True, exist_ok=False)
         dump(destination/'request.json', request)
         remote = self.remote + '/' + destination.name
         self.call(['exec', self.pod, '--', 'mkdir', '-p', remote])
         self.call(['cp', str(destination/'request.json'), self.pod + ':' + remote + '/request.json'])
-        command = ['exec', self.pod, '--', 'nice', '-n', '19', 'env',
-                   'PYTHONPATH=' + self.remote + '/src:/work/lineage-check/deps',
-                   'OMP_NUM_THREADS=1', 'OPENBLAS_NUM_THREADS=1',
-                   *[k + '=' + os.environ[k] for k in ('MNEMOSYNE_NOTAGEN', 'NOTAGEN_DIR',
-                       'NOTAGEN_WEIGHTS', 'NOTAGEN_DEVICE') if k in os.environ],
-                   '/work/venv/bin/python', '-m', 'mnemosyne.music.composer_worker',
-                   remote + '/request.json', '--out', remote + '/result']
+        worker = ['nice', '-n', '19', 'env',
+                  'PYTHONPATH=' + self.remote + '/src:/work/lineage-check/deps',
+                  'OMP_NUM_THREADS=1', 'OPENBLAS_NUM_THREADS=1',
+                  *[k + '=' + os.environ[k] for k in ('MNEMOSYNE_NOTAGEN', 'NOTAGEN_DIR',
+                      'NOTAGEN_WEIGHTS', 'NOTAGEN_DEVICE') if k in os.environ],
+                  '/work/venv/bin/python', '-m', 'mnemosyne.music.composer_worker',
+                  remote + '/request.json', '--out', remote + '/result']
+        # The worker runs detached in the pod: a long exec stream from the
+        # laptop does not survive a flaky link, short polls do.
+        inner = shlex.join(worker) + ' >studio.log 2>&1; echo $? >exit'
+        self.call(['exec', self.pod, '--', 'sh', '-c',
+                   f'cd {shlex.quote(remote)} && nohup sh -c {shlex.quote(inner)} </dev/null >/dev/null 2>&1 &'])
         error = None
-        with (destination/'studio.log').open('w') as log:
-            try:
-                self.call(command, stdout=log, stderr=subprocess.STDOUT, timeout=14400)
-            except Exception as exc:
-                error = exc
-        # Fetch failed attempts too; never delete the remote notebook.
         try:
-            self.call(['cp', '--retries=20', self.pod + ':' + remote + '/result', str(destination/'result')])
-        except subprocess.CalledProcessError:
-            if error is None:
-                raise
+            code = self.wait(remote)
+            if code != 0:
+                error = RuntimeError(f'composer worker exited with {code}')
+        except Exception as exc:
+            error = exc
+        # Fetch failed attempts too; never delete the remote notebook.
+        for name, target in (('studio.log', destination/'studio.log'), ('result', destination/'result')):
+            try:
+                self.call(['cp', '--retries=20', self.pod + ':' + remote + '/' + name, str(target)])
+            except subprocess.CalledProcessError:
+                if error is None:
+                    raise
         if error:
             raise error
         return json.loads((destination/'result/result.json').read_text())
