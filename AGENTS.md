@@ -41,7 +41,9 @@ Run Python with `uv run python -m mnemosyne.<module>`.
 
 - Always `kubectl --kubeconfig ~/workshop.txt --context admin@workshop`.
 - Only namespace `tenant-scheherazade` (pods `studio-0` on ws1, `studio-1` on ws4).
-  Never touch other namespaces or tenants; never scale onto ws2/ws3.
+  Never touch other namespaces or tenants. While no workshop is running, the
+  studio StatefulSet may also use ws2/ws3 (studio-2, studio-3); give them back
+  when a workshop starts.
 - In the pods: Python with torch is `/work/venv/bin/python`; Blender is
   `/work/blender/blender`; NotaGen is in `/work/NotaGen/gradio`.
 - Heavy work runs in the pods, not on the laptop.
