@@ -165,7 +165,7 @@ class Studio:
                 error = exc
         # Fetch failed attempts too; never delete the remote notebook.
         try:
-            self.call(['cp', self.pod + ':' + remote + '/result', str(destination/'result')])
+            self.call(['cp', '--retries=20', self.pod + ':' + remote + '/result', str(destination/'result')])
         except subprocess.CalledProcessError:
             if error is None:
                 raise
