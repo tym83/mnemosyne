@@ -33,7 +33,21 @@ spec:
       containers:
       - name: studio
         image: python:3.12-bookworm
-        command: [sh, -c, "mkdir -p /work/tmp && exec sleep infinity"]
+        # System packages live in the container, not on the volume: reinstall
+        # them on every start so a restart does not leave the studio without
+        # its tools. The venv, models and sfizz build stay on /work.
+        command:
+        - sh
+        - -c
+        - >-
+          mkdir -p /work/tmp &&
+          apt-get update -qq &&
+          apt-get install -y -qq lilypond fluidsynth fluid-soundfont-gm ffmpeg poppler-utils
+          abcmidi git fonts-dejavu-core libsndfile1 libsamplerate0 >/work/tmp/apt.log 2>&1;
+          touch /tmp/tools-ready; exec sleep infinity
+        readinessProbe:
+          exec: {command: [test, -f, /tmp/tools-ready]}
+          periodSeconds: 10
         workingDir: /work
         env:
         - {name: TMPDIR, value: /work/tmp}
