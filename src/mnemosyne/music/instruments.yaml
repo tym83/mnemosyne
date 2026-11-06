@@ -7,21 +7,21 @@ policy: Ordinary orchestral ranges. Comfortable ranges, velocity limits and bala
   is checked separately.
 # Release seconds are time to silence after damping, not sample length.
 release_profiles:
-  woodwinds: {release_seconds: 0.18, sustained: true}
-  brass: {release_seconds: 0.18, sustained: true}
-  strings: {release_seconds: 0.25, sustained: true}
-  keyboard: {release_seconds: 0.25, sustained: false}
+  woodwinds: {release_seconds: 0.4, sustained: true}
+  brass: {release_seconds: 0.5, sustained: true}
+  strings: {release_seconds: 0.8, sustained: true}
+  keyboard: {release_seconds: 0.4, sustained: false}
   percussion: {release_seconds: 4.0, sustained: false}
   plucked: {release_seconds: 4.0, sustained: false}
-  voice: {release_seconds: 0.25, sustained: true}
+  voice: {release_seconds: 0.5, sustained: true}
 release_overrides:
-  piano: {release_seconds: 0.25, sustained: false, pedal: true}
+  piano: {release_seconds: 0.4, sustained: false, pedal: true}
   harp: {release_seconds: 5.0, sustained: false, pedal: false, laissez_vibrer: true}
   celesta: {release_seconds: 4.0, sustained: false, pedal: true}
   vibraphone: {release_seconds: 5.0, sustained: false, pedal: true}
   tubular_bells: {release_seconds: 8.0, sustained: false, laissez_vibrer: true}
-  accordion: {release_seconds: 0.18, sustained: true}
-  organ: {release_seconds: 0.18, sustained: true}
+  accordion: {release_seconds: 0.3, sustained: true}
+  organ: {release_seconds: 0.5, sustained: true}
 instruments:
   piccolo:
     family: woodwinds

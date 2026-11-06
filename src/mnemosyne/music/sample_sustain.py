@@ -52,9 +52,12 @@ def crossfade_loop(pcm, rate):
 def prepare_region(zone, profile, destination):
     """Return explicit playback overrides and measurements for the manifest."""
     source = Path(zone['sample']); op = zone['opcodes']; info = audio_info(str(source))
-    result = {'sample_seconds': info['seconds'], 'release_seconds': profile['release_seconds'],
+    # The profile is a floor: a library's own release was recorded for its
+    # samples and is never shortened.
+    release = max(profile['release_seconds'], float(op.get('ampeg_release', 0) or 0))
+    result = {'sample_seconds': info['seconds'], 'release_seconds': release,
               'source_sample': str(source), 'sustain': 'natural-decay'}
-    overrides = {'ampeg_release': profile['release_seconds']}
+    overrides = {'ampeg_release': release}
     if not profile.get('sustained') or op.get('loop_mode') == 'one_shot' or zone.get('trigger', 'attack') not in ('attack','first','legato'): return overrides, result
     loop = None
     if op.get('loop_mode') not in ('no_loop', 'one_shot'):
