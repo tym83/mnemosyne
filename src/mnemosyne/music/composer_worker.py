@@ -8,7 +8,7 @@ import sys
 import traceback
 
 from . import analyze
-from .render import render_score, run, FONT
+from .render import render_score, notation_score, run, FONT
 
 
 def execute(request, out):
@@ -31,7 +31,7 @@ def execute(request, out):
         for c in candidates:
             if 'features' in c:
                 source = out/'candidates'/c['file']
-                render(source, rendered, FONT, FONT)
+                render(source, rendered, FONT, FONT, notation_only=True)
                 from music21 import converter
                 import hashlib
                 score = converter.parse(analyze.to_musicxml(source)).toSoundingPitch()
@@ -50,46 +50,58 @@ def execute(request, out):
     if request.get('form') == 'symphony':
         from .symphony import validate
         validate(plan, study=True)
-    if action == 'woven' and request.get('form') == 'symphony':
-        from .symphony import movement
-        from .orchestra_render import render_orchestra
-        from ..weave.schools import performance_score
-        (out/'woven.musicxml').write_text(request['xml'])
-        score = performance_score(out/'woven.musicxml')
-        _, op, assignment, _ = movement(plan, request['movement_index'])
-        dest = out/'rendered'
-        render_orchestra(score, op, assignment, dest, Path(os.environ.get('MNEMO_NATIVE_BANK', '/work/samples/instrumentarium')))
-    elif request.get('form') == 'symphony':
+    bank = Path(os.environ.get('MNEMO_NATIVE_BANK', '/work/samples/instrumentarium'))
+    if request.get('form') == 'symphony':
         from .symphony import movement, join_scores, write_score
         from .orchestra_render import render_orchestra
-        built = [movement(plan, i) for i in range(len(plan['movements']))]
-        for i, (score, op, assignment, analysis) in enumerate(built):
-            render_orchestra(score, op, assignment, out/f'mv{i}', Path(os.environ.get('MNEMO_NATIVE_BANK', '/work/samples/instrumentarium')))
-        score = join_scores([b[0] for b in built], plan['title'])
+        scores = []
+        for i in range(len(plan['movements'])):
+            dest = out/f'mv{i}'
+            if action == 'woven':
+                from ..weave.schools import performance_score
+                item = request['movements'][i]
+                source = out/f'woven-mv{i}.musicxml'
+                source.write_text(item['xml'])
+                score = performance_score(source)
+                op, assignment = item['plan'], item['assignment']
+                render_orchestra(score, op, assignment, dest, bank, compact=True)
+            else:
+                score, op, assignment, development = movement(plan, i)
+                notation_score(score, op, dest, assignment)
+                (dest/'development.json').write_text(json.dumps(development, indent=2))
+            scores.append(score)
+        score = join_scores(scores, plan['title'])
         write_score(score, out/'score.musicxml')
-        subprocess.run(['pdfunite', *[str(out/f'mv{i}/score.pdf') for i in range(len(built))],
+        run(['musicxml2ly', '-o', out/'score.ly', out/'score.musicxml'], out/'notation.log')
+        subprocess.run(['pdfunite', *[str(out/f'mv{i}/score.pdf') for i in range(len(scores))],
                         str(out/'score.pdf')], check=True)
-        args = [x for i in range(len(built)) for x in ('-i', str(out/f'mv{i}/score.mp3'))]
-        run(['ffmpeg', '-nostdin', '-v', 'error', *args, '-filter_complex',
-             f'concat=n={len(built)}:v=0:a=1', '-codec:a', 'libmp3lame', out/'score.mp3'], out/'render.log')
+        if action == 'woven':
+            args = [x for i in range(len(scores)) for x in ('-i', str(out/f'mv{i}/score.flac'))]
+            run(['ffmpeg', '-nostdin', '-v', 'error', *args, '-filter_complex',
+                 f'concat=n={len(scores)}:v=0:a=1', '-c:a', 'flac', '-sample_fmt', 's32',
+                 out/'score.flac'], out/'render.log')
+            run(['ffmpeg', '-nostdin', '-v', 'error', '-i', out/'score.flac',
+                 '-codec:a', 'libmp3lame', '-q:a', '2', out/'score.mp3'], out/'render.log')
         dest = out
     else:
+        dest = out/'rendered'
         if action == 'woven':
             from ..weave.schools import performance_score
             (out/'woven.musicxml').write_text(request['xml'])
             score = performance_score(out/'woven.musicxml')
+            if plan.get('audio_profile') == 'native_sfz':
+                from .orchestra_render import render_orchestra
+                if not request.get('assignment'):
+                    raise ValueError('woven native score requires its retained original orchestration')
+                render_orchestra(score, plan, request['assignment'], dest, bank, compact=True)
+            else:
+                if plan.get('hall_profile') != 'openair_jack_lyons':
+                    bank = Path(os.environ.get('MNEMO_SF2_BANK', '/work/samples/vsco-schools/vsco-schools.sf2'))
+                render_score(score, plan, dest, bank, compact=True)
         else:
             from .schools import SCHOOLS
             score = SCHOOLS[plan['school']].compose(plan, plan['seed'])
-        dest = out/'rendered'
-        bank = Path(os.environ.get('MNEMO_NATIVE_BANK', '/work/samples/instrumentarium')) if plan.get('audio_profile') == 'native_sfz' else Path(os.environ.get('MNEMO_SF2_BANK', '/work/samples/vsco-schools/vsco-schools.sf2'))
-        if action == 'woven' and plan.get('audio_profile') == 'native_sfz':
-            from .orchestra_render import render_orchestra
-            if not request.get('assignment'):
-                raise ValueError('woven native score requires its retained original orchestration')
-            render_orchestra(score, plan, request['assignment'], dest, bank)
-        else:
-            render_score(score, plan, dest, bank)
+            notation_score(score, plan, dest)
     # Deliberately sample beginning, middle, ending; all score pages remain in PDF.
     probe = subprocess.check_output(['pdfinfo', str(dest/'score.pdf')], text=True)
     pages = int(next(line.split(':')[1] for line in probe.splitlines() if line.startswith('Pages:')))

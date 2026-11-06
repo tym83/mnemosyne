@@ -71,8 +71,12 @@ def write_midi(score, path, bpm, orchestral=False):
         if getattr(ins, 'midiChannel', None) == 9:
             channel=9
         program = 48 if orchestral and ins.midiProgram == 40 else ins.midiProgram
-        events = [(0, -2, b'\xff\x21\x01'+bytes([i//15])),
-                  (0, 0, bytes([0xC0|channel, program]))]
+        events = [(0, -2, b'\xff\x21\x01'+bytes([i//15]))]
+        # MusicXML percussion can specify an unpitched key without a program.
+        if program is not None:
+            events.append((0, 0, bytes([0xC0|channel, program])))
+        elif channel != 9:
+            raise ValueError(f'Missing MIDI program for {part.id}')
         for cc, value in ((101,0),(100,0),(6,12),(38,0),(101,127),(100,127),(10,(64 if len(score.parts)==1 else round(25+77*i/max(1,len(score.parts)-1))))):
             events.append((0, 0, bytes([0xB0|channel, cc, value])))
         if i == 0:

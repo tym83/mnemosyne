@@ -161,10 +161,10 @@ class Studio:
         raise TimeoutError(f'composer worker did not finish in {timeout} s')
 
     def fetch(self, remote, name, destination, tries=20):
-        """Bring notation, mp3 and metadata home; wav stems and draft attempts stay in the studio."""
+        """Bring notation, mp3 and metadata home; lossless FLAC stays in the studio."""
         archive = shlex.quote(name + '.tgz')
         pack = (f'cd {shlex.quote(remote)} && tar -czf {archive} --exclude=.drafts '
-                f"--exclude='*.wav' --exclude='*.f32' {shlex.quote(name)} && sha256sum {archive}")
+                f"--exclude='*.wav' --exclude='*.f32' --exclude='*.flac' {shlex.quote(name)} && sha256sum {archive}")
         local = destination/(name + '.tgz')
         for attempt in range(tries):
             try:
@@ -218,7 +218,9 @@ class Studio:
                     raise
         if error:
             raise error
-        return json.loads((destination/'result/result.json').read_text())
+        result = json.loads((destination/'result/result.json').read_text())
+        result['remote'] = {'pod': self.pod, 'directory': remote + '/result'}
+        return result
 
 
 def feature_vector(summary):
@@ -521,7 +523,9 @@ class Night:
             report = {'archive_bytes': len(data), 'archive_sha256': hashlib.sha256(data).hexdigest(),
                       'archive_recovered': False, 'frame_decode_verified': False,
                       'reason': 'no carrier large enough for authenticated frame dimensions'}
-            self.record.update(status='backup_pending_capacity', backup=report)
+            self.record['backup'] = report
+            if self.record.get('status') != 'unfinished':
+                self.record['status'] = 'backup_pending_capacity'
             (self.root/'pending-envelope.bin').write_bytes(envelope)
             dump(self.root/'decode.json', report)
             return
@@ -575,30 +579,62 @@ class Night:
         self.record['backup'] = report
         self.record['catalogue'] = cat
         dump(self.root/'decode.json', report)
-        # Rendering the woven surfaces must consume expression_curves, not a
-        # re-export that silently loses continuous dynamics.
-        for sk, _, _ in assignments:
-            xml = woven/(sk['id']+'.musicxml')
-            assignment_path = (self.root/sk['score']).parent/'orchestration.json'
-            assignment = json.loads(assignment_path.read_text()) if assignment_path.exists() else None
-            self.studio_run({'action': 'woven', 'xml': xml.read_text(), 'plan': sk['plan'],
-                             'assignment': assignment,
-                             'form': sk.get('form', 'school'), 'movement_index': sk.get('movement_index')},
-                            'woven-render-'+sk['stage'])
+        self.render_final(woven)
         for path in woven.glob('*.musicxml'):
             registry.decode(path, key)
         for sk, _, _ in assignments:
             original = next(s for s in self.sketches if s['id'] == sk['id'] or
                             sk['id'].startswith(s['id']+'-mv'))
             files = [woven/(sk['id']+'.musicxml'), woven/(sk['id']+'.catalogue.json')]
-            files += [p for p in (self.root/('woven-render-'+sk['stage'])).rglob('*')
-                      if p.is_file() and '.drafts' not in p.parts]
             original.setdefault('files', []).extend(str(p.relative_to(self.root)) for p in files)
             original.setdefault('carried_frames', []).extend(
                 json.loads((woven/(sk['id']+'.catalogue.json')).read_text()))
         report['post_render_decode_verified'] = True
         dump(self.root/'decode.json', report)
-        self.record['status'] = 'complete' if report['archive_recovered'] else 'backup_pending_capacity'
+        if self.record.get('verdict', {}).get('verdict') == 'accept':
+            self.record['status'] = ('sound_pending' if self.record.get('sound_pending') else
+                                     'complete' if report['archive_recovered'] else 'backup_pending_capacity')
+
+    def render_final(self, woven):
+        """Only the accepted entry sounds, and only from its woven surfaces."""
+        if self.record.get('verdict', {}).get('verdict') != 'accept':
+            return
+        final = next(s for s in self.sketches if s['id'] == self.record['final'])
+        def retained(score):
+            folder = (self.root/score).parent
+            assignment = folder/'orchestration.json'
+            return {'plan': json.loads((folder/'plan.json').read_text()),
+                    'assignment': json.loads(assignment.read_text()) if assignment.exists() else None}
+        request = {'action': 'woven', 'plan': final['plan'], 'form': final.get('form', 'school')}
+        if request['form'] == 'symphony':
+            movements = []
+            for c in sorted(final['carriers'], key=lambda c: c['movement_index']):
+                path = woven/(final['id']+f"-mv{c['movement_index']+1}.musicxml")
+                if not path.exists():
+                    self.record['sound_pending'] = 'final movement has no woven carrier'
+                    return
+                movements.append({'xml': path.read_text(), **retained(c['score'])})
+            request['movements'] = movements
+        else:
+            path = woven/(final['id']+'.musicxml')
+            if not path.exists():
+                self.record['sound_pending'] = 'final work has no woven carrier'
+                return
+            request['xml'] = path.read_text()
+            assignment = (self.root/final['score']).parent/'orchestration.json'
+            request['assignment'] = json.loads(assignment.read_text()) if assignment.exists() else None
+        label = 'woven-render-'+final['stage']
+        result = self.studio_run(request, label)
+        folder = self.root/label/'result'
+        final['sounding_work'] = True
+        final['audio'] = {'local_mp3': [str(p.relative_to(self.root)) for p in sorted(folder.rglob('*.mp3'))
+                                      if '.drafts' not in p.parts],
+                          'remote': result.get('remote'), 'lossless': ('score.flac' if request['form'] == 'symphony' else 'rendered/score.flac'),
+                          'movement_lossless': [f'mv{i}/score.flac' for i in range(len(request.get('movements', [])))],
+                          'lossless_policy': 'studio-only; FLAC excluded from fetch'}
+        final.setdefault('files', []).extend(str(p.relative_to(self.root)) for p in folder.rglob('*')
+                                            if p.is_file() and '.drafts' not in p.parts)
+        self.record['sounding_work'] = final['id']
 
 
 def main():

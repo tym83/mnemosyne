@@ -24,7 +24,7 @@ class ComposerTransportTests(unittest.TestCase):
             night = Night.__new__(Night)
             night.root = root
             night.studio = Mock()
-            night.record = {}
+            night.record = {'verdict': {'verdict': 'accept'}, 'final': 'fixture-sketch-15'}
             night.sketches = [{'id': f'fixture-sketch-{i}', 'stage': f'fixture-{i}', 'plan': plan,
                                'score': path.name, 'form': 'school'} for i in range(16)]
             night.objects = [obj('Notebook', 'fixture', {'entries': [{'idea': 'fixture', 'verdict': 'accept'}]}),
@@ -38,6 +38,10 @@ class ComposerTransportTests(unittest.TestCase):
             self.assertEqual(restored, (root/'state.tar.zst').read_bytes())
             self.assertTrue({'Notebook', 'Biography', 'CustomResourceDefinition', 'Namespace'} <= {o['kind'] for o in objects})
             self.assertEqual(night.studio.run.call_args.args[0]['action'], 'woven')
+            night.studio.run.assert_called_once()
+            self.assertEqual(night.studio.run.call_args.args[0]['xml'],
+                             (root/'woven/fixture-sketch-15.musicxml').read_text())
+            self.assertEqual(night.record['sounding_work'], 'fixture-sketch-15')
             woven = next((root/'woven').glob('*.musicxml'))
             tree = surface.read(woven)
             field = tree.find('.//miscellaneous-field[@name="mnemosyne.catalogue"]')

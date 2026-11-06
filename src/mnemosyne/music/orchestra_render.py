@@ -1,6 +1,6 @@
 """Native stereo SFZ stems -> orchestral seating -> measured hall -> static LUFS gain.
 
-Heavy work is intended for studio pods. Every attempt and original stem survives.
+Heavy work is intended for studio pods. Compact final renders discard audio intermediates.
 There is no GM fallback and no channel-count ceiling on the audio path.
 """
 from copy import deepcopy
@@ -79,7 +79,7 @@ def stem_score(events,name,total):
     return score
 
 
-def render_orchestra(score,plan,assignment,destination,bank,sfizz=None):
+def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compact=False):
     import os
     sfizz = sfizz or os.environ.get('MNEMO_SFIZZ', '/work/sfizz-build/library/bin/sfizz_render')
     destination=Path(destination);bank=Path(bank)
@@ -171,6 +171,8 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None):
     gain=min(-20-integrated,-1.5-peak)
     run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB',
          '-codec:a','libmp3lame','-q:a','2',work/'score.mp3'],log)
+    run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB',
+         '-ac','2','-c:a','flac','-sample_fmt','s32',work/'score.flac'],log)
     audio=subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),'-ac','2','-ar',str(RATE),'-f','f32le','-'])
     data=np.frombuffer(audio,dtype='<f4').reshape(-1,2)
     peak_after=float(np.max(np.abs(data)))
@@ -201,4 +203,7 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None):
     (destination/'render.json').write_text(json.dumps({'renderer':'native-sfz-1','python':sys.version,
         'music21':__import__('music21').__version__,'numpy':np.__version__,
         'sfizz':'1.2.3','draft':str(work),'artifacts':artifacts},indent=2))
+    if compact:
+        from .render import discard_audio_intermediates
+        discard_audio_intermediates(work)
     print(f'Rendered {destination}: {len(stems)} stereo stems, peak {peak_after:.3f}, {integrated+gain:.1f} LUFS',flush=True)

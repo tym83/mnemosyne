@@ -72,19 +72,22 @@ def note_events(score):
             for part in score.parts]
 
 
-def render(abc, out, piano_font, gm_font):
+def render(abc, out, piano_font, gm_font, *, notation_only=False):
     from music21 import converter, instrument
     from . import analyze
 
     metadata = json.loads(abc.with_suffix('.json').read_text())
     keyboard = metadata.get('prompt', [''])[-1] == 'Keyboard'
     font = piano_font if keyboard else gm_font
-    if not font.is_file():
+    if not notation_only and not font.is_file():
         raise FileNotFoundError(font)
     digest = hashlib.sha256(abc.read_bytes() + abc.with_suffix('.json').read_bytes()).hexdigest()
     settings = {'source_sha256': digest, 'soundfont': str(font), 'renderer_version': 4}
     manifest = out / (abc.stem + '.render.json')
     suffixes = ('.abc', '.json', '.xml', '.pdf', '.mp3', '.mid', '.analysis.json')
+    if notation_only:
+        settings['notation_only'] = True
+        suffixes = tuple(ext for ext in suffixes if ext != '.mp3')
     if manifest.exists():
         old = json.loads(manifest.read_text())
         if all(old.get(k) == v for k, v in settings.items()) and all(
@@ -136,15 +139,16 @@ def render(abc, out, piano_font, gm_font):
     ly = source.with_suffix('.ly')
     run(['musicxml2ly', '-o', ly, engraving], log)
     run(['lilypond', '-dno-point-and-click', '-o', work / abc.stem, ly], log)
-    wav = source.with_suffix('.wav')
-    run(['fluidsynth', '-ni', '-o', 'synth.cpu-cores=1', '-g', '0.5',
-         '-F', wav, '-r', '44100', font, midi], log)
-    run(['ffmpeg', '-nostdin', '-v', 'warning', '-threads', '1', '-i', wav,
-         '-af', 'alimiter=limit=0.95:level=false', '-codec:a', 'libmp3lame',
-         '-q:a', '2', '-threads', '1', source.with_suffix('.mp3')], log)
-    probe = subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries',
-                                    'format=duration', '-of', 'json', str(source.with_suffix('.mp3'))])
-    info['audio_seconds'] = float(json.loads(probe)['format']['duration'])
+    if not notation_only:
+        wav = source.with_suffix('.wav')
+        run(['fluidsynth', '-ni', '-o', 'synth.cpu-cores=1', '-g', '0.5',
+             '-F', wav, '-r', '44100', font, midi], log)
+        run(['ffmpeg', '-nostdin', '-v', 'warning', '-threads', '1', '-i', wav,
+             '-af', 'alimiter=limit=0.95:level=false', '-codec:a', 'libmp3lame',
+             '-q:a', '2', '-threads', '1', source.with_suffix('.mp3')], log)
+        probe = subprocess.check_output(['ffprobe', '-v', 'error', '-show_entries',
+                                        'format=duration', '-of', 'json', str(source.with_suffix('.mp3'))])
+        info['audio_seconds'] = float(json.loads(probe)['format']['duration'])
     info['conversion_warnings'] = [line for line in log.read_text().splitlines()
                                    if any(term in line.lower() for term in
                                           ('warning:', 'converted to slur', 'error:'))]
@@ -191,10 +195,33 @@ def main():
 
 
 
-def render_score(score, plan, destination, soundfont):
+def notation_score(score, plan, destination, assignment=None):
+    """Engrave without opening a sample bank or synthesizing audio."""
+    from .orchestra_render import engrave
+    from .schools.performance import write_midi
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    if plan.get('audio_profile') == 'native_sfz' and assignment is None:
+        from .orchestration import school_lines, orchestrate
+        score, assignment = orchestrate(school_lines(score, plan), plan)
+    (destination/'plan.json').write_text(json.dumps(plan, indent=2))
+    if assignment is not None:
+        (destination/'orchestration.json').write_text(json.dumps(assignment, indent=2))
+    engrave(score, destination/'score', destination/'notation.log')
+    write_midi(score, destination/'score.mid', plan['tempo'])
+
+
+def discard_audio_intermediates(work):
+    """Only regenerable audio in this render's own attempt directory."""
+    for path in work.rglob('*'):
+        if path.is_file() and path.suffix in ('.wav', '.f32', '.flac', '.mp3'):
+            path.unlink()
+
+
+def render_score(score, plan, destination, soundfont, *, compact=False):
     """Publish a school score only after XML, engraving and audio validation.
 
-    Keep every attempt in .drafts; a nonempty destination is never overwritten.
+    Keep notation attempts in .drafts; compact finals discard their audio intermediates.
     The sample conversion manifest and licence travel with the work.
     """
     from music21 import converter
@@ -207,7 +234,7 @@ def render_score(score, plan, destination, soundfont):
         from .orchestration import school_lines, orchestrate
         from .orchestra_render import render_orchestra
         orchestral, assignment = orchestrate(school_lines(score,plan),plan)
-        return render_orchestra(orchestral,plan,assignment,destination,soundfont)
+        return render_orchestra(orchestral,plan,assignment,destination,soundfont,compact=compact)
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
     if (destination/'render.json').exists():
@@ -325,6 +352,9 @@ def render_score(score, plan, destination, soundfont):
     run(['ffmpeg','-nostdin','-v','warning','-i',audio_source,'-af',
          f'volume={pregain},apad','-t',str(plan['duration']+tail),
          '-codec:a','libmp3lame','-q:a','2','-threads','1',work/'score.mp3'],log)
+    run(['ffmpeg','-nostdin','-v','warning','-i',audio_source,'-af',
+         f'volume={pregain},apad','-t',str(plan['duration']+tail), '-ac','2',
+         '-c:a','flac','-sample_fmt','s32',work/'score.flac'],log)
     audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),
         '-ac','1','-ar','44100','-f','f32le','-'])
     data = np.frombuffer(audio,dtype='<f4')
@@ -342,7 +372,7 @@ def render_score(score, plan, destination, soundfont):
         shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
     sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__),Path(__file__).with_name('sample_bank.py')]
     (work/'sources.json').write_text(json.dumps({str(p.relative_to(Path(__file__).parent)):p.read_text() for p in sources},indent=2))
-    artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3',
+    artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3','score.flac',
                  'analysis.json','render.log','sample_libraries.yaml','samples.json','SAMPLE_LICENSE.txt']
     for filename in artifacts:
         path = work/filename
@@ -355,6 +385,8 @@ def render_score(score, plan, destination, soundfont):
         'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
         'sound_origin': 'synthesized' if synthetic else 'sampled',
         'sample_sha256':sample_info['sf2_sha256'],'artifacts':{n:hashlib.sha256((work/n).read_bytes()).hexdigest() for n in artifacts}},indent=2))
+    if compact:
+        discard_audio_intermediates(work)
     print(json.dumps({'school':plan['school'],**info}),flush=True)
 
 
