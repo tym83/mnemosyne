@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import traceback
 
 from . import analyze
 from .render import render_score, run, FONT
@@ -46,6 +47,9 @@ def execute(request, out):
                 c['image'] = source.stem+'.png'
         return {'candidates': candidates, 'prompt': prompt}
     plan = request['plan']
+    if request.get('form') == 'symphony':
+        from .symphony import validate
+        validate(plan, study=True)
     if action == 'woven' and request.get('form') == 'symphony':
         from .symphony import movement
         from .orchestra_render import render_orchestra
@@ -106,7 +110,15 @@ def main():
     parser.add_argument('request', type=Path)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
-    result = execute(json.loads(args.request.read_text()), args.out)
+    existed = args.out.exists()
+    try:
+        result = execute(json.loads(args.request.read_text()), args.out)
+    except Exception:
+        # Also retain stderr remotely if kubectl's connection is interrupted.
+        # execute refuses existing destinations; never overwrite a prior result.
+        if not existed and args.out.is_dir() and not (args.out/'stderr.log').exists():
+            (args.out/'stderr.log').write_text(traceback.format_exc())
+        raise
     (args.out/'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
 
 

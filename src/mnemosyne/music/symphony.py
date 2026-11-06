@@ -43,6 +43,16 @@ def finite(value):
 
 
 def validate(plan, *, study=False):
+    from .instrumentarium import audio_ensemble
+    players = audio_ensemble(plan.get('orchestra', ORCHESTRA))
+    # movement() writes explicitly instrument-bound lines; a reduced orchestra
+    # cannot realize this grammar even when all its individual samples exist.
+    from collections import Counter
+    available = Counter(p.instrument for p in players)
+    required = Counter(p.instrument for p in audio_ensemble(ORCHESTRA))
+    if required - available:
+        raise ValueError('symphony grammar requires at least its default orchestra slots: '
+                         + str(dict(required - available)))
     if plan.get('version')!=1 or not plan.get('concept') or not plan.get('method'):
         raise ValueError('version 1, concept and method required')
     mvs=plan.get('movements',[])

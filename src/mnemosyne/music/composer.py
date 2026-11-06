@@ -58,6 +58,10 @@ class Chapter(BaseModel):
     text: str
 
 
+class PlanRejected(ValueError):
+    """The artist has not supplied a realizable plan; no worker should run."""
+
+
 def dump(path, value):
     path = Path(path)
     tmp = path.with_suffix(path.suffix + '.tmp')
@@ -87,6 +91,9 @@ def validate_plan(plan, method, *, sketch=False):
     SchoolPlan.model_validate(plan)
     from .schools.common import validate
     validate(plan)
+    if plan.get('audio_profile') == 'native_sfz':
+        from .instrumentarium import audio_ensemble
+        audio_ensemble(plan.get('orchestration', plan['ensemble']))
     if method.kind in ('cross', 'broken_principle'):
         raise ValueError('crosses and broken principles use a symphony plan with explicit material development')
     return plan
@@ -94,15 +101,18 @@ def validate_plan(plan, method, *, sketch=False):
 
 def plan_contract(method):
     from .schools import SCHOOLS
+    from .instrumentarium import audio_contract
     if method.form == 'symphony':
-        from .symphony import FORMS, TRANSFORMS
+        from .symphony import FORMS, TRANSFORMS, ORCHESTRA
         return {'version': 1, 'forms': FORMS, 'transforms': sorted(TRANSFORMS),
+                'audio': audio_contract(), 'required_orchestra': ORCHESTRA,
+                'orchestra_rule': 'This grammar writes fixed instrument-bound lines; retain at least all required orchestra slots.',
                 'contract': 'symphony.validate: 3–5 movements, 20–45 minutes (sketch study may be shorter)',
                 'example': json.loads((Path(__file__).parent/'plans/symphony-test.json').read_text())}
     if method.school not in SCHOOLS:
         raise ValueError('unknown school')
     from .schools.plan import SchoolPlan
-    return {'schema': SchoolPlan.model_json_schema(), 'contract': 'schools.common.validate; durations in seconds; sounding MIDI; '
+    return {'schema': SchoolPlan.model_json_schema(), 'audio': audio_contract(), 'contract': 'schools.common.validate; durations in seconds; sounding MIDI; '
                         'sum(form.duration)=duration; duration*tempo/60 on sixteenth grid; '
                         'each section >=4 quarters; register overlaps every instrument by an octave',
             'example': json.loads((Path(__file__).parent/'schools/plans'/f'{method.school}.json').read_text()),
@@ -258,11 +268,21 @@ class Night:
                 self.entries.append({'step': step, 'invalid_plan': answer.plan_json, 'error': str(exc)})
                 self.save()
                 prompt += '\nCorrect the plan without discarding the idea: ' + str(exc)
-        raise ValueError('artist plan failed validation three times')
+        raise PlanRejected('artist plan failed validation three times; retained for revision')
+
+    def studio_run(self, request, label):
+        try:
+            return self.studio.run(request, self.root/label)
+        except Exception as exc:
+            folder = self.root/label
+            logs = {str(p.relative_to(self.root)): p.read_text(errors='replace')
+                    for p in folder.rglob('*.log') if p.is_file()}
+            self.entries.append({'step': label, 'request': request, 'error': str(exc), 'worker_logs': logs})
+            self.save()
+            raise
 
     def music(self, plan, method, label):
-        result = self.studio.run({'action': 'compose', 'plan': plan,
-                                  'form': method.form}, self.root/label)
+        result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form}, label)
         folder = self.root/label/'result'
         files = [str(p.relative_to(self.root)) for p in sorted(folder.rglob('*'))
                  if p.is_file() and '.drafts' not in p.parts]
@@ -313,7 +333,8 @@ class Night:
                 self.record['status'] = 'idea_rejected'
                 return self.record
             from .schools.catalog import LISTEN
-            method = self.ask(self.system, json.dumps({'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,
+            from .instrumentarium import audio_contract
+            method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,
                 'task': 'Choose school, NotaGen period style, cross, broken principle, or invent_school. '
                 'For a cross or broken principle choose form=symphony and name the exact development. '
                 'invent_school is a request only: its reviewed grammar is future work.'}, ensure_ascii=False),
@@ -343,8 +364,7 @@ class Night:
             if method.kind == 'notagen':
                 if os.environ.get('MNEMOSYNE_NOTAGEN') != 'self-hosted':
                     raise RuntimeError('NotaGen was selected but is not enabled')
-                candidates = self.studio.run({'action': 'notagen', 'prompt': method.notagen_prompt},
-                                             self.root/'notagen')
+                candidates = self.studio_run({'action': 'notagen', 'prompt': method.notagen_prompt}, 'notagen')
                 self.record['notagen'] = candidates
                 # NotaGen supplies archived reservoirs to an artist-authored cyclic plan.
                 method.form = 'symphony'
@@ -411,6 +431,9 @@ class Night:
             self.save()
             if key is not None:
                 self.backup(key)
+            return self.record
+        except PlanRejected as exc:
+            self.record.update(status='plan_rejected', error=str(exc))
             return self.record
         except Exception as exc:
             self.record.update(status='failed', error=f'{type(exc).__name__}: {exc}')
@@ -511,10 +534,10 @@ class Night:
             xml = woven/(sk['id']+'.musicxml')
             assignment_path = (self.root/sk['score']).parent/'orchestration.json'
             assignment = json.loads(assignment_path.read_text()) if assignment_path.exists() else None
-            self.studio.run({'action': 'woven', 'xml': xml.read_text(), 'plan': sk['plan'],
+            self.studio_run({'action': 'woven', 'xml': xml.read_text(), 'plan': sk['plan'],
                              'assignment': assignment,
                              'form': sk.get('form', 'school'), 'movement_index': sk.get('movement_index')},
-                            self.root/('woven-render-'+sk['stage']))
+                            'woven-render-'+sk['stage'])
         for path in woven.glob('*.musicxml'):
             registry.decode(path, key)
         for sk, _, _ in assignments:

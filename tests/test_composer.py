@@ -6,12 +6,95 @@ import unittest
 from unittest.mock import patch
 
 from mnemosyne.lineage import Lineage
-from mnemosyne.music.composer import Method, Night, Studio, validate_plan
+from mnemosyne.music.composer import Method, Night, Studio, validate_plan, plan_contract
 from mnemosyne.restore import read_archive
 from mnemosyne.state.collect import archive
 
 
 class ComposerTests(unittest.TestCase):
+    def test_unrenderable_orchestras_rejected_before_worker(self):
+        from mnemosyne.music.symphony import test_plan
+        method = self.method().model_copy(update={'form': 'symphony'})
+        for orchestra, message in [([{'instrument': 'voice', 'type': 'alto'}], 'Unknown instrument'),
+                                   ([{'instrument': 'alto'}], 'unavailable for audio'),
+                                   ([{'instrument': 'flute'}], 'default orchestra slots')]:
+            plan = test_plan()
+            plan['orchestra'] = orchestra
+            with self.subTest(orchestra=orchestra), self.assertRaisesRegex(ValueError, message):
+                validate_plan(plan, method, sketch=True)
+        contract = plan_contract(method)
+        self.assertIn('alto', contract['audio']['unavailable'])
+        self.assertNotIn('alto', contract['audio']['instruments'])
+
+    def test_artist_receives_constraints_and_exhausted_plans_are_retained(self):
+        from mnemosyne.music.composer import PlanText
+        from mnemosyne.music.symphony import test_plan
+        from mnemosyne.artist import Statement
+        life = Lineage('test', datetime(2025, 1, 1))
+        life.artists[0].portrait = 'Fixture portrait'
+        method = self.method().model_copy(update={'form': 'symphony'})
+        plan = test_plan()
+        plan['orchestra'] = [{'instrument': 'alto'}]
+        st = Statement(**{k: [] if f.annotation == list[str] else 'fixture'
+                         for k, f in Statement.model_fields.items()})
+        prompts = []
+        with tempfile.TemporaryDirectory() as tmp:
+            from unittest.mock import Mock
+            studio = Mock(spec=['run'])
+            night = Night(life, life.artists[0].id, Path(tmp)/'work', studio)
+            def ask(system, prompt, schema, step, **kwargs):
+                if schema is Method:
+                    return method
+                prompts.append(prompt)
+                return PlanText(plan_json=json.dumps(plan), diary='retained choice')
+            with patch('mnemosyne.artist.statement', return_value=(st, [{'interrogation': {'verdict': 'accept'}}])), \
+                 patch('mnemosyne.artist.halftones') as shades, \
+                 patch.object(night, 'ask', side_effect=ask):
+                shades.return_value.model_dump.return_value = {}
+                result = night.run('quiet')
+            self.assertEqual(result['status'], 'plan_rejected')
+            self.assertEqual(len(prompts), 3)
+            self.assertIn('unavailable for audio', prompts[1])
+            self.assertEqual(sum('invalid_plan' in e for e in result['entries']), 3)
+            studio.run.assert_not_called()
+            self.assertFalse(life.artists[0].catalogue)
+
+    def test_worker_stderr_is_in_archived_failed_notebook(self):
+        class FailedStudio:
+            def run(self, request, destination):
+                destination.mkdir()
+                (destination/'studio.log').write_text('Traceback: rendering failed\n')
+                raise RuntimeError('worker exited 1')
+        life = Lineage('test', datetime(2025, 1, 1))
+        with tempfile.TemporaryDirectory() as tmp:
+            night = Night(life, life.artists[0].id, Path(tmp)/'work', FailedStudio())
+            with self.assertRaisesRegex(RuntimeError, 'worker exited 1'):
+                night.music({'title': 'fixture'}, self.method(), 'sketch-00')
+            objects = read_archive(archive(night.objects))
+            notebook = next(o for o in objects if o['kind'] == 'Notebook'
+                            and o['metadata']['name'] == night.work_id+'-notebook')
+            self.assertIn('Traceback', notebook['spec']['entries'][-1]['worker_logs']['sketch-00/studio.log'])
+
+    def test_worker_keeps_traceback_without_mutating_previous_result(self):
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            request = root/'request.json'
+            request.write_text(json.dumps({'action': 'compose', 'form': 'symphony',
+                                          'plan': {'orchestra': [{'instrument': 'voice'}]}}))
+            out = root/'result'
+            command = [sys.executable, '-m', 'mnemosyne.music.composer_worker',
+                       str(request), '--out', str(out)]
+            first = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(first.returncode, 1)
+            trace = (out/'stderr.log').read_text()
+            self.assertIn('Unknown instrument', trace)
+            again = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(again.returncode, 1)
+            self.assertIn('FileExistsError', again.stderr)
+            self.assertEqual((out/'stderr.log').read_text(), trace)
+
     def method(self):
         return Method(kind='school', school='tintinnabuli', sources=['tintinnabuli'],
                       principle='triad', transformation='', concept='test', reason='test',

@@ -64,6 +64,29 @@ def notation_instrument(name):
     return obj
 
 
+def audio_ensemble(spec):
+    """Resolve playback players without replacing unavailable solo instruments."""
+    players = ensemble(spec)
+    for player in players:
+        samples = player.spec['samples']
+        if samples.get('audio_available') is False:
+            raise ValueError(f'{player.instrument}: unavailable for audio; {samples["reason"]}')
+    return players
+
+
+def audio_contract():
+    """Registry capabilities for the artist, not an artistic instrumentation choice."""
+    return {
+        'instruments': [n for n, s in REGISTRY.items() if s['samples'].get('audio_available') is not False],
+        'unavailable': {n: s['samples']['reason'] for n, s in REGISTRY.items()
+                        if s['samples'].get('audio_available') is False},
+        'ensembles': {n: entries for n, entries in ENSEMBLES.items()
+                      if all(REGISTRY[e['instrument']]['samples'].get('audio_available') is not False
+                             for e in entries)},
+        'rule': 'Use exact instrument identifiers. Solo voices cannot be rendered; '
+                'choir is not a substitute for solo voices. Revise the plan yourself within these capabilities.'}
+
+
 def notation_clef(name):
     return {'treble':clef.TrebleClef, 'bass':clef.BassClef, 'alto':clef.AltoClef,
             'tenor':clef.TenorClef, 'treble8vb':clef.Treble8vbClef,
