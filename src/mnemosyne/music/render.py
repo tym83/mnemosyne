@@ -374,12 +374,15 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
     pregain = min(.8/max(raw_peak,1e-9), .1/raw_rms)
     info['raw_rms'] = raw_rms
     info['pregain'] = pregain
+    from .resonance import audible_end
+    end = audible_end(raw, 44100, plan['duration'])
+    tail = round(end-plan['duration'], 1)
     # Preserve the planned silence; allow the documented synthesis or measured-hall tail.
     run(['ffmpeg','-nostdin','-v','warning','-i',audio_source,'-af',
-         f'volume={pregain},apad','-t',str(plan['duration']+tail),
+         f'volume={pregain},apad,afade=t=out:st={end-1}:d=1','-t',str(end),
          '-codec:a','libmp3lame','-q:a','2','-threads','1',work/'score.mp3'],log)
     run(['ffmpeg','-nostdin','-v','warning','-i',audio_source,'-af',
-         f'volume={pregain},apad','-t',str(plan['duration']+tail), '-ac','2',
+         f'volume={pregain},apad,afade=t=out:st={end-1}:d=1','-t',str(end), '-ac','2',
          '-c:a','flac','-sample_fmt','s32',work/'score.flac'],log)
     audio = subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),
         '-ac','1','-ar','44100','-f','f32le','-'])

@@ -190,15 +190,19 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
     graph="[0:a]asplit[d][s];[s][1:a]afir=dry=1:wet=1:irfmt=input[r];[d][r]amix=inputs=2:weights='1 0.25':normalize=0[out]"
     run(['ffmpeg','-nostdin','-v','warning','-i',work/'dry.wav','-i',work/'hall-stereo.wav',
          '-filter_complex',graph,'-map','[out]','-t',plan['duration']+tail,'-c:a','pcm_f32le',work/'hall-mix.wav'],log)
+    from .resonance import audible_end
+    heard=np.frombuffer(subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'hall-mix.wav'),
+        '-ac','1','-ar',str(RATE),'-f','f32le','-']),dtype='<f4')
+    end=audible_end(heard,RATE,plan['duration']);tail=round(end-plan['duration'],1)
     probe=subprocess.run(['ffmpeg','-nostdin','-i',str(work/'hall-mix.wav'),'-af',
                           'loudnorm=I=-20:TP=-1.5:LRA=50:print_format=json','-f','null','-'],capture_output=True,text=True,check=True)
     measured=json.loads(probe.stderr[probe.stderr.rfind('{'):])
     integrated=float(measured['input_i']);peak=float(measured['input_tp'])
     if not math.isfinite(integrated) or not math.isfinite(peak):raise ValueError('Invalid loudness/silent mix')
     gain=min(-20-integrated,-1.5-peak)
-    run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB',
+    run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB,afade=t=out:st={end-1}:d=1','-t',str(end),
          '-codec:a','libmp3lame','-q:a','2',work/'score.mp3'],log)
-    run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB',
+    run(['ffmpeg','-nostdin','-v','warning','-i',work/'hall-mix.wav','-af',f'volume={gain}dB,afade=t=out:st={end-1}:d=1','-t',str(end),
          '-ac','2','-c:a','flac','-sample_fmt','s32',work/'score.flac'],log)
     audio=subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),'-ac','2','-ar',str(RATE),'-f','f32le','-'])
     data=np.frombuffer(audio,dtype='<f4').reshape(-1,2)

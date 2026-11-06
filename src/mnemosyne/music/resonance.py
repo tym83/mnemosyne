@@ -3,6 +3,7 @@
 Harp pedals change pitch, not damping: harp resonance is release/l.v., never CC64.
 No resonance decisions carry backup bits.
 """
+import numpy as np
 import xml.etree.ElementTree as ET
 from .instrumentarium import REGISTRY, release_profile
 
@@ -118,3 +119,22 @@ def copy_slurs(source, target):
         b = float(elements[-1].getOffsetInHierarchy(source))
         if a in notes and b in notes and a < b:
             target.insert(0, spanner.Slur(notes[a],notes[b]))
+
+
+def audible_end(mono, rate, score_seconds, *, below_peak_db=60., floor_margin_db=3., fade=1.):
+    """Where the last sound has decayed into the noise floor, plus a short fade.
+
+    Tails are sized generously before rendering (longest sample, hall IR); the
+    published audio ends where the decay is actually heard to end.
+    """
+    hop = round(rate*.1)
+    count = len(mono)//hop
+    if count == 0:
+        return len(mono)/rate
+    levels = 20*np.log10(np.sqrt(np.mean(np.asarray(mono[:count*hop], dtype=float).reshape(count, hop)**2, axis=1))+1e-12)
+    floor = float(np.median(levels[-min(count, 20):]))
+    threshold = max(float(levels.max())-below_peak_db, floor+floor_margin_db)
+    start = min(count-1, int(score_seconds/.1))
+    loud = [i for i in range(start, count) if levels[i] > threshold]
+    end = (loud[-1]+1)*.1 if loud else score_seconds
+    return round(min(len(mono)/rate, max(score_seconds, end)+fade), 1)
