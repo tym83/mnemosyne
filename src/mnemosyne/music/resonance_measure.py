@@ -28,7 +28,7 @@ def measure(data, boundaries, final_note, score_end, rate=RATE):
                      'max_drop_within_30ms_db':max(drops,default=0)})
     tail=[{'after_final_note_seconds':float(t),'rms_dbfs':rms_db(window(final_note+t,final_note+t+.1))}
           for t in np.arange(0,max(0,len(data)/rate-final_note),.5)]
-    return {'boundary_count':len(rows),'drops_over_20db':sum(r['max_drop_within_30ms_db']>20 for r in rows),
+    return {'boundary_count':len(rows),'drops_over_20db':int(sum(r['max_drop_within_30ms_db']>20 for r in rows)),
             'boundaries':rows,'final_note_seconds':final_note,'score_end_seconds':score_end,
             'audio_seconds':len(data)/rate,'last_100ms_dbfs':rms_db(data[-round(.1*rate):]),'decay':tail}
 
@@ -50,7 +50,7 @@ def main():
     ap=argparse.ArgumentParser();ap.add_argument('before',type=Path);ap.add_argument('after',type=Path);ap.add_argument('--out',type=Path,required=True)
     args=ap.parse_args();result={'method':'stereo RMS, 20 ms windows centered at -50/+150 ms; drop search uses 5 ms RMS bins within +/-30 ms and separations <=30 ms; floor -80 dBFS',
                                 'before':measure_work(args.before),'after':measure_work(args.after)}
-    args.out.write_text(json.dumps(result,indent=2))
+    args.out.write_text(json.dumps(result,indent=2,default=lambda o:o.item()))
     print(json.dumps({k:{x:v[x] for x in ('boundary_count','drops_over_20db','audio_seconds','last_100ms_dbfs')} for k,v in result.items() if isinstance(v,dict)},indent=2))
 
 if __name__=='__main__':main()
