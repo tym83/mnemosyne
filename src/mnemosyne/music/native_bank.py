@@ -55,23 +55,34 @@ def install_library(root,name):
     stamp.write_text(json.dumps({'revision':info['revision'],'archive_sha256':sha(archive)}))
 
 
-def preprocess(path,macros=None,stack=()):
+def preprocess(path,macros=None,stack=(),root=None):
     """SFZ directives are interpreted in textual order, preserving group state."""
     path=Path(path).resolve();macros={} if macros is None else macros
+    root=path.parent if root is None else root
     if path in stack:raise ValueError(f'Cyclic SFZ include: {path}')
     result=[]
     for line in path.read_text(encoding='utf-8-sig').splitlines():
         line=line.split('//',1)[0].strip()
         if line.startswith('#define'):
             _,key,value=line.split(maxsplit=2);macros[key]=value;continue
-        for key,value in sorted(macros.items(),key=lambda x:-len(x[0])):
-            line=line.replace(key,value)
-        match=re.fullmatch(r'#include\s+"([^"]+)"',line)
-        if match:
-            result.append(preprocess(path.parent/match[1].replace('\\','/'),macros,(*stack,path)))
-        elif line.startswith('#'):
+        def expand(text):
+            for key,value in sorted(macros.items(),key=lambda x:-len(x[0])):
+                text=text.replace(key,value)
+            return text
+        # SFZ allows includes amid opcodes and multiple includes on one line.
+        # Expand in textual order: one include may define the next one's macros.
+        cursor=0
+        for match in re.finditer(r'#include\s+"([^"]+)"',line):
+            result.append(expand(line[cursor:match.start()]))
+            relative=expand(match[1]).replace('\\','/')
+            target=root/relative
+            if not target.exists():target=path.parent/relative
+            result.append(preprocess(target,macros,(*stack,path),root))
+            cursor=match.end()
+        remaining=expand(line[cursor:])
+        if remaining.startswith('#'):
             raise ValueError(f'Unsupported SFZ directive: {line}')
-        else:result.append(line)
+        result.append(remaining)
     return '\n'.join(result)
 
 
@@ -185,6 +196,12 @@ def canonical_file(path):
 def playback_patch(root,instrument,technique,destination):
     library,relative=sample_patch(instrument,technique)
     path=root/library/relative
+    return playback_source(path,instrument,technique,destination,library=library)
+
+
+def playback_source(path,instrument,technique,destination,*,library=''):
+    """Normalize an explicitly chosen SFZ without changing the registry."""
+    path=Path(path)
     source=preprocess(path)
     default='../Samples/' if library=='shinyguitar' else ''
     match=re.search(r'\bdefault_path\s*=\s*([^\r\n]+)',source)

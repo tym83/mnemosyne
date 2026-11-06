@@ -61,6 +61,23 @@ class SchoolWeaveTests(unittest.TestCase):
         with self.assertRaises(DecodeError):schools.read_frame(roots[0],X25519PrivateKey.generate())
         with self.assertRaises(DecodeError):frames.assemble(decoded[:-1],self.key)
 
+    def test_audio_performance_leaves_authenticated_xml_decodable(self):
+        from mnemosyne.music.schools.performance import write_midi
+        content = b'exact backup survives expressive audio'
+        env = payload.seal(content, self.key.public_key(), context=frames.DOMAIN)
+        count = (len(env)+schools.capacity(self.root)-frames.OVERHEAD-1)//(schools.capacity(self.root)-frames.OVERHEAD)
+        decoded = []
+        with tempfile.TemporaryDirectory() as directory:
+            for i in range(count):
+                xml = Path(directory)/f'{i}.musicxml'
+                surface.write(schools.weave_frame(self.root,env,i,self.key),xml)
+                before = xml.read_bytes()
+                score = converter.parse(xml).toSoundingPitch()
+                write_midi(score,xml.with_suffix('.mid'),60,performance='symphony')
+                self.assertEqual(before,xml.read_bytes())
+                decoded.append(schools.read_frame(surface.read(xml),self.key))
+        self.assertEqual(frames.assemble(decoded,self.key),content)
+
     def test_fountain_repair_only_and_work_binding(self):
         content=b'frame loss recovery through school music'
         env=payload.seal(content,self.key.public_key(),context=fountain.DOMAIN)

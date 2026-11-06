@@ -332,7 +332,8 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
     analyze(recovered,plan)
     midi = work/'score.mid'
     sample_tail = release_tail_seconds(score, plan, sample_info)
-    write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra',tail_seconds=sample_tail)
+    write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra',tail_seconds=sample_tail,
+               performance=plan.get('school',''))
     run(['musicxml2ly','-o',work/'score.ly',xml],log)
     if synthetic:
         with (work/'score.ly').open('a') as file:
@@ -399,9 +400,9 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
         (work/'SAMPLE_LICENSE.txt').write_text(LICENSE)
     else:
         shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
-    sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__).with_name(name) for name in ('render.py','sample_bank.py','sample_sustain.py','resonance.py','instrumentarium.py','instruments.yaml')]
+    sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__).with_name(name) for name in ('render.py','sample_bank.py','sample_sustain.py','resonance.py','live_performance.py','instrumentarium.py','instruments.yaml')]
     (work/'sources.json').write_text(json.dumps({str(p.relative_to(Path(__file__).parent)):p.read_text() for p in sources},indent=2))
-    artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3','score.flac',
+    artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.performance.json','score.ly','score.pdf','score.mp3','score.flac',
                  'analysis.json','render.log','sample_libraries.yaml','samples.json','SAMPLE_LICENSE.txt']
     for filename in artifacts:
         path = work/filename
@@ -409,7 +410,7 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
             raise RuntimeError(f'Missing artifact {path}')
     for filename in artifacts:
         shutil.copy2(work/filename,destination/filename)
-    (destination/'render.json').write_text(json.dumps({'renderer_version':4,'draft':str(work),
+    (destination/'render.json').write_text(json.dumps({'renderer_version':5,'draft':str(work),
         'python':sys.version,'music21':__import__('music21').__version__,
         'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
         'sound_origin': 'synthesized' if synthetic else 'sampled',

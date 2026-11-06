@@ -145,6 +145,7 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
     write_midi(score,work/'score.mid',plan['tempo'])
     samples=round((plan['duration']+tail)*RATE)
     mix=np.zeros((samples,2),dtype=np.float32)
+    hall_send=np.zeros_like(mix)
     stems=[]
     for player_index, player in enumerate(assignment['players']):
         groups={}
@@ -156,11 +157,22 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
             from .resonance import copy_slurs
             copy_slurs(score.parts[player_index], one.parts[0])
             one.parts[0].editorial.sustain_pedal = getattr(score.parts[player_index].editorial, 'sustain_pedal', [])
-            write_midi(one,midi,plan['tempo'])
+            write_midi(one,midi,plan['tempo'],performance=plan.get('school','symphony'),sample_vibrato=True)
             patch=patches[(player['instrument'],technique)]
             normalized=work/patch['playback_file']
+            from .live_performance import prepare_patch, seat
+            from .instrumentarium import REGISTRY
+            live_patch = base.with_suffix('.sfz')
+            ordered = sorted(events, key=lambda e:e['at'])
+            monophonic = all(len(e['pitches']) == 1 for e in ordered) and all(
+                a['at']+a['duration'] <= b['at']+1e-7 for a,b in zip(ordered,ordered[1:]))
+            kind = REGISTRY[player['instrument']]['family']
+            prepare_patch(normalized, live_patch, kind, legato=monophonic)
+            normalized = live_patch
             run([sfizz,'--sfz',normalized,'--midi',midi,
                  '--wav',wav,'--samplerate',str(RATE),'--use-eot'],log)
+            if any(message in log.read_text() for message in ('Parse error', 'Cannot open file for reading')):
+                raise ValueError(f'Incomplete SFZ load; refusing partial audio: {log}')
             raw=subprocess.check_output(['ffmpeg','-v','error','-i',str(wav),'-ar',str(RATE),'-ac','2','-f','f32le','-'])
             data=np.frombuffer(raw,dtype='<f4').reshape(-1,2)
             if not len(data) or float(np.max(np.abs(data)))<1e-8:raise ValueError(f'Silent stem: {base}')
@@ -172,10 +184,12 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
                 times = np.arange(len(data)) / RATE * plan['tempo'] / 60
                 data = data * np.interp(times, at, values)[:, None]
             pan=player['pan']
-            gains=np.array([math.sqrt(1-max(0,pan)),math.sqrt(1+min(0,pan))])*10**(gain/20)
-            n=min(len(data),samples);mix[:n]+=data[:n]*gains
+            data, seating = seat(data, pan, kind, RATE)
+            n=min(len(data),samples);mix[:n]+=data[:n]*10**(gain/20)
+            hall_send[:n]+=data[:n]*10**(gain/20)*seating['hall_send_gain']
             stems.append({'player':player['id'],'technique':technique,'gain_db':gain,'pan':pan,
                           'expression_knots':len(curve or []),
+                          'seating':seating,
                           'wav_sha256':sha(wav),'peak':float(np.max(np.abs(data)))})
     # Float intermediate keeps headroom; normalize only after the complete mix.
     raw_peak=float(np.max(np.abs(mix)));raw_rms=float(np.sqrt(np.mean(mix**2)))
@@ -184,11 +198,14 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
     raw=work/'mix.f32';(mix*pregain).astype('<f4').tofile(raw)
     run(['ffmpeg','-nostdin','-v','warning','-f','f32le','-ar',RATE,'-ac',2,'-i',raw,
          '-c:a','pcm_f32le',work/'dry.wav'],log)
+    send_raw=work/'send.f32';(hall_send*pregain).astype('<f4').tofile(send_raw)
+    run(['ffmpeg','-nostdin','-v','warning','-f','f32le','-ar',RATE,'-ac',2,'-i',send_raw,
+         '-c:a','pcm_f32le',work/'send.wav'],log)
     run(['ffmpeg','-nostdin','-v','warning','-i',bank/'hall.wav','-af',
          'pan=stereo|c0=0.7071*c0+0.5*c1+0.5*c2|c1=0.7071*c0+0.5*c1-0.5*c2',
          '-ar',RATE,'-c:a','pcm_f32le',work/'hall-stereo.wav'],log)
-    graph="[0:a]asplit[d][s];[s][1:a]afir=dry=1:wet=1:irfmt=input[r];[d][r]amix=inputs=2:weights='1 0.25':normalize=0[out]"
-    run(['ffmpeg','-nostdin','-v','warning','-i',work/'dry.wav','-i',work/'hall-stereo.wav',
+    graph="[1:a][2:a]afir=dry=1:wet=1:irfmt=input[r];[0:a][r]amix=inputs=2:weights='1 0.25':normalize=0[out]"
+    run(['ffmpeg','-nostdin','-v','warning','-i',work/'dry.wav','-i',work/'send.wav','-i',work/'hall-stereo.wav',
          '-filter_complex',graph,'-map','[out]','-t',plan['duration']+tail,'-c:a','pcm_f32le',work/'hall-mix.wav'],log)
     from .resonance import audible_end
     heard=np.frombuffer(subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'hall-mix.wav'),
@@ -227,11 +244,11 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         shutil.copy2(ROOT/file,work/file)
     sources={str(p.relative_to(ROOT)):p.read_text() for p in list(ROOT.glob('*.py'))+list((ROOT/'schools').glob('*.py'))}
     (work/'sources.json').write_text(json.dumps(sources,indent=2))
-    files=[p for p in work.rglob('*') if p.is_file() and ('stems' not in p.relative_to(work).parts or p.suffix=='.sfz') and (p.suffix not in ('.wav','.f32') or 'patches' in p.relative_to(work).parts)]
+    files=[p for p in work.rglob('*') if p.is_file() and ('stems' not in p.relative_to(work).parts or p.suffix in ('.sfz','.json','.mid')) and (p.suffix not in ('.wav','.f32') or 'patches' in p.relative_to(work).parts)]
     artifacts={str(p.relative_to(work)):sha(p) for p in files}
     for source in files:
         target=destination/source.relative_to(work);target.parent.mkdir(exist_ok=True,parents=True);shutil.copy2(source,target)
-    (destination/'render.json').write_text(json.dumps({'renderer':'native-sfz-2','python':sys.version,
+    (destination/'render.json').write_text(json.dumps({'renderer':'native-sfz-3','python':sys.version,
         'music21':__import__('music21').__version__,'numpy':np.__version__,
         'sfizz':'1.2.3','draft':str(work),'artifacts':artifacts},indent=2))
     if compact:

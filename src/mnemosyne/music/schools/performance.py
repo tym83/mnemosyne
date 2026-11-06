@@ -80,8 +80,9 @@ def sounding_events(part, bpm=None):
         yield at, length, pitches, velocity(n), glide
 
 
-def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0):
+def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performance=None, sample_vibrato=False):
     tracks = []
+    audit = []
     for i, part in enumerate(score.parts):
         local_channel = i % 15
         channel = local_channel if local_channel < 9 else local_channel+1
@@ -105,13 +106,22 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0):
         # CC11 realizes sustained-tone dynamics; decoding still uses source XML,
         # because standard MIDI quantizes expression to seven bits.
         curve = getattr(part.editorial, 'school_expression', None)
-        if curve:
+        if performance is not None:
+            from ..live_performance import expression_points
+            for at,value in expression_points(part,bpm,performance):
+                events.append((round(at*960), 1, bytes([0xB0|channel,11,value])))
+        elif curve:
             for at, gain in curve:
                 events.append((round(at*960), 1, bytes([0xB0|channel, 11, max(0,min(127,round(96*gain)))])))
         from ..resonance import pedal_events
         for at, value in pedal_events(part):
             events.append((round(at*960), -1, bytes([0xB0|channel, 64, value])))
-        for at, length, pitches, strength, glide in sounding_events(part, bpm):
+        played = list(sounding_events(part, bpm))
+        if performance is not None:
+            from ..live_performance import perform
+            played, measured = perform(played, part, bpm, performance)
+            audit.append({'part': str(part.id), 'notes': measured})
+        for event_index, (at, length, pitches, strength, glide) in enumerate(played):
             tick = round(at*960)
             keys = [round(p) for p in pitches]
             deviations = [p-key for p,key in zip(pitches,keys)]
@@ -119,6 +129,17 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0):
                 raise ValueError('chord requires incompatible simultaneous pitch bends')
             base = deviations[0]
             events.append((tick, 1, bend(base)))
+            if performance is not None and not sample_vibrato and not glide:
+                from ..live_performance import family, vibrato_points
+                # Pitch bend is channel-wide. Do not modulate overlapping notes,
+                # chords, or a preceding note's release with another note's LFO.
+                isolated = (len(pitches) == 1 and
+                    all(j == event_index or other[0]+other[1]+.8*bpm/60 <= at
+                        or other[0] >= at+length+.8*bpm/60
+                        for j,other in enumerate(played)))
+                if isolated and family(part) in ('strings','woodwinds','brass'):
+                    for when, value in vibrato_points(at,length,bpm,base):
+                        events.append((round(when*960), 3, bend(value)))
             if glide:
                 duration, delta = glide
                 for k in range(1, 129):
@@ -133,3 +154,6 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0):
             previous = tick
         tracks.append(b'MTrk'+struct.pack('>I',len(data))+data)
     path.write_bytes(b'MThd'+struct.pack('>IHHH',6,1,len(tracks),960)+b''.join(tracks))
+    if performance is not None:
+        import json
+        path.with_suffix('.performance.json').write_text(json.dumps(audit, indent=2))
