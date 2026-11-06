@@ -6,7 +6,17 @@ from music21 import clef, instrument, interval
 import yaml
 
 ROOT = Path(__file__).parent
-REGISTRY = yaml.safe_load((ROOT / 'instruments.yaml').read_text())['instruments']
+INSTRUMENT_DATA = yaml.safe_load((ROOT / 'instruments.yaml').read_text())
+REGISTRY = INSTRUMENT_DATA['instruments']
+
+def release_profile(name):
+    spec = REGISTRY[name]
+    profile = INSTRUMENT_DATA['release_profiles'].get(spec['family'])
+    override = INSTRUMENT_DATA['release_overrides'].get(name, {})
+    if profile is None and not override:
+        raise ValueError(f'Missing release profile: {name}/{spec["family"]}')
+    return {**(profile or {}), **override}
+
 ENSEMBLE_DATA = yaml.safe_load((ROOT / 'ensembles.yaml').read_text())
 ENSEMBLES = ENSEMBLE_DATA['ensembles']
 LEGACY_VOICES = ENSEMBLE_DATA['legacy_voices']

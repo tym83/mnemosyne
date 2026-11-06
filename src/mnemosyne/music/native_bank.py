@@ -212,6 +212,24 @@ def playback_patch(root,instrument,technique,destination):
     # of a library's default two-semitone pitch wheel range.
     source=re.sub(r'(<region>)',r'\1 bend_up=1200 bend_down=-1200 ',source)
     destination.write_text(source)
+    from .instrumentarium import release_profile
+    from .sample_sustain import prepare_region
+    profile = release_profile(instrument)
+    # Pizzicato/staccato and other struck techniques must retain natural decay.
+    profile = {**profile, 'sustained': profile.get('sustained') and technique in ('sustain','arco','tremolo')}
+    zones = iter(regions(destination)); manifest = []
+    def sustain_region(match):
+        zone = next(zones)
+        overrides, measured = prepare_region(zone, profile, destination)
+        body = match[1]
+        for key, value in overrides.items():
+            body = re.sub(r'\b'+key+r'\s*=\s*.*?(?=\s+\w+\s*=|$)', '', body, flags=re.S)
+            body += f'\n{key}={value}\n'
+        manifest.append(measured)
+        return '<region>'+body
+    source = re.sub(r'<region>([^<]*)', sustain_region, source)
+    destination.write_text(source)
+    destination.with_suffix('.samples.json').write_text(json.dumps(manifest, indent=2))
     return destination
 
 

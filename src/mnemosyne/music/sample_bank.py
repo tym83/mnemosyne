@@ -2,9 +2,12 @@
 
 Preserves SFZ key/velocity zones and sample tuning. Round robin is fixed to
 its first take. Stereo is downmixed to mono; native sample tails are retained.
-No synthetic sustain loops are introduced. This is not a general SFZ converter.
+Sustained presets use documented crossfaded segments of their own samples. This is not a general SFZ converter.
 """
 import argparse
+import math
+from .instrumentarium import REGISTRY, release_profile
+from .sample_sustain import crossfade_loop, embedded_loop, audio_info
 import numpy as np
 import hashlib
 import json
@@ -38,7 +41,7 @@ def fetch(path, root):
     return dest
 
 
-def build(root):
+def build(root, output_root=None):
     root.mkdir(parents=True,exist_ok=True)
     fetch('LICENSE',root)
     fetch('Readme.txt',root)
@@ -77,23 +80,40 @@ def build(root):
             pcm = np.frombuffer(raw,dtype='<i2').astype(np.float64)
             requested_gain = 10**(float(values.get('volume','0'))/20)
             gain = min(requested_gain,32700/max(1,float(np.max(np.abs(pcm)))))
-            raw = np.rint(pcm*gain).astype('<i2').tobytes()
+            instrument_name = next(n for n,spec in REGISTRY.items() if spec.get('gm_program') == program and not spec.get('unpitched'))
+            profile = release_profile(instrument_name)
+            loop = None
+            loop_kind = 'natural-decay'
+            pcm = pcm * gain
+            if profile.get('sustained'):
+                native = embedded_loop(source)
+                if native:
+                    rate = audio_info(str(source))['rate']
+                    loop = tuple(round(x*44100/rate) for x in native)
+                    loop_kind = 'library-loop'
+                else:
+                    pcm, begin, end = crossfade_loop(pcm, 44100)
+                    loop = begin, end
+                    loop_kind = 'same-sample-crossfade'
+            raw = np.rint(pcm).astype('<i2').tobytes()
             start = len(samples)//2
             size = len(raw)//2
             samples.extend(raw+b'\0'*92)
             sid = len(shdr)//46
             key = int(values['pitch_keycenter'])
             shdr.extend(st.pack('<20sIIIIIBbHH',label(f'{name[:10]}{sid}'),start,start+size,
-                start,start+size-1,44100,key,0,0,1))
+                start+(loop[0] if loop else 0),start+(loop[1]+1 if loop else size-1),44100,key,0,0,1))
             ibag.extend(st.pack('<HH',len(igen)//4,0))
             igen.extend(gen(43,int(values['lokey']) | int(values['hikey'])<<8))
             igen.extend(gen(44,int(values.get('lovel',0)) | int(values.get('hivel',127))<<8))
             igen.extend(gen(34,-12000))  # ~1 ms attack
-            igen.extend(gen(38,-1200 if program==0 else -2000))
+            igen.extend(gen(38,round(1200*math.log2(profile['release_seconds']))))
+            if loop: igen.extend(gen(54,1))  # continuous loop through the release envelope
             igen.extend(gen(53,sid))
             provenance.append({'path':relative,'sha256':hashlib.sha256(source.read_bytes()).hexdigest(),
                 'program':program,'key':key,'low':int(values['lokey']),'high':int(values['hikey']),
                 'lovel':int(values.get('lovel',0)),'hivel':int(values.get('hivel',127)),
+                'release_seconds':profile['release_seconds'],'sustain':loop_kind,'loop':loop,
                 'requested_gain':requested_gain,'applied_gain':gain,'original_zone':original_zone,'sample_seconds':size/44100})
         print('converted',name,flush=True)
     phdr.extend(st.pack('<20sHHHIII',label('EOP'),0,0,len(pbag)//4,0,0,0))
@@ -111,9 +131,14 @@ def build(root):
     pdta = chunk('LIST',b'pdta'+b''.join(chunk(k,v) for k,v in [
         ('phdr',phdr),('pbag',pbag),('pmod',b'\0'*10),('pgen',pgen),('inst',inst),
         ('ibag',ibag),('imod',b'\0'*10),('igen',igen),('shdr',shdr)]))
-    output = root/'vsco-schools.sf2'
+    output_root = Path(output_root or root)
+    output_root.mkdir(parents=True,exist_ok=True)
+    if output_root != root:
+        import shutil
+        shutil.copy2(root/'LICENSE', output_root/'LICENSE')
+    output = output_root/'vsco-schools.sf2'
     output.write_bytes(chunk('RIFF',b'sfbk'+info+chunk('LIST',b'sdta'+chunk('smpl',samples))+pdta))
-    (root/'manifest.json').write_text(json.dumps({'revision':REVISION,'conversion_version':3,
+    (output_root/'manifest.json').write_text(json.dumps({'revision':REVISION,'conversion_version':4,
         'sf2_sha256':hashlib.sha256(output.read_bytes()).hexdigest(),'samples':provenance},indent=2))
     print(output,flush=True)
 
@@ -121,10 +146,11 @@ def build(root):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory',type=Path)
+    parser.add_argument('--output',type=Path,help='New SF2 bank directory; retain the source sample cache')
     parser.add_argument('--native', action='store_true', help='Preserve stereo SFZ, layers and round robins')
     args = parser.parse_args()
     if args.native:
         from .native_bank import prepare
         prepare(args.directory)
     else:
-        build(args.directory)
+        build(args.directory,args.output)

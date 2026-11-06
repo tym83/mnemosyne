@@ -207,6 +207,8 @@ def notation_score(score, plan, destination, assignment=None):
     (destination/'plan.json').write_text(json.dumps(plan, indent=2))
     if assignment is not None:
         (destination/'orchestration.json').write_text(json.dumps(assignment, indent=2))
+    from .resonance import apply
+    apply(score, plan)
     engrave(score, destination/'score', destination/'notation.log')
     write_midi(score, destination/'score.mid', plan['tempo'])
 
@@ -214,8 +216,26 @@ def notation_score(score, plan, destination, assignment=None):
 def discard_audio_intermediates(work):
     """Only regenerable audio in this render's own attempt directory."""
     for path in work.rglob('*'):
-        if path.is_file() and path.suffix in ('.wav', '.f32', '.flac', '.mp3'):
+        if path.is_file() and path.suffix in ('.wav', '.f32', '.flac', '.mp3') and 'patches' not in path.relative_to(work).parts:
             path.unlink()
+
+
+def release_tail_seconds(score, plan, sample_info):
+    """Conservative tail for samples actually used, including pitch-rate changes."""
+    import math
+    from .schools.performance import velocity
+    tail = 2.
+    for part in score.parts:
+        program = part.recurse().getElementsByClass('Instrument').first().midiProgram
+        if program == 40 and plan['ensemble'] == 'string_orchestra': program = 48
+        for n in part.recurse().notes:
+            for pitch in n.pitches:
+                for zone in sample_info['samples']:
+                    if (zone['program']==program and zone['low']<=round(pitch.ps)<=zone['high']
+                            and zone['lovel']<=velocity(n)<=zone['hivel']):
+                        natural = zone.get('sample_seconds',0)*2**((zone.get('key',pitch.ps)-pitch.ps)/12)
+                        tail = max(tail, natural+5, zone.get('release_seconds',0)+5)
+    return math.ceil(tail)
 
 
 def render_score(score, plan, destination, soundfont, *, compact=False):
@@ -262,6 +282,8 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
         sample_info = json.loads(sample_manifest.read_text())
         if hashlib.sha256(soundfont.read_bytes()).hexdigest() != sample_info['sf2_sha256']:
             raise ValueError('sample bank checksum mismatch')
+    from .resonance import apply, annotate_xml
+    apply(score, plan)
     info = analyze(score,plan)
     # Check every chord pitch as well as single notes against the sample bank.
     from .schools.performance import velocity
@@ -301,6 +323,7 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
             if creator.text=='Music21':
                 identification.remove(creator)
     tree.write(xml,encoding='utf-8',xml_declaration=True)
+    annotate_xml(xml, score)
     recovered = converter.parse(str(xml))
     # Some instruments are transposing; exported notation must round-trip to sound.
     recovered.toSoundingPitch(inPlace=True)
@@ -308,7 +331,8 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
         raise RuntimeError('MusicXML round trip changed sounding events')
     analyze(recovered,plan)
     midi = work/'score.mid'
-    write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra')
+    sample_tail = release_tail_seconds(score, plan, sample_info)
+    write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra',tail_seconds=sample_tail)
     run(['musicxml2ly','-o',work/'score.ly',xml],log)
     if synthetic:
         with (work/'score.ly').open('a') as file:
@@ -322,10 +346,12 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
     if any('error:' in line.lower() or 'failed to load' in line.lower() for line in log.read_text().splitlines()):
         raise RuntimeError(f'Renderer reported an error; see {log}')
     audio_source = work/'score.wav'
-    tail = 2
+    import math
+    tail = sample_tail
     if synthetic and plan.get('hall_profile') == 'openair_jack_lyons':
         bank = Path(soundfont)
-        tail = 4
+        from .sample_sustain import audio_info
+        tail = math.ceil(audio_info(str(bank/'hall.wav'))['seconds'] + 10)
         run(['ffmpeg','-nostdin','-v','warning','-i',bank/'hall.wav','-af',
              'pan=stereo|c0=0.7071*c0+0.5*c1+0.5*c2|c1=0.7071*c0+0.5*c1-0.5*c2',
              '-ar','22050','-c:a','pcm_f32le',work/'hall-stereo.wav'],log)
@@ -370,7 +396,7 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
         (work/'SAMPLE_LICENSE.txt').write_text(LICENSE)
     else:
         shutil.copy2(license_file,work/'SAMPLE_LICENSE.txt')
-    sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__),Path(__file__).with_name('sample_bank.py')]
+    sources = list(Path(__file__).with_name('schools').glob('*.py')) + [Path(__file__).with_name(name) for name in ('render.py','sample_bank.py','sample_sustain.py','resonance.py','instrumentarium.py','instruments.yaml')]
     (work/'sources.json').write_text(json.dumps({str(p.relative_to(Path(__file__).parent)):p.read_text() for p in sources},indent=2))
     artifacts = ['sources.json','plan.json','score.musicxml','score.mid','score.ly','score.pdf','score.mp3','score.flac',
                  'analysis.json','render.log','sample_libraries.yaml','samples.json','SAMPLE_LICENSE.txt']
@@ -380,7 +406,7 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
             raise RuntimeError(f'Missing artifact {path}')
     for filename in artifacts:
         shutil.copy2(work/filename,destination/filename)
-    (destination/'render.json').write_text(json.dumps({'renderer_version':3,'draft':str(work),
+    (destination/'render.json').write_text(json.dumps({'renderer_version':4,'draft':str(work),
         'python':sys.version,'music21':__import__('music21').__version__,
         'grammar_sources':{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).with_name('schools').glob('*.py')},
         'sound_origin': 'synthesized' if synthetic else 'sampled',

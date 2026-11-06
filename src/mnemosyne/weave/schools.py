@@ -206,6 +206,8 @@ def performance_score(path):
     root = surface.read(path)
     digits(root)  # reject invalid, nonnumeric/out-of-alphabet automation
     score = converter.parse(path).toSoundingPitch()
+    from ..music.resonance import read_pedals
+    read_pedals(path, score)
     for part,curve in zip(score.parts,expression_curves(root),strict=True):
         part.editorial.school_expression = curve
     return score

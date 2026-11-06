@@ -22,7 +22,7 @@ def velocity(n):
     return max(8, min(127, round(127*(dynamic.volumeScalar if dynamic else .5))))
 
 
-def sounding_events(part):
+def sounding_events(part, bpm=None):
     flat = part.flatten()
     notes = list(flat.notes)
     offsets = {id(n): float(flat.elementOffset(n)) for n in notes}
@@ -59,10 +59,28 @@ def sounding_events(part):
             length = target_at-at+target_length
         elif any(isinstance(a, articulations.Staccato) for a in n.articulations):
             length *= .5
+        if bpm is not None and glide is None:
+            # Only contiguous, same-voice slurred notes with a different key can
+            # overlap safely on one MIDI channel. Never bridge a written rest.
+            for slur in part.recurse().getElementsByClass(spanner.Slur):
+                members = slur.getSpannedElements()
+                if not members or n is members[-1]:
+                    continue
+                start = offsets.get(id(members[0]), -1)
+                end = offsets.get(id(members[-1]), -1)
+                voice = n.getContextByClass('Voice')
+                nxt = next((other for other in notes if offsets[id(other)] > at
+                            and other.getContextByClass('Voice') is voice), None)
+                if (start <= at < end and nxt is not None
+                        and abs(offsets[id(nxt)] - at - length) < 1e-7
+                        and not set(pitches) & {p.ps for p in nxt.pitches}
+                        and all(abs(p-round(p)) < 1e-7 for p in (*pitches, *(p.ps for p in nxt.pitches)))):
+                    length += min(.03*bpm/60, float(nxt.quarterLength)/4)
+                    break
         yield at, length, pitches, velocity(n), glide
 
 
-def write_midi(score, path, bpm, orchestral=False):
+def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0):
     tracks = []
     for i, part in enumerate(score.parts):
         local_channel = i % 15
@@ -90,7 +108,10 @@ def write_midi(score, path, bpm, orchestral=False):
         if curve:
             for at, gain in curve:
                 events.append((round(at*960), 1, bytes([0xB0|channel, 11, max(0,min(127,round(96*gain)))])))
-        for at, length, pitches, strength, glide in sounding_events(part):
+        from ..resonance import pedal_events
+        for at, value in pedal_events(part):
+            events.append((round(at*960), -1, bytes([0xB0|channel, 64, value])))
+        for at, length, pitches, strength, glide in sounding_events(part, bpm):
             tick = round(at*960)
             keys = [round(p) for p in pitches]
             deviations = [p-key for p,key in zip(pitches,keys)]
@@ -105,7 +126,7 @@ def write_midi(score, path, bpm, orchestral=False):
             for key in keys:
                 events.append((tick, 2, bytes([0x90|channel, key, strength])))
                 events.append((tick+round(length*960), 0, bytes([0x80|channel, key, 0])))
-        events.append((round(float(part.highestTime)*960), 9, b'\xff\x2f\x00'))
+        events.append((max(round((float(part.highestTime)+tail_seconds*bpm/60)*960), max(e[0] for e in events)), 9, b'\xff\x2f\x00'))
         data, previous = bytearray(), 0
         for tick, priority, msg in sorted(events, key=lambda e:(e[0], e[1])):
             data.extend(vlq(tick-previous)+msg)

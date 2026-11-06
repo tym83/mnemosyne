@@ -14,13 +14,13 @@ import tempfile
 import numpy as np
 from music21 import converter, stream, spanner, metadata
 from .instrumentarium import ROOT, REGISTRY, notation_instrument
-from .native_bank import audit_patch, check_coverage, sha, LIBRARIES, playback_patch
+from .native_bank import audit_patch, check_coverage, sha, LIBRARIES, playback_patch, keynum
 from .render import run, note_events
 from .schools.common import put
 from .schools.performance import write_midi
 
 RATE=44100
-TAIL=4
+
 
 
 def strip_creator(path):
@@ -50,6 +50,8 @@ def engrave(score,base,log):
             device=ET.Element('midi-device',{'id':midi.attrib['id'],'port':str(i//15+1)})
             part.insert(list(part).index(midi),device)
     tree.write(xml,encoding='utf-8',xml_declaration=True)
+    from .resonance import annotate_xml
+    annotate_xml(xml, score)
     recovered=converter.parse(xml).toSoundingPitch()
     if note_events(score.stripTies())!=note_events(recovered.stripTies()):
         raise ValueError(f'Written/sounding MusicXML mismatch: {base}')
@@ -91,6 +93,8 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
     (work/'parts').mkdir();(work/'stems').mkdir();(work/'licenses').mkdir();(work/'patches').mkdir()
     for name,value in [('plan',plan),('orchestration',assignment)]:
         (work/f'{name}.json').write_text(json.dumps(value,indent=2))
+    from .resonance import apply
+    apply(score, plan)
     patches={};libraries=set();sample_files={}
     # Preflight everything before engraving or rendering. No missing-key silence.
     for player in assignment['players']:
@@ -105,6 +109,26 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         for zone in patch['regions']:
             path=Path(zone['sample'])
             if str(path) not in sample_files:sample_files[str(path)]=sha(path)
+    from .sample_sustain import audio_info
+    # Include the entire longest natural sample tail plus the measured IR.
+    # Sustained loops instead finish through the instrument's release envelope.
+    release_tail = 0.
+    for patch in patches.values():
+        manifest = json.loads((work/patch['playback_file']).with_suffix('.samples.json').read_text())
+        patch['playback_regions'] = manifest
+        used = [e for player in assignment['players'] if player['instrument']==patch['instrument']
+                for e in player['events'] if e['technique']==patch['technique']]
+        for zone, measured in zip(patch['regions'], manifest, strict=True):
+            pitches = [pitch for e in used for pitch in e['pitches']
+                       if zone['low'] <= round(pitch) <= zone['high']
+                       and zone['lovel'] <= e['velocity'] <= zone['hivel']]
+            if not pitches: continue
+            center = keynum(str(zone['opcodes'].get('pitch_keycenter', zone['opcodes'].get('key', 60))))
+            tracking = float(zone['opcodes'].get('pitch_keytrack',100))/100
+            rate_factor = 2**((center-min(pitches))*tracking/12)
+            release_tail = max(release_tail, measured['release_seconds'],
+                measured['sample_seconds']*rate_factor if measured['sustain']=='natural-decay' else 0)
+    tail = math.ceil(release_tail + audio_info(str(bank/'hall.wav'))['seconds'] + 1)
     engrave(score,work/'score',log)
     for part,player in zip(score.parts,assignment['players'],strict=True):
         # A divided section has one part per divided group; each musician gets
@@ -119,7 +143,7 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         for number in range(1,copies+1):
             shutil.copy2(base.with_suffix('.pdf'),base.with_name(base.name+f'-player-{number}').with_suffix('.pdf'))
     write_midi(score,work/'score.mid',plan['tempo'])
-    samples=round((plan['duration']+TAIL)*RATE)
+    samples=round((plan['duration']+tail)*RATE)
     mix=np.zeros((samples,2),dtype=np.float32)
     stems=[]
     for player_index, player in enumerate(assignment['players']):
@@ -128,7 +152,10 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         for index,((technique,gain),events) in enumerate(sorted(groups.items())):
             base=work/'stems'/f'{player["id"]}-{index}'
             midi=base.with_suffix('.mid');wav=base.with_suffix('.wav')
-            one=stem_score(events,player['instrument'],(plan['duration']+TAIL)*plan['tempo']/60)
+            one=stem_score(events,player['instrument'],(plan['duration']+tail)*plan['tempo']/60)
+            from .resonance import copy_slurs
+            copy_slurs(score.parts[player_index], one.parts[0])
+            one.parts[0].editorial.sustain_pedal = getattr(score.parts[player_index].editorial, 'sustain_pedal', [])
             write_midi(one,midi,plan['tempo'])
             patch=patches[(player['instrument'],technique)]
             normalized=work/patch['playback_file']
@@ -162,7 +189,7 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
          '-ar',RATE,'-c:a','pcm_f32le',work/'hall-stereo.wav'],log)
     graph="[0:a]asplit[d][s];[s][1:a]afir=dry=1:wet=1:irfmt=input[r];[d][r]amix=inputs=2:weights='1 0.25':normalize=0[out]"
     run(['ffmpeg','-nostdin','-v','warning','-i',work/'dry.wav','-i',work/'hall-stereo.wav',
-         '-filter_complex',graph,'-map','[out]','-t',plan['duration']+TAIL,'-c:a','pcm_f32le',work/'hall-mix.wav'],log)
+         '-filter_complex',graph,'-map','[out]','-t',plan['duration']+tail,'-c:a','pcm_f32le',work/'hall-mix.wav'],log)
     probe=subprocess.run(['ffmpeg','-nostdin','-i',str(work/'hall-mix.wav'),'-af',
                           'loudnorm=I=-20:TP=-1.5:LRA=50:print_format=json','-f','null','-'],capture_output=True,text=True,check=True)
     measured=json.loads(probe.stderr[probe.stderr.rfind('{'):])
@@ -176,8 +203,8 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
     audio=subprocess.check_output(['ffmpeg','-v','error','-i',str(work/'score.mp3'),'-ac','2','-ar',str(RATE),'-f','f32le','-'])
     data=np.frombuffer(audio,dtype='<f4').reshape(-1,2)
     peak_after=float(np.max(np.abs(data)))
-    if peak_after>=1 or abs(len(data)/RATE-plan['duration']-TAIL)>.15:raise ValueError('Audio peak/duration validation failed')
-    analysis={'score_seconds':plan['duration'],'tail_seconds':TAIL,'audio_seconds':len(data)/RATE,
+    if peak_after>=1 or abs(len(data)/RATE-plan['duration']-tail)>.15:raise ValueError('Audio peak/duration validation failed')
+    analysis={'score_seconds':plan['duration'],'tail_seconds':tail,'audio_seconds':len(data)/RATE,
               'peak':peak_after,'rms':float(np.sqrt(np.mean(data**2))), 'channels':2,
               'raw_rms':raw_rms,'pregain':pregain,
               'loudness':{'measured':measured,'target_lufs':-20,'constant_gain_db':gain,
@@ -196,11 +223,11 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         shutil.copy2(ROOT/file,work/file)
     sources={str(p.relative_to(ROOT)):p.read_text() for p in list(ROOT.glob('*.py'))+list((ROOT/'schools').glob('*.py'))}
     (work/'sources.json').write_text(json.dumps(sources,indent=2))
-    files=[p for p in work.rglob('*') if p.is_file() and ('stems' not in p.relative_to(work).parts or p.suffix=='.sfz') and p.suffix not in ('.wav','.f32')]
+    files=[p for p in work.rglob('*') if p.is_file() and ('stems' not in p.relative_to(work).parts or p.suffix=='.sfz') and (p.suffix not in ('.wav','.f32') or 'patches' in p.relative_to(work).parts)]
     artifacts={str(p.relative_to(work)):sha(p) for p in files}
     for source in files:
         target=destination/source.relative_to(work);target.parent.mkdir(exist_ok=True,parents=True);shutil.copy2(source,target)
-    (destination/'render.json').write_text(json.dumps({'renderer':'native-sfz-1','python':sys.version,
+    (destination/'render.json').write_text(json.dumps({'renderer':'native-sfz-2','python':sys.version,
         'music21':__import__('music21').__version__,'numpy':np.__version__,
         'sfizz':'1.2.3','draft':str(work),'artifacts':artifacts},indent=2))
     if compact:

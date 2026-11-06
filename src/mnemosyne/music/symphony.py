@@ -439,7 +439,7 @@ def finalize(out):
     measured=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_entries','format=duration',
         '-of','json',str(work/'score.mp3')]))
     report['audio_seconds']=float(measured['format']['duration'])
-    if abs(report['audio_seconds']-validate(plan)-4*count)>.2:raise ValueError('combined audio duration changed')
+    if abs(report['audio_seconds']-validate(plan)-sum(a['render']['tail_seconds'] for a in analyses))>.2:raise ValueError('combined audio duration changed')
     (work/'weave.json').write_text(json.dumps(report,indent=2))
     clock=0;curve=[]
     for analysis in analyses:
