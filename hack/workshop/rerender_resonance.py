@@ -16,7 +16,7 @@ def main():
     args=ap.parse_args();args.destination.mkdir(parents=True,exist_ok=True)
     if args.kind=='schools':
         for source in sorted(args.source.iterdir()):
-            if not (source/'render.json').exists():continue
+            if source.name.startswith('failed-') or not (source/'render.json').exists():continue
             dest=args.destination/source.name
             if (dest/'render.json').exists():continue
             plan=json.loads((source/'plan.json').read_text())
