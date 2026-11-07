@@ -8,13 +8,35 @@ import numpy as np
 
 
 def profile(school):
+    # swell: how far a held tone opens after the attack and fades before release.
     if school in ('ustvolskaya', 'reich', 'additive', 'process', 'phase'):
-        return dict(dynamics=0., timing=0., cadence=0., soft=1.)
+        return dict(dynamics=0., timing=0., cadence=0., soft=1., swell=0.)
     if school == 'feldman':
-        return dict(dynamics=.015, timing=.003, cadence=.005, soft=.50)
+        return dict(dynamics=.015, timing=.003, cadence=.005, soft=.50, swell=.15)
     if school == 'tintinnabuli':
-        return dict(dynamics=.07, timing=.008, cadence=.018, soft=1.)
-    return dict(dynamics=.16, timing=.016, cadence=.045, soft=1.)
+        return dict(dynamics=.15, timing=.008, cadence=.018, soft=1., swell=.35)
+    return dict(dynamics=.4, timing=.016, cadence=.045, soft=1., swell=.45)
+
+
+SHAPED = ('strings', 'woodwinds', 'brass', 'voice')
+
+
+def note_shape(t, seconds, swell):
+    """Level of a held tone t seconds after its onset: players open a long
+    note after the attack and let it fade into the release, never hold it flat."""
+    if seconds < .6 or not swell:
+        return 1.
+    rise, fall = min(.35*seconds, 1.2), min(.4*seconds, 1.8)
+    if t < rise:
+        return 1-swell/2*math.cos(math.pi/2*t/rise)
+    if t > seconds-fall:
+        return 1-swell*math.sin(math.pi/2*min(1., (t-seconds+fall)/fall))
+    return 1.
+
+
+def held_level(at, notes, bpm, swell):
+    sounding = [note_shape((at-a)*60/bpm, n*60/bpm, swell) for a, n in notes if a <= at < a+n]
+    return max(sounding, default=1.)
 
 
 def family(part):
@@ -68,9 +90,14 @@ def expression_points(part, bpm, school):
     if not style['dynamics']:
         return [(at,max(0,min(127,round(96*gain)))) for at,gain in (curve or [])]
     knots,values=zip(*curve) if curve else ([0.],[1.])
+    notes=[]
+    if family(part) in SHAPED:
+        from .schools.performance import sounding_events
+        notes=[(a,n) for a,n,*_ in sounding_events(part,bpm)]
     result=[]
     for at in np.arange(0,float(part.highestTime)+.025*bpm/60,.05*bpm/60):
         shape=(1+style['dynamics']*math.sin(math.pi*phrase_phase(at,spans)))/(1+style['dynamics'])
+        shape*=held_level(at,notes,bpm,style['swell'])
         level=(96 if curve else 127)*float(np.interp(at,knots,values))*shape
         result.append((warp(at,style),max(0,min(127,round(level)))))
     return result

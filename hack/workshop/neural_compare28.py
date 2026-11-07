@@ -12,7 +12,8 @@ from diffusers.pipelines.deprecated import spectrogram_diffusion
 # Upstream checkpoint predates the pipeline's move to deprecated/.
 diffusers.pipelines.spectrogram_diffusion = spectrogram_diffusion
 from compare28 import sources,stem_score,write_midi,ROOT,OUT,run
-from music21 import stream
+from mnemosyne.music.resonance import read_pedals
+from music21 import converter,stream
 
 torch.set_num_threads(2)
 folder=OUT/'spectrogram-diffusion';folder.mkdir(parents=True,exist_ok=True)
@@ -25,13 +26,20 @@ pipeline=SpectrogramDiffusionPipeline.from_pretrained('google/music-spectrogram-
 pipeline.to('cpu');processor=MidiProcessor()
 print('loaded',time.monotonic()-start,flush=True)
 for name,source,plan,players in sources():
- score=stream.Score()
- for player in players:
+ if (folder/f'{name}.json').exists():continue
+ original=converter.parse(source/'score.musicxml').toSoundingPitch();read_pedals(source/'score.musicxml',original)
+ end=40*plan['tempo']/60;score=stream.Score()
+ for pi,player in enumerate(players):
   events=[]
   for e in player['events']:
    if e['at']*60/plan['tempo']>=40:continue
    e=dict(e);e['duration']=min(e['duration'],40*plan['tempo']/60-e['at']);events.append(e)
-  if events:score.insert(0,stem_score(events,player['instrument'],40*plan['tempo']/60).parts[0])
+  if not events:continue
+  part=stem_score(events,player['instrument'],end).parts[0]
+  if pi<len(original.parts):
+   part.editorial.sustain_pedal=[(a,v) for a,v in original.parts[pi].editorial.sustain_pedal if a<=end]
+   if part.editorial.sustain_pedal:part.editorial.sustain_pedal.append((end,0))
+  score.insert(0,part)
  mid=folder/f'{name}.mid';write_midi(score,mid,plan['tempo'])
  inputs=processor(str(mid));start=time.monotonic()
  with torch.no_grad():output=pipeline(input_tokens=inputs,num_inference_steps=100,generator=torch.Generator().manual_seed(28)).audios

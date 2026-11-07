@@ -24,7 +24,7 @@ def pcm(path):
  return np.frombuffer(subprocess.check_output(['ffmpeg','-v','error','-i',str(path),'-ar',str(RATE),'-ac','2','-f','f32le','-']),dtype='<f4').reshape(-1,2)
 
 def sources():
- sym=Path('/work/gen/symphony-test-v2/mv1');piano=Path('/work/gen/schools/tintinnabuli')
+ sym=Path('/work/gen/symphony-test-v2/mv1');piano=Path('/work/task27-v3/schools-v3/tintinnabuli')  # v3 score carries the pedal marks
  plan=json.loads((sym/'plan.json').read_text());ass=json.loads((sym/'orchestration.json').read_text())
  # First 40 seconds include sustained strings plus flute/oboe/clarinet/bassoon.
  yield 'symphony',sym,plan,ass['players']

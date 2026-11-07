@@ -73,6 +73,16 @@ class LivePerformanceTests(unittest.TestCase):
   self.assertGreater(np.ptp([v for _,v in values]),10)
   self.assertEqual(p.editorial.school_expression,before)
   self.assertEqual(expression_points(p,60,'reich'),[(a,round(v*96)) for a,v in before])
+ def test_held_tone_opens_then_fades_into_release(self):
+  p=stream.Part();p.insert(0,instrument.Violin());p.insert(0,note.Note(67,quarterLength=6))
+  values=dict(expression_points(p,60,'symphony'))
+  level=lambda t:values[min(values,key=lambda a:abs(a-t))]
+  self.assertLess(level(0),level(2));self.assertLess(level(5.9),level(3))
+  piano=stream.Part();piano.insert(0,instrument.Piano());piano.insert(0,note.Note(67,quarterLength=6))
+  flat=dict(expression_points(piano,60,'symphony'))
+  key=lambda v,t:v[min(v,key=lambda a:abs(a-t))]
+  # Piano keeps the phrase envelope only; bowed tone also tapers per note.
+  self.assertLess(level(5.9)/level(3),key(flat,5.9)/key(flat,3)-.2)
  def test_native_layers_and_release_survive_legato_adapter(self):
   from mnemosyne.music.native_bank import regions
   with tempfile.TemporaryDirectory() as d:
