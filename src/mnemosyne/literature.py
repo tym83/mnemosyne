@@ -267,8 +267,6 @@ class Writer:
             if deadline is not None and time.monotonic() >= deadline:
                 break
             try:
-                if images and self.backend != "codex":
-                    raise NotImplementedError(f"{self.backend}: looking at images")
                 extra = {"images": images} if images else {}
                 text, meta = getattr(self, f"_{self.backend}")(system, prompt, _schema(schema), max_tokens, **extra)
                 out = schema.model_validate_json(text)
@@ -310,15 +308,27 @@ class Writer:
                 raise RuntimeError(f"codex: {r.stderr[-400:]}")
             return op.read_text(), {"engine": "codex-cli"}
 
-    def _claude(self, system, prompt, schema, max_tokens, model=None):
+    def _claude(self, system, prompt, schema, max_tokens, images=None, model=None):
+        import shutil
         import subprocess
         import tempfile
 
         with tempfile.TemporaryDirectory() as d:
+            # The CLI sees pictures only by reading files, so copies sit in its
+            # empty working directory and Read is the one tool it keeps.
+            names = []
+            for i, image in enumerate(images or []):
+                name = f"image-{i+1:02d}{Path(image).suffix}"
+                shutil.copyfile(image, Path(d) / name)
+                names.append(name)
+            if names:
+                prompt += "\n\nПрежде чем ответить, посмотри изображения (инструмент Read): " + ", ".join(names)
+            blocked = "Bash,Edit,Write,WebFetch,WebSearch" + ("" if names else ",Read")
             r = subprocess.run(["claude", "-p", "--output-format", "json", "--json-schema", json.dumps(schema),
                                 *(["--model", model] if model else []),
-                                "--system-prompt", system, "--disallowedTools", "Bash,Edit,Write,Read,WebFetch,WebSearch",
-                                prompt], capture_output=True, text=True, timeout=3600, cwd=d, stdin=subprocess.DEVNULL)
+                                "--system-prompt", system, "--disallowedTools", blocked,
+                                *(["--allowedTools", "Read"] if names else []),
+                                "--", prompt], capture_output=True, text=True, timeout=3600, cwd=d, stdin=subprocess.DEVNULL)
             if r.returncode:
                 raise RuntimeError(f"claude: {r.stderr[-400:]} {r.stdout[-400:]}")
             data = json.loads(r.stdout)
