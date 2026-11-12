@@ -164,6 +164,23 @@ VARIANTS_INSTRUCTION = ('\n\nПиши как в черновике. В поля�
                         'предложении. В остальных полях скобок нет.')
 
 
+def _last_json(text):
+    """The last complete JSON object in a CLI transcript that also prints its reasoning."""
+    decoder = json.JSONDecoder()
+    found = None
+    for i, ch in enumerate(text):
+        if ch == '{':
+            try:
+                value, _ = decoder.raw_decode(text[i:])
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                found = value
+    if found is None:
+        raise ValueError("no JSON object in the answer")
+    return json.dumps(found, ensure_ascii=False)
+
+
 def prose_fields(schema):
     fields = []
     for name, field in getattr(schema, 'model_fields', {}).items():
@@ -224,10 +241,20 @@ class Writer:
         from .models import request, role_for
         role = self.role or role_for(step, bool(images))
         route = self.config.route(role)
+        # A development CLI per role: WRITER_CRITIC=kimi, WRITER_TRANSLATOR=kimi, ...
+        override = os.environ.get(f"WRITER_{role.upper()}")
+        if override and override in ("codex", "claude", "kimi") and self.backend in ("codex", "claude", "kimi", None):
+            if self.data_class == "private":
+                raise ValueError("private material cannot use a developer CLI")
+            saved, self.backend = self.backend, override
+            try:
+                return self._ask_dev(system, prompt, schema, step, max_tokens, images)
+            finally:
+                self.backend = saved
         if self.backend:
             if self.backend in self.config.endpoints:
                 route = [(self.backend, self.config.endpoints[self.backend])]
-            elif self.backend in ("codex", "claude"):
+            elif self.backend in ("codex", "claude", "kimi"):
                 if self.data_class == "private":
                     raise ValueError("private material cannot use a developer CLI")
                 return self._ask_dev(system, prompt, schema, step, max_tokens, images)
@@ -358,6 +385,22 @@ class Writer:
             if r.returncode or not op.exists() or not op.read_text().strip():
                 raise RuntimeError(f"codex: {r.stderr[-400:]}")
             return op.read_text(), {"engine": "codex-cli"}
+
+    def _kimi(self, system, prompt, schema, max_tokens, images=None, model=None):
+        import subprocess
+        import tempfile
+
+        if images:
+            raise ValueError("kimi backend reads no images")
+        full = (f"{system}\n\n---\n\n{prompt}\n\nОтветь только одним JSON-объектом по этой схеме, без "
+                f"пояснений, без инструментов и файлов:\n{json.dumps(schema, ensure_ascii=False)}")
+        with tempfile.TemporaryDirectory() as d:
+            r = subprocess.run(["kimi", "-p", full, "--output-format", "text",
+                                *(["--model", model] if model else [])],
+                               capture_output=True, text=True, timeout=3600, cwd=d, stdin=subprocess.DEVNULL)
+        if r.returncode:
+            raise RuntimeError(f"kimi: {r.stderr[-400:]}")
+        return _last_json(r.stdout), {"engine": "kimi-cli"}
 
     def _claude(self, system, prompt, schema, max_tokens, images=None, model=None):
         import shutil
