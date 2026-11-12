@@ -17,7 +17,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from .. import artist as ideas
-from ..literature import DRAFTING, LANGUAGE, Writer
+from ..literature import LANGUAGE, Writer
 from ..weave.variants import plain
 from . import translator
 from .schools import SCHOOLS
@@ -89,7 +89,6 @@ class WriterNight:
 
     def run(self, inner='', *, drafts=3):
         from ..lineage import LANGUAGE_NAMES
-        drafting = DRAFTING.set(True)
         spoken = LANGUAGE.set(LANGUAGE_NAMES.get(self.artist.language))
         try:
             return self._run(inner, drafts)
@@ -98,7 +97,6 @@ class WriterNight:
             raise
         finally:
             LANGUAGE.reset(spoken)
-            DRAFTING.reset(drafting)
             self.save()
 
     def _run(self, inner, drafts):

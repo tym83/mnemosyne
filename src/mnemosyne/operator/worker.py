@@ -155,14 +155,8 @@ def run(request, root, key, objects, *, previous=None, climate=None):
             if result['status'] == 'failed':
                 raise RuntimeError('writer failed; notebook retained')
     if request['mode'] != 'chamber':
-        # The chronicler and the critics draft tonight's words with their own variants.
-        from mnemosyne.literature import DRAFTING
-        token = DRAFTING.set(True)
-        try:
-            life.reception.write_words(life=life)
-            life.write_words()
-        finally:
-            DRAFTING.reset(token)
+        life.reception.write_words(life=life)
+        life.write_words()
     from mnemosyne.weave import night as tonight
     extra = []
     entries, publish = tonight.texts(life, notebooks)

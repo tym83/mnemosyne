@@ -393,15 +393,13 @@ class Night:
         return sk
 
     def run(self, inner, *, drafts=3, key=None):
-        from ..literature import DRAFTING, LANGUAGE
+        from ..literature import LANGUAGE
         from ..lineage import LANGUAGE_NAMES
-        token = DRAFTING.set(True)
         spoken = LANGUAGE.set(LANGUAGE_NAMES.get(self.artist.language))
         try:
             return self._run(inner, drafts=drafts, key=key)
         finally:
             LANGUAGE.reset(spoken)
-            DRAFTING.reset(token)
 
     def _run(self, inner, *, drafts=3, key=None):
         a = self.artist

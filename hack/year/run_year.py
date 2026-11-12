@@ -137,15 +137,11 @@ def main():
                         for i, c in enumerate(sk.get('carriers') or [{'score': sk['score']}]):
                             sources.append((f'{sk["id"]}-{i}', n.root/c['score'], school, {}))
         if backend and not a.no_words:
-            from mnemosyne.literature import DRAFTING
-            token = DRAFTING.set(True)
             try:
                 life.reception.write_words(life=life)
                 life.write_words()
             except Exception as exc:
                 real.append(['words', 'error', str(exc)[:200]])
-            finally:
-                DRAFTING.reset(token)
         extra = []
         entries, publish = tonight.texts(life, notebooks)
         if entries:
