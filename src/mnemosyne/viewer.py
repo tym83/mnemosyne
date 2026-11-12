@@ -64,6 +64,11 @@ class Atelier:
                         self._notebooks[record['opus']] = record
         return self._notebooks.get(wid)
 
+    def records(self):
+        """Every night's notebook, finished or not: rejected ideas and requested schools included."""
+        self.notebook('')
+        return list(self._notebooks.values())
+
     def text(self, wid):
         texts = [p for p in self.files(wid) if p.suffix == '.txt' and not p.name.endswith('.ru.txt')]
         ru = [p for p in self.files(wid) if p.name.endswith('.ru.txt')]
@@ -201,6 +206,9 @@ CHAPTER = {'birth': 'рождение', 'first_accepted': 'первая прин
            'death': 'смерть', 'despair': 'отчаяние', 'illness': 'болезнь', 'school_birth': 'рождение школы',
            'teacher': 'ученичество', 'renounce': 'уход из искусства'}
 
+STATUS = {'accepted': 'работа принята', 'unfinished': 'работа не доведена', 'idea_rejected': 'замысел отвергнут критиком',
+          'school_requested': 'заявлена новая школа', 'searching': 'ночь не закончена', 'failed': 'ночь сорвалась'}
+
 VERDICT = {'accept': 'принята', 'rewrite': 'не доведена', 'repetition': 'повтор', 'unfinished': 'не доведена'}
 
 STATEMENT = (('idea', 'Замысел'), ('superobjective', 'Сверхзадача'), ('thought', 'Мысль'),
@@ -295,6 +303,17 @@ def ru_inline(at, text):
     return toggle(esc(text), esc(russian), block=False)
 
 
+def ru_short(at, text, n=200):
+    """A shortened text with its shortened translation: cut before markup, never through it."""
+    if not text:
+        return ''
+    cut = lambda t: plain(t)[:n] + ('…' if len(plain(t)) > n else '')
+    russian = at.ru(text)
+    if russian is text or not russian:
+        return html.escape(cut(text))
+    return toggle(html.escape(cut(text)), html.escape(cut(russian)), block=False)
+
+
 def statement_html(at, st):
     rows = []
     for k, label in STATEMENT[1:]:
@@ -312,10 +331,21 @@ def notebook_html(at, record):
     if st:
         parts.append('<h3>Манифест замысла</h3><p class="muted">Прежде чем писать, творец отвечает себе, '
                      'что и зачем он делает.</p>' + statement_html(at, st))
-    for h in record.get('interrogation') or []:
+    rounds = record.get('interrogation') or []
+    if rounds:
+        parts.append('<h3>Допрос внутреннего критика</h3><p class="muted">Критик читает замысел и решает: принять '
+                     'или переписать. Замысел переписывается, пока критик не примет его или не кончатся раунды.</p>')
+    for h in rounds:
         iv = h['interrogation']
-        parts.append(f'<h3>Внутренний критик, раунд {h["round"] + 1}: {VERDICT.get(iv["verdict"], iv["verdict"])}</h3>'
-                     + ru_block(at, iv.get('reasons')))
+        lists = ''.join(f'<dt>{label}</dt><dd><ul>' + ''.join(f'<li>{ru_inline(at, x)}</li>' for x in iv[k]) + '</ul></dd>'
+                        for k, label in (('questions_back', 'Вопросы автору'), ('weak_answers', 'Слабые ответы'),
+                                         ('cliches_found', 'Найденные штампы')) if iv.get(k))
+        parts.append(f'<div class="work"><h4>Раунд {h["round"] + 1} · {VERDICT.get(iv["verdict"], iv["verdict"])}</h4>'
+                     + (f'<dl><dt>Замысел в этом раунде</dt><dd>{ru_block(at, (h.get("statement") or {}).get("idea"))}</dd>'
+                        if (h.get('statement') or {}).get('idea') else '<dl>')
+                     + f'<dt>Вывод</dt><dd>{ru_block(at, iv.get("reasons"))}</dd>'
+                     + (f'<dt>Что сохранить</dt><dd>{ru_block(at, iv.get("keep"))}</dd>' if iv.get('keep') else '')
+                     + lists + '</dl></div>')
     method = record.get('method')
     if method:
         parts.append('<h3>Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
@@ -351,22 +381,39 @@ def site(at, out: Path):
                    f'<td>{school_link(w.get("school"))}</td></tr>' for a, w in live)
     (out/'works.html').write_text(page('Работы', '<h1>Работы</h1><table><tr><th>Работа</th><th>Автор</th><th>Искусство</th>'
                                        '<th>Ночь</th><th>Вердикт</th><th>Школа</th></tr>' + rows + '</table>'))
+    done = {w['id'] for _, w in live}
+    for r in at.records():
+        if r['opus'] in done:
+            continue
+        a = at.artist(r['artist'])
+        idea = (r.get('statement') or {}).get('idea')
+        body = (f'<h1>Ночь {r.get("night")}: {STATUS.get(r.get("status"), r.get("status"))}</h1><p class="muted">'
+                f'<a href="artist-{a.id}.html">{esc(at.name(a))}</a> · {ART.get(a.art, a.art)} · {r["opus"]}</p>'
+                + (f'<h2>Замысел</h2><div class="lead">{ru_block(at, idea)}</div>' if idea else '')
+                + (f'<p class="muted">{html.escape(r["error"])}</p>' if r.get('error') else '')
+                + '<h2>Как прошла ночь</h2>' + notebook_html(at, r))
+        (out/f'night-{r["opus"]}.html').write_text(page(f'Ночь {r.get("night")}', body))
     for a in life.artists:
         works = ''.join(f'<li><a href="work-{w["id"]}.html">{w["id"]}</a> — ночь {w["night"]}, '
                         f'{VERDICT.get(w["verdict"], w["verdict"])}, школа {school_link(w.get("school")) or "—"}'
-                        f'{": " + ru_inline(at, w.get("idea"))[:160] + "…" if w.get("idea") else ""}</li>'
+                        f'{": " + ru_short(at, w.get("idea"), 160) if w.get("idea") else ""}</li>'
                         for w in a.catalogue if (a, w) in live)
         chapters = ''.join(f'<h3 class="muted">ночь {c["night"]} · {CHAPTER.get(c["kind"], c["kind"])}</h3>{ru_block(at, c["text"])}'
                            for c in life.biographies[a.id].chapters if c.get('text'))
         notes = ''.join(f'<li>ночь {n["night"]} · {NOTE.get(n["kind"], n["kind"])}'
-                        + (f': {esc(n.get("idea") or n.get("image") or n.get("name") or "")[:200]}'
+                        + (f': {esc((n.get("idea") or n.get("image") or n.get("name") or "")[:200])}'
                            if (n.get("idea") or n.get("image") or n.get("name")) else '') + '</li>'
                         for n in a.notebook if n['kind'] not in ('draft_decision', 'verification', 'incubation'))
         body = (f'<h1>{esc(at.name(a))}</h1><p class="muted">{ART.get(a.art, a.art)} · '
                 f'{LANGUAGE_NAMES.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {esc(a.school)}'
                 f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p>{ru_block(at, a.portrait)}'
                 f'<h2>Работы</h2><ul>{works or "<li class=muted>пока синтетические</li>"}</ul>'
-                f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}'
+                + '<h2>Замыслы и ночи</h2><p class="muted">Все ночи творца, и удачные, и нет.</p><ul>' + ''.join(
+                    f'<li>ночь {r.get("night")} · <a href="{"work" if r["opus"] in done else "night"}-{r["opus"]}.html">'
+                    f'{STATUS.get(r.get("status"), r.get("status"))}</a>'
+                    f'{": " + ru_short(at, (r.get("statement") or {}).get("idea")) if (r.get("statement") or {}).get("idea") else ""}</li>'
+                    for r in sorted(at.records(), key=lambda r: r.get('night') or 0) if r.get('artist') == a.id) + '</ul>'
+                + f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}'
                 f'<h2>Блокнот</h2><ul class="muted">{notes or "<li>пусто</li>"}</ul>')
         (out/f'artist-{a.id}.html').write_text(page(at.name(a), body))
     (out/'files').mkdir(exist_ok=True)
