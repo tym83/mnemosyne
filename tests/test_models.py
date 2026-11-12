@@ -176,7 +176,7 @@ class ModelTests(unittest.TestCase):
             if title == 'SelfPortrait':
                 return dict(inner_critic={}, name='Fixture', portrait='art', wounds=[], loves=[], fears=[], what_i_am_as_artist='art')
             if title == 'Interrogation':
-                return dict(verdict='accept', weak_answers=[], cliches_found=[], questions_back=[])
+                return dict(verdict='accept', reasons='fixture', keep='', weak_answers=[], cliches_found=[], questions_back=[])
             if title == 'Method':
                 return dict(kind='school', school='tintinnabuli', sources=['tintinnabuli'], principle='triad',
                             transformation='', concept='fixture', reason='fixture', notagen_prompt='', form='school')

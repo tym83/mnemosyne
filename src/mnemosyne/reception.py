@@ -132,7 +132,13 @@ class Reception:
                     life.influence(a, r.choice(others), 'rediscovery', .6)
         active = [wid for wid,w in self.works.items() if w['released'] and w['attention'] > .002]
         if active and r.random() < .45:
-            self.review(r.choice(active), r.choice(self.critics), night)
+            row = self.review(r.choice(active), r.choice(self.critics), night)
+            author = artists[self.works[row['work']]['artist']]
+            if author.status != 'dead':
+                if row['score'] < .3:
+                    life._wound(author, life.p.despair_review * row['reputation'])
+                elif row['score'] > .7:
+                    author.despair *= .8
         counts = {}
         ratings = {}
         for wid in active:

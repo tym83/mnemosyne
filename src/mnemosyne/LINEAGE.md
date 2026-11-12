@@ -41,6 +41,17 @@ occupancy and ordinary mortality still apply. These are synthetic
 calibration choices, not medical or historical claims. Silent people are not
 removed to enforce a living-population cap.
 
+Despair accumulates from rejected works, ideas the inner critic set aside,
+harsh reviews (weighted by the critic's reputation) and neglect (three accepted
+works with almost no recognition). Acceptance, warm reviews and time heal it.
+The cluster's felt climate is only the weather a blow lands in: the same review
+hurts more in heavy times (strain, loss, scars, turbulence) and for a less
+resilient character, and renewal, steadiness and company speed healing. Past
+`despair_threshold` an artist may leave: a death with cause `despair` (the last
+work and posthumous rediscovery follow the ordinary death path) or a permanent
+renunciation. On two synthetic years over 30 seeds, despair accounts for about
+6% of departures in a calm climate and about 24% in a heavy one.
+
 The work stub samples a four-dimensional feature vector and compares it with
 **the entire own catalogue**. Quality, novelty and the inner critic's fallible acceptance are
 synthetic measurements. Rejected work remains in the notebooks and can
@@ -187,7 +198,13 @@ A significant work adds a chronicler chapter with the same work ID.
 
 `Atelier.lineage` retains composer processes and their Sketch objects on
 re-export, including content-addressed file references. Pending/failed nights
-also emit Opus and Notebook objects. A new-school request stops at a retained
+also emit Opus and Notebook objects. An idea the inner critic refuses after
+all rounds is not lost: it becomes the artist's `problem`, wounds them, and is
+offered back at the next idea stage, to be revived or dropped. Each round the
+artist sees their previous idea and the critic's living core (`keep`), and the
+critic sees its own previous demands, so revisions converge instead of
+restarting. Verdicts are the bare words `accept`/`rewrite`; the argument is in
+`reasons`. A new-school request stops at a retained
 `needs_grammar` hook. It does not manufacture an atlas school.
 
 Existing checkpoints retain their recorded lifespan parameters. Checkpoints

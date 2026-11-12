@@ -72,6 +72,15 @@ class Parameters:
     rest: float = .0018
     novelty_step: float = .08
     recognition_rate: float = .0008
+    # Despair: rejected ideas and works, harsh reviews and neglect accumulate;
+    # time and recognition heal. Past the threshold an artist may leave.
+    despair_rejection: float = .05
+    despair_review: float = .12
+    despair_neglect: float = .0006
+    despair_heal: float = .997
+    despair_threshold: float = .6
+    despair_rate: float = .01
+    despair_death: float = .3
 
     def __post_init__(self):
         if not 1 <= self.maturation_min <= self.maturation_max:
@@ -117,6 +126,7 @@ class Artist:
     wealth: float = .5
     money_met: bool = False
     recognition: float = 0.
+    despair: float = 0.
     faith: float = .5
     attachment: float = .5
     pressure: float = 0.
@@ -341,6 +351,10 @@ class Lineage:
         a.fertility = .995 * a.fertility + r.gauss(0, .025)
         a.skill = clip(a.skill + .00015 * a.openness)
         a.recognition *= .999
+        # Renewal, steadiness and company heal; isolation slows it.
+        a.despair *= 1 - (1 - p.despair_heal) * (q['renewal'] + q['steadiness'] + 1 - a.isolation) / 1.5
+        if a.recognition < .05 and sum(w['verdict'] == 'accept' for w in a.catalogue) >= 3:
+            self._wound(a, p.despair_neglect)
         a.commerce = clip(a.commerce * .998 + (.001 * a.recognition * a.wealth if a.money_met else 0))
         a.vitality = clip(a.vitality + p.rest * (.3 + a.resilience) - .0008 * a.grief
                           - .0006 * heavy - .0005 * a.pressure)
@@ -412,6 +426,21 @@ class Lineage:
             self.event(a, 'illumination', **a.pending_idea)
             a.incubation = 0
 
+    def _wound(self, a: Artist, amount: float):
+        # The cluster's felt climate is the weather a blow lands in, not its cause:
+        # the same review hurts more in heavy times and for a fragile character.
+        q = a.climate_state or {}
+        weather = .5 + sum(q.get(k, .5) for k in ('strain', 'loss', 'scars', 'turbulence')) / 4
+        a.despair = clip(a.despair + amount * (1.3 - a.resilience) * weather)
+
+    def set_aside_idea(self, artist: str, idea: str, reasons: str = ''):
+        """A night whose idea the inner critic refused: kept as a problem to incubate."""
+        a = next(a for a in self.artists if a.id == artist)
+        a.rejections += 1
+        a.problem = idea
+        self._wound(a, self.p.despair_rejection)
+        self.note(a, 'set_aside', idea=idea, reasons=reasons, despair=a.despair)
+
     def idea_seed(self, artist: str) -> dict | None:
         """Pass this seed into the idea stage; it must still face its inner critic."""
         a = next(a for a in self.artists if a.id == artist)
@@ -464,6 +493,10 @@ class Lineage:
         a.novelty_history.append(novelty)
         a.novelty = sum(a.novelty_history[-12:]) / len(a.novelty_history[-12:])
         a.rejections = 0 if verdict == 'accept' else a.rejections + 1
+        if verdict == 'accept':
+            a.despair *= .7
+        else:
+            self._wound(a, p.despair_rejection)
         a.repetition_run = a.repetition_run + 1 if verdict == 'repetition' else 0
         if verdict == 'repetition':
             a.unrepeated_nights = 0
@@ -575,6 +608,14 @@ class Lineage:
                 continue
             if r.random() < hazard:
                 self._die(a, 'old_age' if a.age > p.old_age else 'chance', work_source)
+                continue
+            if a.status != 'silent' and a.despair >= p.despair_threshold \
+                    and r.random() < p.despair_rate * (1.5 - a.resilience):
+                if r.random() < p.despair_death:
+                    self._die(a, 'despair', work_source)
+                else:
+                    a.renounced = True
+                    self._silence(a, 'despair')
                 continue
             if a.status == 'silent':
                 duration = self.night - a.silent_since

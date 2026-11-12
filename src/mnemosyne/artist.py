@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 from .assets import project_root
 
 from pydantic import BaseModel, Field
@@ -70,8 +71,18 @@ class Statement(BaseModel):
     risks: list[str]
 
 
+Verdict = Literal["accept", "rewrite"]
+
+
+def accepted(verdict: str) -> bool:
+    """One reading of a critic's verdict everywhere, also for older free-text records."""
+    return verdict.strip().lower().startswith("accept")
+
+
 class Interrogation(BaseModel):
-    verdict: str  # "accept" or "rewrite"
+    verdict: Verdict
+    reasons: str  # the critic's argument; the verdict field holds only the decision
+    keep: str  # the living core the artist should keep when revising, or "" if nothing lives
     weak_answers: list[str]
     cliches_found: list[str]
     questions_back: list[str]
@@ -181,7 +192,7 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
               backend: str | None = None, rounds: int = 3,
               contemporaries: list[str] | None = None,
               illumination: dict | None = None, inner: str | None = None,
-              interrogator: str | None = None) -> tuple[Statement, list]:
+              set_aside: str | None = None) -> tuple[Statement, list]:
     if not portrait.inner_critic:
         portrait.inner_critic = make_taste(portrait.name)
     w = Writer(nb, backend=backend, data_class="art")
@@ -210,27 +221,38 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
                  "\nРазверни его в замысел и проверь; сила переживания ещё не доказывает ценность идеи.")
         if illumination.get("problem"):
             base += "\nОставленная прежде задача: " + illumination["problem"]
+    if set_aside:
+        base += ("\n\nОтложенный прежде замысел, который твой критик не принял. Можешь вернуться к нему "
+                 "и довести, а можешь оставить: " + set_aside)
     history = []
     prompt = base
     for r in range(rounds):
         st = w.ask(system, prompt, Statement, f"statement:{r}")
         critic = (taste_prompt(portrait.inner_critic or make_taste(portrait.name)) + "Проверь общие слова, штампы и то, что уже много раз "
                   "сказано в мировом искусстве, и за повтор прежних работ художника. Прочитай ответы художника и реши: "
-                  "accept или rewrite. Назови слабые ответы, найденные штампы и задай вопросы, которые заставят "
-                  "думать глубже. Твои мерила — проверки мастеров:\n" + theory("interrogation", "test") + "\n" +
+                  "accept или rewrite: в verdict только это слово, доводы в reasons. В keep назови живое ядро, "
+                  "которое стоит сохранить при доработке (пусто, если живого нет). Назови слабые ответы, найденные "
+                  "штампы и задай вопросы, которые заставят думать глубже. Если это доработка, сначала проверь, "
+                  "исправлено ли то, что ты требовал прежде; не меняй требования без причины. Твои мерила — проверки мастеров:\n" + theory("interrogation", "test") + "\n" +
                   theory("idea", "test"))
         if contemporaries:
             critic += ("\n\nЗамыслы современников из той же мастерской. Если идея повторяет их тему, ход или образ — "
                        "это повод пересмотреть замысел:\n" + "\n".join(f"- {c}" for c in contemporaries))
-        if interrogator:
-            critic = f"Ты — {interrogator}. " + critic
-        iv = w.ask(critic, st.model_dump_json(), Interrogation, f"interrogation:{r}", max_tokens=8000)
+        reading = st.model_dump_json()
+        if history:
+            reading = ("Твои прежние замечания:\n" + json.dumps(history[-1]["interrogation"], ensure_ascii=False) +
+                       "\n\nДоработанный замысел:\n" + reading)
+        iv = w.ask(critic, reading, Interrogation, f"interrogation:{r}", max_tokens=8000)
         history.append({"round": r, "statement": st.model_dump(), "interrogation": iv.model_dump()})
-        if iv.verdict.strip().lower().startswith("accept"):
+        if accepted(iv.verdict):
             return st, history
-        prompt = (base + "\n\nКритик отверг прошлые ответы.\nСлабые: " + "; ".join(iv.weak_answers) +
+        prompt = (base + "\n\nТвой замысел:\n" + st.model_dump_json() +
+                  "\n\nКритик не принял его.\nДоводы: " + iv.reasons +
+                  "\nЖивое ядро: " + (iv.keep or "критик не нашёл") +
+                  "\nСлабые: " + "; ".join(iv.weak_answers) +
                   "\nШтампы: " + "; ".join(iv.cliches_found) + "\nЕго вопросы: " + "; ".join(iv.questions_back) +
-                  "\n\nОтветь заново, глубже и конкретнее.")
+                  "\n\nДоработай этот замысел, сохранив живое ядро. Новую идею бери, только если ядра нет "
+                  "или ты сам понял, что замысел мёртв; тогда так и скажи.")
     return st, history
 
 
@@ -288,7 +310,7 @@ class Method(BaseModel):
 
 
 class Judgement(BaseModel):
-    verdict: str  # "accept" or "rewrite"
+    verdict: Verdict
     is_reinvention_of: str  # an existing school it merely renames, or ""
     coherent: str
     generative: str
@@ -320,7 +342,7 @@ def method(portrait: SelfPortrait, st: Statement, art: str, atlas_methods: list[
                   "трюк, служит ли он идее. Реши: accept или rewrite. Мерила:\n" + theory("method", "test"))
         j = w.ask(critic, m.model_dump_json(), Judgement, f"method-judgement:{r}", max_tokens=8000)
         hist.append({"round": r, "method": m.model_dump(), "judgement": j.model_dump()})
-        if j.verdict.strip().lower().startswith("accept"):
+        if accepted(j.verdict):
             return m, hist
         prompt = base + "\n\nКритик возразил: " + "; ".join(j.objections) + (
             f"\nЭто похоже на: {j.is_reinvention_of}" if j.is_reinvention_of else "") + "\nПредложи метод заново."
@@ -361,7 +383,7 @@ def method_stage():
         m, hist = method(p, st, a.art, atlas_methods, nb, a.invent)
         rec["method"], rec["method_history"] = m.model_dump(), hist
         rec.setdefault("notebook", []).extend(nb)
-        if m.choice == "invent" and hist[-1]["judgement"]["verdict"].lower().startswith("accept"):
+        if m.choice == "invent" and accepted(hist[-1]["judgement"]["verdict"]):
             rec["invented"] = save_invented(m, p.name, c, rec.get("until", "2025-12-31"), root)
         (a.dir / f"{c}.json").write_text(json.dumps(rec, ensure_ascii=False, indent=1))
         md = ["", "## Метод", "", f"**{m.name}** ({m.choice})", "", "Манифест:", ""] + [f"{i + 1}. {t}" for i, t in enumerate(m.manifesto)] + \

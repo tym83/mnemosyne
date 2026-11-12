@@ -375,12 +375,16 @@ class Night:
                  for w in a.catalogue], self.entries, backend=self.backend,
                 contemporaries=[str(w['idea']) for b in self.life.artists if b.id != a.id
                                 for w in b.catalogue if w.get('idea')],
-                illumination=self.life.idea_seed(a.id), inner=inner, interrogator="Шахрияр")
+                illumination=self.life.idea_seed(a.id), inner=inner, set_aside=a.problem)
             self.record.update(statement=st.model_dump(), interrogation=history)
-            self.save()
-            if history[-1]['interrogation']['verdict'].strip().lower() != 'accept':
+            last = history[-1]['interrogation']
+            if not ideas.accepted(last['verdict']):
+                self.life.set_aside_idea(a.id, st.idea, last.get('reasons', ''))
                 self.record['status'] = 'idea_rejected'
+                self.save()
                 return self.record
+            a.problem = None
+            self.save()
             from .schools.catalog import LISTEN
             from .instrumentarium import audio_contract
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,

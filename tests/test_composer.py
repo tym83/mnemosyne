@@ -160,6 +160,35 @@ class ComposerTests(unittest.TestCase):
                 result = night.run('quiet')
             self.assertEqual(result['status'], 'idea_rejected')
             self.assertFalse(life.artists[0].catalogue)
+            a = life.artists[0]
+            self.assertEqual(a.problem, 'idea')
+            self.assertEqual(a.rejections, 1)
+            self.assertGreater(a.despair, 0)
+            self.assertEqual(a.notebook[-1]['kind'], 'set_aside')
+
+    def test_set_aside_idea_returns_next_night_and_accept_clears_it(self):
+        from mnemosyne.artist import Statement
+        st = Statement(**{k: [] if f.annotation == list[str] else 'idea'
+                          for k, f in Statement.model_fields.items()})
+        life = Lineage('test', datetime(2025, 1, 1))
+        a = life.artists[0]
+        a.portrait, a.problem = 'Fixture portrait', 'old idea'
+        with tempfile.TemporaryDirectory() as tmp:
+            night = Night(life, a.id, Path(tmp)/'work', None)
+            seen = {}
+            def statement(*args, **kw):
+                seen.update(kw)
+                raise RuntimeError('stop after the idea stage')
+            with patch('mnemosyne.artist.statement', side_effect=statement):
+                with self.assertRaises(RuntimeError):
+                    night.run('quiet')
+            self.assertEqual(seen['set_aside'], 'old idea')
+            self.assertNotIn('interrogator', seen)
+
+    def test_free_text_accept_verdict_is_accepted(self):
+        from mnemosyne.artist import accepted
+        self.assertTrue(accepted('ACCEPT. The form breathes.'))
+        self.assertFalse(accepted('REWRITE. Allegory of one thought.'))
 
     def test_completed_night_keeps_images_corrections_and_real_work(self):
         from mnemosyne.artist import Statement, Halftones, Shade
