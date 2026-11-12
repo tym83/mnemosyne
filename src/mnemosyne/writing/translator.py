@@ -21,6 +21,16 @@ class Translation(BaseModel):
     text: str
 
 
+def lines(text: str) -> list[str]:
+    return [l for l in text.splitlines() if l.strip()]
+
+
+def missing(original: str, translation: str) -> list[str]:
+    """Form problems: the translation must keep every line of the original."""
+    a, b = len(lines(original)), len(lines(translation))
+    return [] if a == b else [f'the original has {a} non-empty lines, the translation {b}; keep every line, one for one']
+
+
 def needed(language: str | None) -> bool:
     return bool(language) and language != 'ru'
 
@@ -34,9 +44,17 @@ def translate(text: str, language: str, notebook: list, *, backend=None, step='t
     writer = Writer(notebook, backend=backend, role='translator', data_class='art')
     # The Translator writes Russian and never drafts variants: he is not one of the artists.
     drafting, spoken = DRAFTING.set(False), LANGUAGE.set(None)
+    original = plain(text)
+    prompt = f'Язык оригинала: {LANGUAGE_NAMES.get(language, language)}.\n\n{original}'
     try:
-        return writer.ask(SYSTEM, f'Язык оригинала: {LANGUAGE_NAMES.get(language, language)}.\n\n{plain(text)}',
-                          Translation, step).text
+        result = writer.ask(SYSTEM, prompt, Translation, step).text
+        for attempt in range(2):
+            problems = missing(original, result)
+            if not problems:
+                break
+            result = writer.ask(SYSTEM, f'{prompt}\n\nПрошлый перевод потерял строки: {problems}. '
+                                f'Переведи заново, строка в строку.', Translation, f'{step}:retry{attempt}').text
+        return result
     finally:
         LANGUAGE.reset(spoken)
         DRAFTING.reset(drafting)
