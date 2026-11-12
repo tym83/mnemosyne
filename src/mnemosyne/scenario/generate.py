@@ -35,7 +35,7 @@ YEAR_END = datetime(2026, 1, 1, tzinfo=timezone.utc)
 STEPS = int((YEAR_END - YEAR_START) / STEP)
 PER_DAY = 288
 
-DEPLOY_FAILURE = {"startup": 0.02, "shop": 0.018, "ml": 0.03, "bank": 0.03}
+DEPLOY_FAILURE = {"startup": 0.02, "leonia": 0.018, "ml": 0.03, "bank": 0.03}
 TENANT_WORDS = [
     "aurora", "borealis", "cedar", "delta", "ember", "fjord", "garnet", "harbor", "iris", "juniper",
     "kestrel", "lumen", "meridian", "nova", "onyx", "prairie", "quartz", "raven", "sierra", "tundra",
@@ -240,7 +240,7 @@ def _tenant_death(w: World, t: datetime):
 
 
 PEOPLE = {
-    "shop": ["marta.k", "jonas.b", "lea.w", "tim.r"],
+    "leonia": ["marta.k", "jonas.b", "lea.w", "tim.r"],
     "bank": ["urs.f", "claudia.m", "reto.s"],
     "ml": ["priya.n", "diego.a", "sam.o", "hana.k", "lukas.v"],
     "startup": ["ines.c", "rui.p"],

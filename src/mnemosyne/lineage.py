@@ -811,7 +811,7 @@ class Lineage:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('clusters', nargs='*', default=['shop', 'bank'])
+    ap.add_argument('clusters', nargs='*', default=['leonia', 'bank'])
     ap.add_argument('--scenarios', type=Path, default=Path('out/scenarios'))
     ap.add_argument('--out', type=Path, default=Path('out/works/lineage'))
     ap.add_argument('--seed', type=int, default=17)

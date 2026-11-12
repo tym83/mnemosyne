@@ -40,7 +40,7 @@ class DespairTest(unittest.TestCase):
         def exits(mood):
             despair = total = 0
             for seed in range(12):
-                life = Lineage('shop', datetime(2025, 1, 1), seed=seed)
+                life = Lineage('leonia', datetime(2025, 1, 1), seed=seed)
                 for _ in range(730):
                     life.step(mood)
                 for e in life.events:

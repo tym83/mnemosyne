@@ -40,7 +40,7 @@ class SurfaceTests(unittest.TestCase):
 
     def test_multipart_musicxml_only_full_recovery(self):
         key = X25519PrivateKey.generate()
-        data = b'{"kind":"Namespace","metadata":{"name":"shop"}}'
+        data = b'{"kind":"Namespace","metadata":{"name":"leonia"}}'
         envelope = payload.seal(data, key.public_key(), context=frames.DOMAIN)
         root = fixture()
         chunk = surface.capacity(root)-frames.OVERHEAD

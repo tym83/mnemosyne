@@ -55,7 +55,7 @@ def collect(cluster: str, works: Path, material_root: Path, out: Path, at: datet
     facts = json.loads((Path("out/scenarios") / cluster / "facts.json").read_text())
     atl.biography(born=datetime(2025, 1, 1, tzinfo=timezone.utc), period="apprenticeship",
                   temperament="eventful" if len(facts["incidents"]) > 10 else "orderly",
-                  teachers={"music": "Chopin / Tchaikovsky" if cluster == "shop" else "Chopin / Haydn",
+                  teachers={"music": "Chopin / Tchaikovsky" if cluster == "leonia" else "Chopin / Haydn",
                             "painting": "Rothko, Hokusai", "literature": "Chekhov, Gogol, Leskov",
                             "architecture": "courtyard, enfilade"})
     chars = {}
@@ -125,7 +125,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--works", type=Path, default=Path("out/works"))
     ap.add_argument("--material", type=Path, default=Path("out/material"))
     ap.add_argument("--out", type=Path, default=Path("out/atelier"))

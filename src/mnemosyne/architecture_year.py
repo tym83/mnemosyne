@@ -307,7 +307,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--scenarios", type=Path, default=Path("out/scenarios"))
     ap.add_argument("--out", type=Path, default=Path("out/works/architecture"))
     a = ap.parse_args()

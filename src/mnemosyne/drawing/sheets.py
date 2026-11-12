@@ -9,7 +9,7 @@ what to correct (Gombrich: schema and correction). The artist decides when
 to leave a sheet (Valéry). Every draft is kept: the path is part of the
 work and of the backup.
 
-    WRITER=codex uv run python -m mnemosyne.drawing.sheets shop bank
+    WRITER=codex uv run python -m mnemosyne.drawing.sheets leonia bank
 """
 
 from __future__ import annotations
@@ -261,7 +261,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--dir", type=Path, default=Path("out/works/artist"))
     ap.add_argument("--out", type=Path, default=Path("out/works/architecture"))
     ap.add_argument("--drafts", type=int, default=4)

@@ -310,7 +310,7 @@ def material(c: Cluster, a: datetime, b: datetime, label: str) -> dict:
     }
 
 
-# The windows of stage A (§59.3): nested around Black Friday for shop and bank.
+# The windows of stage A (§59.3): nested around Black Friday for leonia and bank.
 STAGE_A = [
     ("year", "2025"), ("quarter", "2025-Q4"), ("month", "2025-11"),
     ("week", "2025-W48"), ("day", "2025-11-28"),
@@ -323,14 +323,14 @@ def main():
     ap = argparse.ArgumentParser(description="Material of the stage A windows.")
     ap.add_argument("--scenarios", type=Path, default=Path("out/scenarios"))
     ap.add_argument("--out", type=Path, default=Path("out/material"))
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     args = ap.parse_args()
     for name in args.clusters:
         c = load(args.scenarios, name)
         d = args.out / name
         d.mkdir(parents=True, exist_ok=True)
         wins = [window(c, k, s) for k, s in STAGE_A]
-        if name == "shop":
+        if name == "leonia":
             main_incident = max(c.facts["incidents"], key=lambda x: x["severity"])
             wins.append(incident_window(c, main_incident))
         for a, b, label in wins:

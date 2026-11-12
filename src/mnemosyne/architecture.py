@@ -278,7 +278,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser(description="Design the building of a window.")
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--scenarios", type=Path, default=Path("out/scenarios"))
     ap.add_argument("--material", type=Path, default=Path("out/material"))
     ap.add_argument("--window", default="quarter_2025-Q4")

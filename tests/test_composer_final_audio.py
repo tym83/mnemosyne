@@ -129,7 +129,7 @@ class FinalAudioTests(unittest.TestCase):
             night.studio = Mock()
             night.sketches = []
             night.life = Mock(schools={}, date=Mock(return_value='2025-07-01T00:00:00'))
-            night.cluster_state = [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'shop'}}]
+            night.cluster_state = [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'leonia'}}]
             night.ledger_root = Path(tmp)/'ledger'
             night.record = {'status': 'unfinished', 'verdict': {'verdict': 'rewrite'}}
             night.backup(X25519PrivateKey.generate())

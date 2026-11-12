@@ -1,6 +1,6 @@
 """Manifests of a simulated cluster at a moment, ready for a real cluster.
 
-    python hack/restore/state_manifests.py shop 2025-07-01T00:00:00+00:00 > shop-2025-07-01.yaml
+    python hack/restore/state_manifests.py leonia 2025-07-01T00:00:00+00:00 > leonia-2025-07-01.yaml
 
 The state is the replay of the year's history up to the moment. Nodes
 become KWOK nodes (fake kubelets), so workloads schedule without real

@@ -1,5 +1,5 @@
-# An online shop: evening traffic, a hard Black Friday, deploy freeze in December.
-name: shop
+# Leonia (after Calvino: the city that renews itself every morning), an online store: evening traffic, a hard Black Friday, deploy freeze in December.
+name: leonia
 timezone: Europe/Berlin
 seed: 11
 daily_profile: evening        # peaks 19:00–23:00

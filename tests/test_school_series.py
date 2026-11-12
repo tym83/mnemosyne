@@ -15,7 +15,7 @@ from mnemosyne.weave.school_audit import plan_for
 class SeriesTests(unittest.TestCase):
     def test_mixed_schools_restore_and_authenticated_context(self):
         key = X25519PrivateKey.generate()
-        data = archive([{'apiVersion':'v1', 'kind':'Namespace', 'metadata':{'name':'shop'}}])
+        data = archive([{'apiVersion':'v1', 'kind':'Namespace', 'metadata':{'name':'leonia'}}])
         envelope = payload.seal(data, key.public_key(), context=fountain.DOMAIN)
         encoder = fountain.Encoder(envelope, 120, key)
         with tempfile.TemporaryDirectory() as directory:

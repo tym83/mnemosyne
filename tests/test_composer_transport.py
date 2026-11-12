@@ -20,10 +20,10 @@ def plan_for(name):
 
 
 def cluster(value='one'):
-    return [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'shop'}},
-            {'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': {'name': 'settings', 'namespace': 'shop'},
+    return [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'leonia'}},
+            {'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': {'name': 'settings', 'namespace': 'leonia'},
              'data': {'mode': value}},
-            {'apiVersion': 'apps/v1', 'kind': 'Deployment', 'metadata': {'name': 'web', 'namespace': 'shop'},
+            {'apiVersion': 'apps/v1', 'kind': 'Deployment', 'metadata': {'name': 'web', 'namespace': 'leonia'},
              'spec': {'replicas': 2, 'selector': {'matchLabels': {'app': 'web'}},
                       'template': {'metadata': {'labels': {'app': 'web'}},
                                    'spec': {'containers': [{'name': 'web', 'image': 'nginx:1.27'}]}}}},

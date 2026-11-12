@@ -260,7 +260,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--art", default="архитектура как искусство (визионерская, бумажная архитектура)")
     ap.add_argument("--scenarios", type=Path, default=Path("out/scenarios"))
     ap.add_argument("--until", default="2025-12-31T23:00:00+00:00")
@@ -368,7 +368,7 @@ def method_stage():
     import yaml
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank"])
     ap.add_argument("--art", default="архитектура как искусство (визионерская, бумажная архитектура)")
     ap.add_argument("--dir", type=Path, default=Path("out/works/artist"))
     ap.add_argument("--invent", action="store_true", help="allow inventing a new method")

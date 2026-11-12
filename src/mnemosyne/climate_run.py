@@ -14,7 +14,7 @@ from .occasions import synthetic
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--scenarios', type=Path, default=Path('out/scenarios'))
-    ap.add_argument('--cluster', default='shop')
+    ap.add_argument('--cluster', default='leonia')
     ap.add_argument('--out', type=Path, default=Path('out/works/climate'))
     ap.add_argument('--live', action='store_true')
     args = ap.parse_args()

@@ -60,9 +60,9 @@ def main():
         with os.fdopen(os.open(args.key, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as f:
             f.write(X25519PrivateKey.generate().private_bytes_raw())
     key = X25519PrivateKey.from_private_bytes(args.key.read_bytes())
-    state = state_at(Path('out/scenarios/shop/ops.jsonl'), datetime.fromisoformat('2025-07-01T00:00:00+00:00'))
+    state = state_at(Path('out/scenarios/leonia/ops.jsonl'), datetime.fromisoformat('2025-07-01T00:00:00+00:00'))
     objects = [v for (kind, _, _), v in sorted(state.items()) if kind != 'Secret']
-    data = canonical(next(v for v in objects if v['kind'] == 'Namespace' and v['metadata']['name'] == 'shop'))
+    data = canonical(next(v for v in objects if v['kind'] == 'Namespace' and v['metadata']['name'] == 'leonia'))
     if not args.envelope.exists():
         args.envelope.write_bytes(payload.seal(data, key.public_key(), context=frames.DOMAIN))
     envelope = args.envelope.read_bytes()

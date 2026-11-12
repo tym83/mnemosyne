@@ -28,9 +28,9 @@ def fixture(cells=600):
 
 
 def objects():
-    return [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'shop'}},
+    return [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'leonia'}},
             {'apiVersion': 'v1', 'kind': 'ConfigMap',
-             'metadata': {'name': 'settings', 'namespace': 'shop'}, 'data': {'value': 'yes'}}]
+             'metadata': {'name': 'settings', 'namespace': 'leonia'}, 'data': {'value': 'yes'}}]
 
 
 class RestoreTests(unittest.TestCase):
@@ -121,7 +121,7 @@ class RestoreTests(unittest.TestCase):
         role = {'apiVersion': 'rbac.authorization.k8s.io/v1', 'kind': 'ClusterRole',
                 'metadata': {'name': 'reader'}}
         cr = {'apiVersion': 'example.org/v1', 'kind': 'Widget',
-              'metadata': {'name': 'widget', 'namespace': 'shop', 'ownerReferences': [
+              'metadata': {'name': 'widget', 'namespace': 'leonia', 'ownerReferences': [
                   {'apiVersion': 'v1', 'kind': 'ConfigMap', 'name': 'settings', 'uid': 'old'}]}}
         class Backend:
             def __init__(self):

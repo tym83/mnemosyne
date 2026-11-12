@@ -60,7 +60,7 @@ def preflight(xml, ops):
     objects = [obj for (kind, _, _), obj in sorted(state.items()) if kind != 'Secret']
     raw_state = canonical(objects)
     # A complete Namespace is a real, independently interpretable state fragment.
-    namespace = next(obj for obj in objects if obj['kind'] == 'Namespace' and obj['metadata']['name'] == 'shop')
+    namespace = next(obj for obj in objects if obj['kind'] == 'Namespace' and obj['metadata']['name'] == 'leonia')
     data = canonical(namespace)
     score = converter.parse(str(xml))
     key = X25519PrivateKey.generate()  # ephemeral preflight only; never published
@@ -79,7 +79,7 @@ def preflight(xml, ops):
         'status': 'preflight_only_no_music_channel', 'source': str(xml),
         'state_at': '2025-07-01T00:00:00+00:00', 'state_objects_excluding_secrets': len(objects),
         'state_canonical_json_bytes': len(raw_state), 'state_zlib_bytes': len(zlib.compress(raw_state, 9)),
-        'fragment': 'Namespace/shop', 'payload_bytes': len(data),
+        'fragment': 'Namespace/leonia', 'payload_bytes': len(data),
         'payload_sha256': hashlib.sha256(data).hexdigest(),
         'compressed_bytes': len(zlib.compress(data, 9)), 'frame_bytes': len(frame),
         'fragment_percent_of_canonical_state_bytes': 100*len(data)/len(raw_state),
@@ -98,7 +98,7 @@ def preflight(xml, ops):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--xml', type=Path, default=Path('out/works/music/nocturne/p02_000.xml'))
-    parser.add_argument('--ops', type=Path, default=Path('out/scenarios/shop/ops.jsonl'))
+    parser.add_argument('--ops', type=Path, default=Path('out/scenarios/leonia/ops.jsonl'))
     args = parser.parse_args()
     print(json.dumps(preflight(args.xml, args.ops), indent=2, ensure_ascii=False))
 

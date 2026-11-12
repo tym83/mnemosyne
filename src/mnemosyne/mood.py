@@ -113,7 +113,7 @@ def main():
     import argparse
 
     ap = argparse.ArgumentParser()
-    ap.add_argument("clusters", nargs="*", default=["shop", "bank", "ml", "startup"])
+    ap.add_argument("clusters", nargs="*", default=["leonia", "bank", "ml", "startup"])
     ap.add_argument("--scenarios", type=Path, default=Path("out/scenarios"))
     ap.add_argument("--until", default="2025-12-31T23:00:00+00:00")
     a = ap.parse_args()
