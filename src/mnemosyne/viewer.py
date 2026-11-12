@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .lineage import LANGUAGE_NAMES, Lineage
 from .weave.variants import plain
+from .writing import poetics
 
 ART = {'music': 'музыка', 'literature': 'литература'}
 
@@ -497,7 +498,8 @@ def site(at, out: Path):
     def school_row(k, art, rules):
         name, about = SCHOOL_RU.get(k, (k, ''))
         authors = ', '.join(f'<a href="artist-{x}.html">{esc(at.name(at.artist(x)))}</a>' for x in sorted(used.get(k, ())))
-        return (f'<tr id="{html.escape(k)}"><td><b>{html.escape(name)}</b></td><td>{art}</td>'
+        link = f'<a href="school-{html.escape(k)}.html">{html.escape(name)}</a>' if poetics.load(k) else html.escape(name)
+        return (f'<tr id="{html.escape(k)}"><td><b>{link}</b></td><td>{art}</td>'
                 f'<td>{about or ru_inline(at, rules)}</td><td>{authors or "—"}</td></tr>')
     rows = ''.join(school_row(k, 'музыка', (MUSIC[k].__doc__ or '').strip().split('\n\n')[0]) for k in sorted(MUSIC))
     rows += ''.join(school_row(k, 'литература', LETTERS[k].RULES) for k in sorted(LETTERS))
@@ -520,6 +522,24 @@ def site(at, out: Path):
                                          + (f'<h1>Заявленные школы</h1><p class="muted">Творец решил, что ни одна школа не '
                                             'держит его замысел, и заявил свою. Её основание — отдельная ночь: устав, '
                                             'манифест, проверка, что она не повторяет существующие.</p>' + asked if asked else '')))
+    for k in LETTERS:
+        p = poetics.load(k)
+        if not p:
+            continue
+        sections = ''.join(f'<h2>{label}</h2><p>{html.escape(poetics.flat(p[key]))}</p>'
+                           for key, label in poetics.LABELS if p.get(key))
+        lineage = p.get('lineage') or {}
+        roots = ''.join(f'<dt>{t}</dt><dd>{html.escape(poetics.flat(lineage[key]))}</dd>'
+                        for key, t in (('predecessors', 'Предшественники'), ('neighbours', 'Соседи'),
+                                       ('against', 'Против чего')) if lineage.get(key))
+        works = ''.join(f'<li><a href="work-{w["id"]}.html">{esc(w.get("title") or w["id"])}</a> — '
+                        f'{esc(at.name(a))}, ночь {w["night"]}</li>' for a, w in live if w.get('school') == k)
+        body = (f'<h1>{html.escape(p["name"])}</h1><p class="muted">{html.escape(poetics.flat(p.get("origin", {})))}</p>'
+                + '<h2>Манифест</h2><ol class="lead">' + ''.join(f'<li>{html.escape(m)}</li>' for m in p.get('manifesto', []))
+                + '</ol>' + (f'<h2>Родословная</h2><dl>{roots}</dl>' if roots else '') + sections
+                + f'<h2>Форма</h2><p>{html.escape(LETTERS[k].RULES)}</p>'
+                + f'<h2>Работы мастерской в этой школе</h2><ul>{works or "<li class=muted>пока нет</li>"}</ul>')
+        (out/f'school-{k}.html').write_text(page(p['name'], body))
     restore_page(at, out)
     names = {a.id: at.name(a) for a in life.artists}
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
