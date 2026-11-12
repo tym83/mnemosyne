@@ -28,7 +28,6 @@ from ..lineage import Lineage
 from ..literature import Writer
 from ..weave.variants import plain
 from ..climate import tendencies, year_shape, feel, temperament
-from ..mood import words
 
 
 class Method(BaseModel):
@@ -406,8 +405,9 @@ class Night:
 
     def _run(self, inner, *, drafts=3, key=None):
         a = self.artist
+        from ..psyche import inner as inner_weather
         sensed = feel(self.life.climate, a.sensitivity or temperament(a.id))
-        inner = words(sensed, False, False) + '\n' + inner
+        inner = inner_weather(self.life, a) + '\n' + inner
         name = 'творец' if a.name == a.id else a.name
         names = {b.id: ('творец' if b.name == b.id else b.name) for b in self.life.artists}
         teachers = [names.get(t, t) for t in a.teachers]

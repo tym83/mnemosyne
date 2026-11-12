@@ -17,9 +17,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from .. import artist as ideas
-from ..climate import feel, temperament
 from ..literature import DRAFTING, LANGUAGE, Writer
-from ..mood import words
 from ..weave.variants import plain
 from . import translator
 from .schools import SCHOOLS
@@ -105,8 +103,8 @@ class WriterNight:
 
     def _run(self, inner, drafts):
         a, life = self.artist, self.life
-        sensed = feel(life.climate, a.sensitivity or temperament(a.id))
-        inner = words(sensed, False, False) + '\n' + inner
+        from ..psyche import inner as inner_weather
+        inner = inner_weather(life, a) + '\n' + inner
         names = {b.id: ('творец' if b.name == b.id else b.name) for b in life.artists}
         teachers = [names.get(t, t) for t in a.teachers]
         if not a.portrait or a.portrait == '[portrait awaiting words]':
