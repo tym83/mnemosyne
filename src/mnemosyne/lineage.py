@@ -187,6 +187,8 @@ class Lineage:
         self.influences: list[dict] = []
         self.chronicler = f'{cluster}: chronicler of the Lives'
         self.school_attempts: list[dict] = []
+        # Schools born in this atelier: manifesto, grammar source, trial, verdict, followers.
+        self.schools: dict[str, dict] = {}
         self.climate = {}
         self.climate_history = []
         self.occasions = []
@@ -367,6 +369,11 @@ class Lineage:
             b = r.choice(others)
             relation = r.choice(['friendship', 'rivalry', 'borrowed_method', 'answered_work', 'quarrel'])
             if self.influence(b, a, relation, r.random()):
+                if relation == 'borrowed_method' and b.school in self.schools and a.school != b.school \
+                        and r.random() < a.openness:
+                    a.school = b.school
+                    self.schools[b.school].setdefault('followers', []).append(a.id)
+                    self.event(a, 'joined_school', school=b.school, founder=self.schools[b.school]['author'], via=b.id)
                 a.pressure = clip(a.pressure + (.3 if relation in ('rivalry', 'quarrel') else -.1))
                 a.vitality = clip(a.vitality + .1)
                 if r.random() < a.openness:
@@ -440,6 +447,26 @@ class Lineage:
         a.problem = idea
         self._wound(a, self.p.despair_rejection)
         self.note(a, 'set_aside', idea=idea, reasons=reasons, despair=a.despair)
+
+    def found_school(self, artist: str, record: dict) -> dict:
+        """An accepted grammar becomes a school of this atelier, founded by the artist."""
+        a = next(a for a in self.artists if a.id == artist)
+        record = {**deepcopy(record), 'author': a.id, 'night': self.night, 'date': self.date(),
+                  'followers': [], 'status': 'accepted'}
+        self.schools[record['id']] = record
+        a.school = record['id']
+        self.school_attempts.append({'artist': a.id, 'night': self.night, 'status': 'born', 'school': record['id']})
+        self.note(a, 'school_birth', school=record['id'], name=record['name'])
+        self.event(a, 'school_birth', school=record['id'], name=record['name'])
+        return record
+
+    def school_unborn(self, artist: str, name: str, history: list):
+        """A school that did not pass its trial or its critic stays in the notebooks."""
+        a = next(a for a in self.artists if a.id == artist)
+        self.school_attempts.append({'artist': a.id, 'night': self.night, 'status': 'unborn', 'name': name,
+                                     'rounds': len(history)})
+        self.note(a, 'school_unborn', name=name, attempts=deepcopy(history))
+        self._wound(a, self.p.despair_rejection)
 
     def idea_seed(self, artist: str) -> dict | None:
         """Pass this seed into the idea stage; it must still face its inner critic."""
@@ -680,7 +707,7 @@ class Lineage:
                 'artists': [asdict(a) for a in self.artists], 'events': self.events,
                 'biographies': {k: asdict(v) for k, v in self.biographies.items()},
                 'influences': self.influences, 'chronicler': self.chronicler,
-                'school_attempts': self.school_attempts}
+                'school_attempts': self.school_attempts, 'schools': self.schools}
 
     @classmethod
     def restore(cls, data: dict) -> Lineage:
@@ -713,6 +740,7 @@ class Lineage:
         self.biographies = {k: Biography(**v) for k, v in data['biographies'].items()}
         for key in ('events', 'influences', 'chronicler', 'school_attempts'):
             setattr(self, key, deepcopy(data[key]))
+        self.schools = deepcopy(data.get('schools', {}))
         return self
 
     @classmethod

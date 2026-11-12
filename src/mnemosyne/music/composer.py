@@ -72,6 +72,12 @@ def dump(path, value):
     tmp.replace(path)
 
 
+def example_plan(school):
+    from .schools import SCHOOLS
+    path = Path(__file__).parent/'schools/plans'/f'{school}.json'
+    return json.loads(path.read_text()) if path.exists() else deepcopy(SCHOOLS[school].__plan__)
+
+
 def validate_plan(plan, method, *, sketch=False):
     from .schools import SCHOOLS
     if method.kind == 'invent_school':
@@ -115,11 +121,12 @@ def plan_contract(method):
     if method.school not in SCHOOLS:
         raise ValueError('unknown school')
     from .schools.plan import SchoolPlan
+    from .school_birth import source_of
     return {'schema': SchoolPlan.model_json_schema(), 'audio': audio_contract(), 'contract': 'schools.common.validate; durations in seconds; sounding MIDI; '
                         'sum(form.duration)=duration; duration*tempo/60 on sixteenth grid; '
                         'each section >=4 quarters; register overlaps every instrument by an octave',
-            'example': json.loads((Path(__file__).parent/'schools/plans'/f'{method.school}.json').read_text()),
-            'grammar': Path(SCHOOLS[method.school].__file__).read_text()}
+            'example': example_plan(method.school),
+            'grammar': source_of(method.school)}
 
 
 class Studio:
@@ -246,6 +253,8 @@ class Night:
         # Sound is a side branch: the backup lives in scores and the process;
         # a work may be rendered here, played by people, or left on paper.
         self.sound = sound
+        from .school_birth import register_all
+        register_all(life.schools)
         self.root.mkdir(parents=True, exist_ok=False)
         studio_record = {'pod': getattr(studio, 'pod', None), 'remote': getattr(studio, 'remote', None)}
         self.entries, self.sketches = [], []
@@ -333,8 +342,37 @@ class Night:
             self.save()
             raise
 
+    def found_school(self, st, method):
+        """Manifesto, grammar as code, trial, inner critic. Returns the new school id or None."""
+        from . import school_birth
+        a = self.artist
+        manifesto = self.ask(self.system, json.dumps({'idea': st.model_dump(), 'method': method.model_dump(),
+            'task': 'You are founding a new school. Write its manifesto: name, philosophy, techniques, what it '
+                    'forbids, what it rejects and argues with, which existing schools it breaks with. choice=invent.'},
+            ensure_ascii=False), ideas.Method, 'school-manifesto')
+        critic = (ideas.taste_prompt(a.inner_critic) + 'Суди новую школу: не переименование ли это известной '
+                  '(назови её), держится ли её философия, воплощают ли правила манифест, плодотворна ли она. '
+                  'Замер отличия от существующих школ приложен. Реши: accept или rewrite.')
+        record, history = school_birth.found(manifesto.model_dump(), self.ask, self.system, critic,
+            born_plans={k: v['plan'] for k, v in self.life.schools.items() if v.get('status') == 'accepted'})
+        self.record['school_birth'] = {'manifesto': manifesto.model_dump(), 'attempts': history}
+        if record is None:
+            self.life.school_unborn(a.id, manifesto.name, history)
+            self.record['status'] = 'school_unborn'
+            self.save()
+            return None
+        self.life.found_school(a.id, record)
+        school_birth.register(record['id'], record['source'], record['plan'])
+        self.save()
+        return record['id']
+
+    def born_sources(self):
+        return {k: {'source': v['source'], 'plan': v['plan']} for k, v in self.life.schools.items()
+                if v.get('status') == 'accepted'}
+
     def music(self, plan, method, label):
-        result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form}, label)
+        result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form,
+                                  'born_schools': self.born_sources()}, label)
         folder = self.root/label/'result'
         files = [str(p.relative_to(self.root)) for p in sorted(folder.rglob('*'))
                  if p.is_file() and '.drafts' not in p.parts]
@@ -390,17 +428,22 @@ class Night:
             self.save()
             from .schools.catalog import LISTEN
             from .instrumentarium import audio_contract
+            born = {k: {'name': v['name'], 'author': v['author'], 'manifesto': v['manifesto'].get('manifesto', [])}
+                    for k, v in self.life.schools.items() if v.get('status') == 'accepted'}
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,
-                'task': 'Choose school, NotaGen period style, cross, broken principle, or invent_school. '
-                'For a cross or broken principle choose form=symphony and name the exact development. '
-                'invent_school is a request only: its reviewed grammar is future work.'}, ensure_ascii=False),
+                'schools_born_here': born,
+                'task': 'Choose school (a founding school or one born here), NotaGen period style, cross, broken principle, '
+                'or invent_school. For a cross or broken principle choose form=symphony and name the exact development. '
+                'invent_school: you then write the manifesto and the grammar of a new school yourself; '
+                'it must pass a trial and your inner critic before you compose in it.'}, ensure_ascii=False),
                 Method, 'method')
             self.record['method'] = method.model_dump()
             if method.kind == 'invent_school':
-                self.life.school_attempts.append({'artist': a.id, 'night': self.life.night,
-                    'status': 'needs_grammar', 'proposal': method.model_dump(), 'notebook': self.work_id+'-notebook'})
-                self.record['status'] = 'school_birth_hook'
-                return self.record
+                school = self.found_school(st, method)
+                if school is None:
+                    return self.record
+                method.kind, method.school, method.form = 'school', school, 'school'
+                self.record['method'] = method.model_dump()
             shades = ideas.halftones(portrait, st, method.concept, inner, self.entries, backend=self.backend)
             self.record['halftones'] = shades.model_dump()
             rng = random.Random(int.from_bytes(hashlib.sha256(self.work_id.encode()).digest()[:8]))
@@ -615,7 +658,8 @@ class Night:
             assignment = folder/'orchestration.json'
             return {'plan': json.loads((folder/'plan.json').read_text()),
                     'assignment': json.loads(assignment.read_text()) if assignment.exists() else None}
-        request = {'action': 'woven', 'plan': final['plan'], 'form': final.get('form', 'school')}
+        request = {'action': 'woven', 'plan': final['plan'], 'form': final.get('form', 'school'),
+                   'born_schools': self.born_sources()}
         if request['form'] == 'symphony':
             movements = []
             for c in sorted(final['carriers'], key=lambda c: c['movement_index']):

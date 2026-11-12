@@ -81,6 +81,7 @@ class FinalAudioTests(unittest.TestCase):
             night = Night.__new__(Night)
             night.root = root
             night.sound = True
+            night.life = Mock(schools={})
             night.record = {'final': 'final', 'verdict': {'verdict': 'accept'}}
             final = {'id': 'final', 'stage': 'draft-02', 'form': 'symphony',
                      'plan': {'title': 'fixture'}, 'carriers': carriers[::-1]}

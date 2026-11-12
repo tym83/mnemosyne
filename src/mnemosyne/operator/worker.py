@@ -118,10 +118,12 @@ def chamber(life, root):
     from mnemosyne.music.schools import SCHOOLS
     plans = Path(__file__).parents[1]/'music/schools/plans'
     sources, records = [], []
+    born = {k: v['plan'] for k, v in life.schools.items() if v.get('status') == 'accepted'}
     for a in life.artists:
         for work in (w for w in a.catalogue if w['night'] == life.night):
-            school = choose_school(a, work, [s for s in SCHOOLS if (plans/f'{s}.json').exists()])
-            plan = json.loads((plans/f'{school}.json').read_text())
+            school = choose_school(a, work, [s for s in SCHOOLS if (plans/f'{s}.json').exists() or s in born])
+            plan = deepcopy(born[school]) if school in born else json.loads((plans/f'{school}.json').read_text())
+            plan['school'] = school
             plan['seed'] = int.from_bytes(hashlib.sha256(work['id'].encode()).digest()[:4], 'big')
             plan['title'] = f'{a.name} — {work["id"]}'
             work['school'] = school
@@ -164,6 +166,8 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         if request['mode'] in ('background', 'GPU') and any(e.location != 'cluster' for e in endpoints):
             raise ValueError('external model endpoints require explicit API mode')
     life = Lineage.restore(previous) if previous else Lineage(request['atelier'], datetime.now(timezone.utc))
+    from mnemosyne.music.school_birth import register_all
+    register_all(life.schools)
     # The same resumable fate engine runs in every mode. Synthetic fate works remain
     # labelled synthetic; they are not counted as completed musical works.
     life.step(climate or {})

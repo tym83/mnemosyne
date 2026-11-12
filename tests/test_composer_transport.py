@@ -25,6 +25,7 @@ class ComposerTransportTests(unittest.TestCase):
             night.root = root
             night.studio = Mock()
             night.sound = True
+            night.life = Mock(schools={})
             night.record = {'verdict': {'verdict': 'accept'}, 'final': 'fixture-sketch-15'}
             night.sketches = [{'id': f'fixture-sketch-{i}', 'stage': f'fixture-{i}', 'plan': plan,
                                'score': path.name, 'form': 'school'} for i in range(16)]

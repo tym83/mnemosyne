@@ -353,3 +353,24 @@ To reproduce the studio's sfizz build, run
 `bash hack/workshop/prepare_instrumentarium.sh` before rendering. It installs
 build dependencies and compiles the pinned 1.2.3 release in `studio-0` with two
 low-priority build jobs. Its source archive remains in `/work`.
+
+## Schools born in the atelier
+
+`music.school_birth` lets an artist found a school that did not exist. The
+composer chooses `invent_school`, writes a manifesto, then writes the grammar
+itself as a Python module in the same shape as the founding schools. Admission
+is mechanical, never aesthetic: a static allowlist (imports, names, no private
+attributes, no classes), a trial in an isolated child interpreter with CPU and
+memory limits (deterministic per seed, instrument ranges, the standard school
+surface with at least 32 bytes per three minutes and an exact round trip), and
+a measured distance from every existing school that must exceed half the median
+nearest-neighbour distance among them. A grammar that only renames a school is
+returned to the artist with the measurement. The artist's inner critic then
+accepts or refuses it. Rejected attempts stay in the notebook and wound.
+
+An accepted school lives in the lineage state (manifesto, source, plan, trial,
+verdict, author, followers), so it is part of every backup. Its works decode
+without its code: the surface codec is shared. Studio requests carry born
+sources and re-check them before registering. Followers join through
+`borrowed_method` encounters and apprenticeship. Chamber mode can compose in
+born schools but cannot found one: founding needs the artist's words.

@@ -14,6 +14,10 @@ from .render import render_score, notation_score, run, FONT
 def execute(request, out):
     out.mkdir(parents=True, exist_ok=False)
     action = request['action']
+    # Schools born in the atelier travel with the request; admission is re-checked here.
+    from .school_birth import register
+    for name, born in request.get('born_schools', {}).items():
+        register(name, born['source'], born.get('plan'))
     if action == 'notagen':
         prompt = request['prompt'].split('|')
         if len(prompt) != 3 or not all(prompt):

@@ -49,7 +49,7 @@ def compare(items):
                       'by_feature':dict(zip(('register','density','intervals','durations','dynamics','timbres'),distances))})
     pairs.sort(key=lambda p:(p['distance'],p['a'],p['b']))
     return {'method':'Mean RMS distance of six normalized feature groups; lower is closer. No artistic threshold.',
-            'features':items,'closest_pairs':pairs[:10],'identical_pairs':[p for p in pairs if p['distance']<1e-9]}
+            'features':items,'closest_pairs':pairs[:10],'all_pairs':pairs,'identical_pairs':[p for p in pairs if p['distance']<1e-9]}
 
 
 def main():
