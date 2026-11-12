@@ -192,12 +192,12 @@ class Reception:
                 continue
             critic = review['lens']
             # The recorded opinion and the public facts of the work, never hidden merit.
-            context = {'score': review['score'], 'work': review['work'], 'night': review['night'],
-                       'revision_of': review.get('revision_of')}
+            context = {'score': review['score'], 'night': review['night'],
+                       'revision': bool(review.get('revision_of'))}
             if life is not None:
                 author = next((a for a in life.artists if a.id == self.works[review['work']]['artist']), None)
                 work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), {})
-                context.update(author=author and (author.name if author.name != author.id else author.id),
+                context.update(author=author and (author.name if author.name != author.id else 'автор'),
                                art=author and author.art, school=work.get('school'), idea=work.get('idea'),
                                kind=work.get('kind'))
             nb = []

@@ -820,13 +820,15 @@ class Lineage:
                 notes = [n for n in a.notebook if n['id'] in chapter['notebook_refs']]
                 # Who this artist is, so that no two lives are told alike.
                 context = {'name': 'художник' if a.name == a.id else a.name, 'portrait': a.portrait,
-                           'kind': chapter['kind'], 'artist': a.id,
+                           'kind': chapter['kind'],
                            'art': {'music': 'композитор', 'literature': 'писатель'}.get(a.art, a.art),
                            'mother_tongue': LANGUAGE_NAMES.get(a.language, a.language),
                            'character': {k: round(getattr(a, k), 2) for k in
                                          ('drive', 'resilience', 'openness', 'isolation', 'skill')},
-                           'teachers': [next((b.name for b in self.artists if b.id == t), t) for t in a.teachers],
-                           'facts': chapter.get('facts', {}), 'night': chapter['night'],
+                           # Names only: identifiers carry the cluster's name, facts stay private.
+                           'teachers': [next((b.name for b in self.artists if b.id == t and b.name != b.id),
+                                             'учитель') for t in a.teachers],
+                           'night': chapter['night'],
                            'names_taken': [b.name for b in self.artists if b.name != b.id and b.id != a.id],
                            'catalogue': [{k: w[k] for k in ('idea', 'method', 'halftones') if k in w}
                                          for w in a.catalogue if w['id'] in chapter['works']],
