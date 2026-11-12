@@ -26,6 +26,7 @@ from .. import artist as ideas
 from ..atelier import Atelier, obj
 from ..lineage import Lineage
 from ..literature import Writer
+from ..weave.variants import plain
 from ..climate import tendencies, year_shape, feel, temperament
 from ..mood import words
 
@@ -391,6 +392,14 @@ class Night:
         return sk
 
     def run(self, inner, *, drafts=3, key=None):
+        from ..literature import DRAFTING
+        token = DRAFTING.set(True)
+        try:
+            return self._run(inner, drafts=drafts, key=key)
+        finally:
+            DRAFTING.reset(token)
+
+    def _run(self, inner, *, drafts=3, key=None):
         a = self.artist
         sensed = feel(self.life.climate, a.sensitivity or temperament(a.id))
         inner = words(sensed, False, False) + '\n' + inner
@@ -405,7 +414,7 @@ class Night:
                 portrait = ideas.self_portrait({'born': a.birth, 'age_days': a.age,
                     'teachers': teachers, 'catalogue': [w.get('idea') for w in a.catalogue if w.get('idea')]},
                     self.entries, backend=self.backend, inner=inner)
-                a.name, a.portrait = portrait.name, portrait.portrait
+                a.name, a.portrait = portrait.name, plain(portrait.portrait)
                 name = a.name
                 self.system = (f'Ты композитор {a.name}. {a.portrait}. Учителя: {teachers}. '
                                'Не упоминай инфраструктуру. Принимай художественные решения по идее, '
@@ -529,7 +538,8 @@ class Night:
                     json.dumps({'artist': name, 'idea': st.idea, 'verdict': review.model_dump(),
                         'previous': [c['text'] for c in self.life.biographies[a.id].chapters[-4:] if c.get('text')]}, ensure_ascii=False),
                     Chapter, 'lives-chapter')
-                self.life.biographies[a.id].chapters[-1]['text'] = chapter.text
+                self.life.biographies[a.id].chapters[-1]['text'] = plain(chapter.text)
+                self.record['chapter'] = chapter.text
             self.save()
             if key is not None:
                 self.backup(key)
@@ -550,6 +560,7 @@ class Night:
         own history, which is the carrier). The ledger is shared across nights."""
         from ..state.ledger import Ledger
         from ..weave import registry, schools, surface
+        from ..weave import variants
         from ..weave.carry import carry
         woven = self.root/'woven'
         if self.cluster_state is None:
@@ -568,15 +579,24 @@ class Night:
             for c in sketch.get('carriers') or [{'score': sketch['score']}]:
                 name = sketch['id'] + (f"-mv{c['movement_index']+1}" if 'movement_index' in c else '')
                 carriers.append((name, schools.prepare(surface.read(self.root/c['score']), school), school))
+        entries = variants.collect({k: v for k, v in self.record.items() if k not in ('apparatus', 'backup')})
+        notebook = self.work_id + '-notebook'
+        if entries and variants.capacity(entries) > variants.OVERHEAD:
+            carriers.insert(0, (notebook, entries, 'variants'))
         report, _ = carry(ledger, carriers, key, woven)
         report['observed'] = observed and {k: observed[k] for k in ('id', 'kind', 'at', 'k', 'target')}
+        report['variant_places'] = len(variants.radices(entries))
+        if notebook in report['carriers']:
+            self.publish_readings(json.loads((woven/(notebook+'.variants.json')).read_text())['entries'])
         self.record['backup'] = report
         dump(self.root/'decode.json', report)
         self.render_final(woven)
         for path in woven.glob('*.musicxml'):
             registry.decode(path, key)
         for name in report['carriers']:
-            original = next(s for s in self.sketches if s['id'] == name or name.startswith(s['id']+'-mv'))
+            original = next((s for s in self.sketches if s['id'] == name or name.startswith(s['id']+'-mv')), None)
+            if original is None:
+                continue  # the night's notebook carries frames in its variants
             files = [woven/(name+'.musicxml'), woven/(name+'.catalogue.json')]
             original.setdefault('files', []).extend(str(p.relative_to(self.root)) for p in files)
             original.setdefault('carried_frames', []).extend(json.loads(files[1].read_text()))
@@ -585,6 +605,21 @@ class Night:
         if self.record.get('verdict', {}).get('verdict') == 'accept':
             self.record['status'] = ('sound_pending' if self.record.get('sound_pending') else
                                      'complete' if not report['pending_pieces'] else 'backup_carrying')
+
+    def publish_readings(self, readings):
+        """The woven reading replaces each draft text; the draft stays as the apparatus."""
+        self.record['apparatus'] = {e['id']: e['markup'] for e in readings}
+        for e in readings:
+            target, keys = self.record, e['id'].strip('/').split('/')
+            for k in keys[:-1]:
+                target = target[int(k)] if isinstance(target, list) else target[k]
+            last = keys[-1]
+            if isinstance(target, list):
+                target[int(last)] = e['text']
+            else:
+                target[last] = e['text']
+            if e['id'] == '/chapter':
+                self.life.biographies[self.artist.id].chapters[-1]['text'] = e['text']
 
     def render_final(self, woven):
         """Only the accepted entry sounds, and only from its woven surfaces."""

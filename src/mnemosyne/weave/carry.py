@@ -5,12 +5,20 @@ import xml.etree.ElementTree as ET
 from . import catalogue, fountain, registry, school_series, surface
 
 
+def capacity_of(carrier, school):
+    from . import schools, variants
+    if school == 'variants':
+        return variants.capacity(carrier) - variants.OVERHEAD
+    return schools.capacity(carrier) - school_series.OVERHEAD
+
+
 def carry(ledger, carriers, key, destination):
-    """carriers: [(name, prepared_root, school)]. Writes woven MusicXML for carriers
-    that received frames; returns the per-piece report. Every written frame is
-    decoded back and validated against its catalogue before the ledger commits."""
-    from . import schools
-    capacities = [schools.capacity(root) - school_series.OVERHEAD for _, root, _ in carriers]
+    """carriers: [(name, prepared_root, school)] for scores, or (name, entries, 'variants')
+    for a volume of texts with variant readings. Writes woven carriers that received
+    frames; returns the per-piece report. Every written frame is decoded back and
+    validated against its catalogue before the ledger commits."""
+    from . import variants
+    capacities = [capacity_of(c, school) for _, c, school in carriers]
     plan = ledger.assign(capacities)
     encoders, written, batches = {}, [], []
     tonight = {}
@@ -31,11 +39,22 @@ def carry(ledger, carriers, key, destination):
             continue
         entry, first, count = choice
         span, encoder = tonight[entry['id']], encoders[entry['id']]
-        registry.mark(root, (school, 'dynamics-fountain', '2'))
         metadata = [{'carrier': name, **catalogue.metadata(span['catalogue'], i)} for i in range(first, first + count)]
+        batch = [encoder.frame(i) for i in range(first, first + count)]
+        if school == 'variants':
+            volume = {**variants.encode_many(root, batch, key), 'catalogue': metadata}
+            path = destination/(name + '.variants.json')
+            path.write_text(json.dumps(volume, ensure_ascii=False, indent=1))
+            if variants.decode_many(json.loads(path.read_text()), key) != batch:
+                raise RuntimeError('variants round trip mismatch')
+            for frame, meta in zip(batch, metadata, strict=True):
+                catalogue.validate_work(frame, meta, key)
+            written.append(name)
+            batches.append(batch)
+            continue
+        registry.mark(root, (school, 'dynamics-fountain', '2'))
         misc = root.find('./identification/miscellaneous')
         ET.SubElement(misc, 'miscellaneous-field', name='mnemosyne.catalogue').text = json.dumps(metadata)
-        batch = [encoder.frame(i) for i in range(first, first + count)]
         path = destination/(name + '.musicxml')
         surface.write(school_series.encode_many(root, batch, key), path)
         decoded = registry.decode(path, key).frame

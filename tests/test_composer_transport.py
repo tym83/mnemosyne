@@ -42,6 +42,7 @@ def night(root, state, ledger_root, date, works=16, accepted=True):
     n.sketches = [{'id': f'w-{i}', 'stage': f's-{i}', 'plan': plan, 'score': path.name, 'form': 'school'}
                   for i in range(works)]
     n.cluster_state, n.ledger_root = state, ledger_root
+    n.work_id = 'leonia-0001-w00000'
     n.studio.run.return_value = {}
     return n
 

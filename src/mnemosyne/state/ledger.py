@@ -28,7 +28,7 @@ import zstandard
 from .collect import normalize
 
 MAGIC = b'MNEMOSYNE-PIECE-1\n'
-FRAME_BYTES = 256
+FRAME_BYTES = 192
 KEYFRAME_EVERY = 30
 LOSS = .30
 # Extra independent equations among survivors: rank failure below 2**-MARGIN.

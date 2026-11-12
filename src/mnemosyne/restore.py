@@ -81,12 +81,17 @@ def recover_works(directory, key, *, include_secrets=False, at=None):
     groups = defaultdict(list)
     report = {'decoded': [], 'rejected': [], 'snapshots': []}
     for path in sorted(directory.rglob('*')):
-        if not path.is_file() or path.suffix.lower() not in ('.xml', '.musicxml'):
+        texts = path.name.endswith('.variants.json')
+        if not path.is_file() or not (texts or path.suffix.lower() in ('.xml', '.musicxml')):
             continue
         try:
             if path.stat().st_size > 32 * 1024 * 1024:
-                raise DecodeError('MusicXML exceeds size limit')
-            decoded = registry.decode(path, key)
+                raise DecodeError('carrier exceeds size limit')
+            if texts:
+                from .weave import variants
+                decoded = registry.Decoded('fountain-batch-v1', variants.decode_many(json.loads(path.read_text()), key))
+            else:
+                decoded = registry.decode(path, key)
             if decoded.transport in ('fountain-v1', 'fountain-batch-v1'):
                 batch = decoded.frame if decoded.transport == 'fountain-batch-v1' else [decoded.frame]
                 identities = [fountain.unpack(frame, key) for frame in batch]

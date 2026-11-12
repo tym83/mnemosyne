@@ -95,3 +95,14 @@ self-reference; these later records are saved for the next backup.
 The equivalent console command is `uv run mnemo restore …`. See
 [rename compatibility](weave/codecs/README.md#mnemosyne-rename-compatibility)
 for retained decoder names and API groups.
+
+## Variant readings in texts
+
+During a night, prose is drafted with the author's own variants,
+`{one|another}`, only in prose fields (never in plans, code, names or
+verdicts). At weaving time the night's notebook is a carrier like a score:
+which variant remains at each place is chosen by the frames. The reading text
+replaces the draft in the notebook and the Lives; the draft stays as the
+apparatus. `*.variants.json` volumes (apparatus + reading texts, authenticated
+together) are decoder inputs beside MusicXML. Variants at one place are
+distinct and none is a prefix of another, so a reading identifies its choice.

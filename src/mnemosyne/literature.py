@@ -149,6 +149,45 @@ def _transient(error: Exception) -> bool:
     ))
 
 
+# While a night is drafting, prose is written with the author's own variants,
+# {one|another}; which one remains is decided when the night is woven.
+import contextvars
+DRAFTING = contextvars.ContextVar('drafting', default=False)
+NOT_PROSE = {'plan_json', 'source', 'verdict', 'name', 'school', 'kind', 'choice', 'form', 'notagen_prompt',
+             'is_reinvention_of', 'sources', 'kind_of_creativity', 'id'}
+VARIANTS_INSTRUCTION = ('\n\nПиши как в черновике. В полях {fields} там, где ты по-настоящему колеблешься '
+                        'между словом, образом, деталью или порядком, оставь варианты в фигурных скобках через '
+                        'черту: {{вариант|вариант|вариант}}. От двух до четырёх вариантов, каждый годится, ни один '
+                        'не начинается с другого, внутри вариантов нет скобок. Примерно одно колебание в каждом '
+                        'предложении. В остальных полях скобок нет.')
+
+
+def prose_fields(schema):
+    fields = []
+    for name, field in getattr(schema, 'model_fields', {}).items():
+        if name not in NOT_PROSE and field.annotation in (str, list[str]):
+            fields.append(name)
+    return fields
+
+
+def settle(result, prose):
+    """Variants survive only in prose fields; elsewhere the first variant is kept."""
+    from .weave.variants import plain
+    if not isinstance(result, BaseModel):
+        return result
+    for name, field in type(result).model_fields.items():
+        value = getattr(result, name)
+        if name in prose:
+            continue
+        if isinstance(value, str):
+            setattr(result, name, plain(value))
+        elif isinstance(value, list) and all(isinstance(v, str) for v in value):
+            setattr(result, name, [plain(v) for v in value])
+        elif isinstance(value, BaseModel):
+            settle(value, [])
+    return result
+
+
 class Writer:
     """One validated interface for configured text and draft-reading models.
 
@@ -169,6 +208,14 @@ class Writer:
 
     def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000,
             images: list[Path] | None = None):
+        fields = prose_fields(schema) if DRAFTING.get() else []
+        if fields:
+            system = (system or '') + VARIANTS_INSTRUCTION.format(fields=', '.join(fields))
+        result = self._ask(system, prompt, schema, step, max_tokens, images)
+        return settle(result, fields) if DRAFTING.get() else result
+
+    def _ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000,
+             images: list[Path] | None = None):
         import os
         from .models import request, role_for
         role = self.role or role_for(step, bool(images))
