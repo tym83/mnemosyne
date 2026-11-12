@@ -6,9 +6,11 @@ from . import catalogue, fountain, registry, school_series, surface
 
 
 def capacity_of(carrier, school):
-    from . import schools, variants
+    from . import audience, schools, variants
     if school == 'variants':
         return variants.capacity(carrier) - variants.OVERHEAD
+    if school == 'audience':
+        return audience.frame_capacity(carrier)
     return schools.capacity(carrier) - school_series.OVERHEAD
 
 
@@ -42,6 +44,18 @@ def carry(ledger, carriers, key, destination):
         metadata = [{'carrier': name, **catalogue.metadata(span['catalogue'], i)} for i in range(first, first + count)]
         batch = [encoder.frame(i) for i in range(first, first + count)]
         atelier = key.atelier_public() if hasattr(key, 'atelier_public') else None
+        if school == 'audience':
+            from . import audience
+            if count != 1:
+                raise RuntimeError('an audience log carries one frame')
+            log = {**audience.encode_frame(root, batch[0], key, metadata), 'atelier': atelier}
+            path = destination/(name + '.audience.json')
+            path.write_text(json.dumps(log, ensure_ascii=False))
+            if audience.decode_frame(json.loads(path.read_text()), key) != batch[0]:
+                raise RuntimeError('audience round trip mismatch')
+            written.append(name)
+            batches.append(batch)
+            continue
         if school == 'variants':
             volume = {**variants.encode_many(root, batch, key), 'catalogue': metadata}
             if atelier:

@@ -789,7 +789,8 @@ class Lineage:
                 chapter['text'], chapter['words'] = words.chapter, words.model_dump()
                 self.note(a, 'life_words', event=chapter['event'], words=words.model_dump(), drafts=nb)
                 if chapter['kind'] == 'birth':
-                    a.name, a.portrait = words.name or a.name, words.portrait or a.portrait
+                    from .weave.variants import plain
+                    a.name, a.portrait = words.name or a.name, plain(words.portrait) or a.portrait
                 if chapter['kind'] == 'last_work' and words.last_idea:
                     next(w for w in a.catalogue if w['id'] == chapter['facts']['work'])['idea'] = words.last_idea
                 if chapter['kind'] == 'illumination' and a.pending_idea and words.image:

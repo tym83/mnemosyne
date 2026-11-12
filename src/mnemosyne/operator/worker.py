@@ -25,7 +25,7 @@ class LocalStudio:
         return result
 
 
-def weave(objects, sources, root, key, *, include_secrets=False, at=None):
+def weave(objects, sources, root, key, *, include_secrets=False, at=None, extra=()):
     """Tonight's cluster state joins the ledger; tonight's works carry pending pieces.
 
     One supplied score per work. Never pad capacity by inventing artistic works."""
@@ -34,8 +34,13 @@ def weave(objects, sources, root, key, *, include_secrets=False, at=None):
     ledger = Ledger(root.parent/'ledger')
     entry = ledger.observe(objects, at or datetime.now(timezone.utc).isoformat(), key.public_key(),
                            include_secrets=include_secrets)
-    carriers = [(name, schools.prepare(surface.read(path), school), school) for name, path, school, *_ in sources]
+    carriers = [(name, carrier, kind) for name, carrier, kind, _ in extra]
+    carriers += [(name, schools.prepare(surface.read(path), school), school) for name, path, school, *_ in sources]
     report, _ = carry(ledger, carriers, key, root/'woven')
+    suffix = {'variants': '.variants.json', 'audience': '.audience.json'}
+    for name, _, kind, publish in extra:
+        if name in report['carriers']:
+            publish(json.loads((root/'woven'/(name + suffix[kind])).read_text()))
     report['observed'] = entry and {k: entry[k] for k in ('id', 'kind', 'at', 'k', 'target')}
     report['phase'] = 'Carrying' if report['pending_pieces'] else 'Verified'
     dump(root/'decode.json', report)
@@ -119,7 +124,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
     dump(root/'lineage.json', life.state())
     atelier = Atelier(life.cluster, root/'atelier')
     atelier.lineage(life)
-    sources, records = [], []
+    sources, records, notebooks = [], [], []
     if request['mode'] == 'chamber':
         sources, records = chamber(life, root)
     else:
@@ -130,6 +135,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
             # Inner life is the felt climate the composer derives itself; nothing is supplied.
             result = night.run('', drafts=request.get('drafts', 3), key=None)
             records.extend(o for o in night.objects if o['kind'] != 'Atelier')
+            notebooks.append((night.work_id, night.record))
             if result['status'] == 'failed':
                 raise RuntimeError('composer failed; notebook retained')
             for sk in night.sketches:
@@ -140,9 +146,27 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                     sources.append((f'{sk["id"]}-{i}', night.root/carrier['score'], school,
                                     {'plan': sk['plan'], 'form': sk.get('form', 'school'),
                                      'movement_index': carrier.get('movement_index')}))
+    if request['mode'] != 'chamber':
+        # The chronicler and the critics draft tonight's words with their own variants.
+        from mnemosyne.literature import DRAFTING
+        token = DRAFTING.set(True)
+        try:
+            life.reception.write_words()
+            life.write_words()
+        finally:
+            DRAFTING.reset(token)
+    from mnemosyne.weave import night as tonight
+    extra = []
+    entries, publish = tonight.texts(life, notebooks)
+    if entries:
+        extra.append((f'{request["atelier"]}-night-{life.night:05d}-texts', entries, 'variants', publish))
+    log, publish_log = tonight.panel(life)
+    if log is not None:
+        extra.append((f'{request["atelier"]}-{log["id"]}', log, 'audience', publish_log))
     dump(root/'lineage.json', life.state())
     # State does not enter artistic inputs. Capture scope is explicit in request.json.
-    report = weave(objects, sources, root, key, include_secrets=request.get('includeSecrets', False))
+    report = weave(objects, sources, root, key, include_secrets=request.get('includeSecrets', False), extra=extra)
+    dump(root/'lineage.json', life.state())
     if request.get('render', False) and sources:
         for source in sources:
             name, original, _, rendering = source

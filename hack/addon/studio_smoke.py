@@ -36,7 +36,7 @@ for root in nights:
 expected = pack(members(objects))
 assert recover_works(export, key)[0] == expected
 # Lose 30% of the woven works; restore from scores alone.
-works = sorted(export.rglob('*.musicxml'))
+works = sorted(p for p in export.rglob('*') if p.name.endswith(('.musicxml', '.variants.json', '.audience.json')))
 survivors = a.output/'survivors'
 survivors.mkdir()
 for path in works[:len(works) - len(works)*3//10]:

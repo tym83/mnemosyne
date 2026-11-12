@@ -92,13 +92,20 @@ def recover_works(directory, key, *, include_secrets=False, at=None):
     report = {'decoded': [], 'rejected': [], 'snapshots': []}
     for path in sorted(directory.rglob('*')):
         texts = path.name.endswith('.variants.json')
-        if not path.is_file() or not (texts or path.suffix.lower() in ('.xml', '.musicxml')):
+        panel = path.name.endswith('.audience.json')
+        if not path.is_file() or not (texts or panel or path.suffix.lower() in ('.xml', '.musicxml')):
             continue
         try:
             if path.stat().st_size > 32 * 1024 * 1024:
                 raise DecodeError('carrier exceeds size limit')
             from .weave import keys as split
-            if texts:
+            if panel:
+                from .weave import audience
+                log = json.loads(path.read_text())
+                atelier = log.get('atelier')
+                work_key = split.reading(key, atelier)
+                decoded = registry.Decoded('fountain-batch-v1', [audience.decode_frame(log, work_key)])
+            elif texts:
                 from .weave import variants
                 volume = json.loads(path.read_text())
                 atelier = volume.get('atelier')
