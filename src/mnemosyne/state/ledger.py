@@ -119,6 +119,11 @@ class Ledger:
         sid = state_id(hashes)
         if sid == self.state_id:
             return None
+        if self.pending():
+            # The art carries one piece at a time; the next delta gathers every
+            # change since the last recorded state, so nothing is lost but moments.
+            self.skipped = getattr(self, 'skipped', 0) + 1
+            return None
         changed = {n: d for n, d in current.items() if self.state.get(n) != hashes[n]}
         removed = sorted(n for n in self.state if n not in current)
         whole = pack(current)
