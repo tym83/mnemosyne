@@ -69,7 +69,7 @@ def chamber(life, root):
     plans = Path(__file__).parents[1]/'music/schools/plans'
     sources, records = [], []
     born = {k: v['plan'] for k, v in life.schools.items() if v.get('status') == 'accepted'}
-    for a in life.artists:
+    for a in (a for a in life.artists if a.art == 'music'):
         for work in (w for w in a.catalogue if w['night'] == life.night):
             school = choose_school(a, work, [s for s in SCHOOLS if (plans/f'{s}.json').exists() or s in born])
             plan = deepcopy(born[school]) if school in born else json.loads((plans/f'{school}.json').read_text())
@@ -129,7 +129,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         sources, records = chamber(life, root)
     else:
         from mnemosyne.music.composer import Night
-        for artist in life.working():
+        for artist in (a for a in life.working() if a.art == 'music'):
             night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
                           sound=request.get('render', True))
             # Inner life is the felt climate the composer derives itself; nothing is supplied.

@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from mnemosyne.atelier import Atelier, KINDS
-from mnemosyne.lineage import Lineage, Parameters, LifeWords
+from mnemosyne.lineage import Lineage, Parameters, LifeWords, LANGUAGES
 
 BORN = datetime(2025, 1, 1, tzinfo=timezone.utc)
 HEAVY = dict(strain=.8, scars=.8, loss=.8, turbulence=.8)
@@ -57,7 +57,8 @@ class LineageTests(unittest.TestCase):
         for _ in range(250):
             a.step(HEAVY)
             b.step(HEAVY)
-            self.assertLessEqual(len(a.working()), 3)
+            for art in a.p.arts:
+                self.assertLessEqual(len([w for w in a.working() if w.art == art]), a.p.spaces)
         self.assertEqual(a.state(), b.state())
         self.assertEqual(a.artists[0].birth, BORN.isoformat())
         for artist in a.artists:
@@ -65,7 +66,7 @@ class LineageTests(unittest.TestCase):
             self.assertEqual(sum(e['kind'] == 'birth' and e['artist'] == artist.id for e in a.events), 1)
 
     def test_silent_alive_replaced_and_dead_cannot_work(self):
-        life = Lineage('test', BORN)
+        life = Lineage('test', BORN, parameters=Parameters(arts=('music',)))
         a = life.artists[0]
         life._silence(a, 'test')
         life.step({})
@@ -146,7 +147,7 @@ class LineageTests(unittest.TestCase):
         self.assertEqual(life.state(), restored.state())
 
     def test_changed_voice_waits_for_vacancy_without_reviving_renunciation(self):
-        p = replace(Parameters(), spaces=1, work_rate=0, accident=0, age_hazard=0)
+        p = replace(Parameters(), spaces=1, work_rate=0, accident=0, age_hazard=0, arts=('music',))
         for renounced in (False, True):
             life = Lineage('test', BORN, parameters=p)
             a = life.artists[0]
@@ -207,7 +208,7 @@ class LineageTests(unittest.TestCase):
         self.assertEqual(size, sum(len(a.notebook) for a in life.artists))
 
     def test_persisted_objects_and_references(self):
-        life = Lineage('test', BORN)
+        life = Lineage('test', BORN, parameters=Parameters(arts=('music',)))
         life._work(life.artists[0])
         with tempfile.TemporaryDirectory() as tmp:
             atelier = Atelier('test', Path(tmp))
@@ -243,3 +244,24 @@ class BiographyCarrierTests(unittest.TestCase):
         self.assertEqual(capacity(800)['payload_bytes_per_frame'], 80)
         with self.assertRaises(ValueError):
             frame_payload(data, key, contexts, 0)
+
+
+class ArtsTests(unittest.TestCase):
+    def test_each_art_keeps_its_own_spaces_languages_and_teachers(self):
+        life = Lineage('test', BORN, 7)
+        self.assertEqual(sorted(a.art for a in life.artists), ['literature', 'music'])
+        for _ in range(900):
+            life.step(HEAVY)
+            for art in life.p.arts:
+                self.assertLessEqual(len([a for a in life.working() if a.art == art]), life.p.spaces)
+        by_id = {a.id: a for a in life.artists}
+        for a in life.artists:
+            self.assertIn(a.language, {l for l, _ in LANGUAGES})
+            for t in a.teachers:
+                self.assertEqual(by_id[t].art, a.art)
+
+    def test_old_checkpoints_stay_single_art(self):
+        life = Lineage('test', BORN, parameters=Parameters(arts=('music',)))
+        state = json.loads(json.dumps(life.state()))
+        del state['parameters']['arts']
+        self.assertEqual(Lineage.restore(state).p.arts, ('music',))

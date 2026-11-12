@@ -29,10 +29,21 @@ def clip(x: float) -> float:
     return max(0., min(1., x))
 
 
+LANGUAGE_NAMES = {'ru': 'Russian', 'en': 'English', 'fr': 'French', 'es': 'Spanish', 'pt': 'Portuguese',
+                  'de': 'German', 'it': 'Italian', 'pl': 'Polish', 'sr': 'Serbian', 'el': 'Greek',
+                  'ja': 'Japanese', 'zh': 'Chinese', 'fa': 'Persian', 'ar': 'Arabic', 'hi': 'Hindi',
+                  'yo': 'Yoruba', 'la': 'Latin', 'sa': 'Sanskrit'}
+# Birth languages: living literary languages, and rarer classical ones.
+LANGUAGES = [('ru', 1.), ('en', 1.), ('fr', 1.), ('es', 1.), ('pt', .7), ('de', .8), ('it', .8), ('pl', .5),
+             ('sr', .4), ('el', .4), ('ja', .8), ('zh', .8), ('fa', .5), ('ar', .6), ('hi', .5), ('yo', .3),
+             ('la', .2), ('sa', .2)]
+
+
 @dataclass(frozen=True)
 class Parameters:
-    # Space is for creators. Silent lives are deliberately unbounded.
+    # Space is for creators, per art. Silent lives are deliberately unbounded.
     spaces: int = 2
+    arts: tuple = ('music', 'literature')
     # One step is one real day. Old-age survival has median near 730 days.
     maturation_min: int = 25
     maturation_max: int = 500
@@ -103,6 +114,9 @@ class Artist:
     teachers: list[str] = field(default_factory=list)
     school: str = 'unassigned tradition'
     method: str = 'unassigned method'
+    art: str = 'music'
+    # The language the artist is born into: notebooks, diaries and works are written in it.
+    language: str = 'ru'
     catalogue: list[dict] = field(default_factory=list)
     notebook: list[dict] = field(default_factory=list)
     periods: list[dict] = field(default_factory=list)
@@ -193,7 +207,8 @@ class Lineage:
         self.climate_history = []
         self.occasions = []
         self.reception = Reception(seed)
-        self._birth()
+        for art in self.p.arts:
+            self._birth(art=art)
 
     def date(self) -> str:
         return (datetime.fromisoformat(self.born) + timedelta(days=self.night)).isoformat()
@@ -239,10 +254,13 @@ class Lineage:
         # Other ateliers can supply edges in this same directed, graded schema.
         return True
 
-    def _birth(self, teacher: Artist | None = None):
+    def _birth(self, teacher: Artist | None = None, art: str | None = None):
         r = self.rng
         aid = f'{self.cluster}-{len(self.artists) + 1:04d}'
-        a = Artist(aid, aid, '[portrait awaiting words]', self.date(), self.night,
+        art = teacher.art if teacher is not None else (art or 'music')
+        language = teacher.language if teacher is not None and r.random() < .8 else \
+            r.choices([l for l, _ in LANGUAGES], weights=[w for _, w in LANGUAGES])[0]
+        a = Artist(aid, aid, '[portrait awaiting words]', self.date(), self.night, art=art, language=language,
                    drive=r.random(), resilience=r.random(), openness=r.random(),
                    isolation=r.random(), skill=r.uniform(.15, .85),
                    maturation=r.randint(self.p.maturation_min, self.p.maturation_max), style=[r.random() for _ in range(4)])
@@ -689,17 +707,20 @@ class Lineage:
         self.reception.step(self)
         # Fill one empty space nightly. Return gets first refusal; silent artists
         # remain alive and are not evicted from the book.
-        if len(self.working()) < p.spaces:
-            returning = [a for a in self.artists if a.status == 'silent' and a.return_ready and not a.renounced]
+        for art in p.arts:
+            if len([a for a in self.working() if a.art == art]) >= p.spaces:
+                continue
+            returning = [a for a in self.artists if a.art == art and a.status == 'silent'
+                         and a.return_ready and not a.renounced]
             if returning:
                 a = r.choice(returning)
                 self.change(a, 'return')
                 a.status = 'ill' if a.illness else 'working'
                 self.event(a, 'return', silence=self.night - a.silent_since)
                 a.silent_since, a.return_ready = None, False
-                return
-            predecessors = [a for a in self.artists if a.status in ('dead', 'silent') or a.master]
-            self._birth(r.choice(predecessors) if predecessors else None)
+                continue
+            predecessors = [a for a in self.artists if a.art == art and (a.status in ('dead', 'silent') or a.master)]
+            self._birth(r.choice(predecessors) if predecessors else None, art=art)
 
     def state(self) -> dict:
         return {'version': 2, 'climate': self.climate, 'climate_history': self.climate_history, 'occasions': self.occasions, 'reception': self.reception.state(), 'cluster': self.cluster, 'born': self.born, 'seed': self.seed,
@@ -719,6 +740,8 @@ class Lineage:
         # Checkpoints predating the two-year calibration keep their birth clock.
         parameters.setdefault('maturation_min', 90)
         parameters.setdefault('maturation_max', 1800)
+        # Checkpoints from before literature keep a single art.
+        parameters['arts'] = tuple(parameters.get('arts', ('music',)))
         self.p = Parameters(**parameters)
         self.rng = random.Random()
         def tuples(x):

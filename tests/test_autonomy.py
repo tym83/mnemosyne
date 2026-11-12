@@ -13,9 +13,9 @@ class ChamberTests(unittest.TestCase):
         from mnemosyne.operator.worker import chamber
         from mnemosyne.music.schools import SCHOOLS
         life = Lineage('test', datetime(2025, 1, 1), seed=3)
-        while not any(w['night'] == life.night for a in life.artists for w in a.catalogue):
+        while not any(w['night'] == life.night for a in life.artists if a.art == 'music' for w in a.catalogue):
             life.step({})
-        tonight = [w for a in life.artists for w in a.catalogue if w['night'] == life.night]
+        tonight = [w for a in life.artists if a.art == 'music' for w in a.catalogue if w['night'] == life.night]
         with tempfile.TemporaryDirectory() as tmp:
             sources, records = chamber(life, Path(tmp))
             self.assertEqual([s[0] for s in sources], [w['id'] for w in tonight])

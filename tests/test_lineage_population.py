@@ -65,7 +65,7 @@ class PopulationTests(unittest.TestCase):
                 # Inner life has long stretches, without any incident identity.
                 weight = .8 if (n // 200 + seed) % 3 else .2
                 life.step(dict(strain=weight, scars=weight, loss=weight, turbulence=weight))
-                self.assertLessEqual(len(life.working()), life.p.spaces)
+                self.assertLessEqual(len(life.working()), life.p.spaces * len(life.p.arts))
             found.update(trajectories(life))
             events.update(e['kind'] for e in life.events)
             seasons.update(e['facts']['season'] for e in life.events if e['kind'] == 'fertility')

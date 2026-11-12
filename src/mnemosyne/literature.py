@@ -153,6 +153,8 @@ def _transient(error: Exception) -> bool:
 # {one|another}; which one remains is decided when the night is woven.
 import contextvars
 DRAFTING = contextvars.ContextVar('drafting', default=False)
+# The language the speaking artist was born into (English name), or None for the prompt's own.
+LANGUAGE = contextvars.ContextVar('language', default=None)
 NOT_PROSE = {'plan_json', 'source', 'verdict', 'name', 'school', 'kind', 'choice', 'form', 'notagen_prompt',
              'is_reinvention_of', 'sources', 'kind_of_creativity', 'id'}
 VARIANTS_INSTRUCTION = ('\n\nПиши как в черновике. В полях {fields} там, где ты по-настоящему колеблешься '
@@ -209,6 +211,8 @@ class Writer:
     def ask(self, system: str, prompt: str, schema: type[BaseModel], step: str, max_tokens: int = 32000,
             images: list[Path] | None = None):
         fields = prose_fields(schema) if DRAFTING.get() else []
+        if LANGUAGE.get():
+            system = (system or '') + f'\n\nWrite every prose field in {LANGUAGE.get()}: it is your mother tongue.'
         if fields:
             system = (system or '') + VARIANTS_INSTRUCTION.format(fields=', '.join(fields))
         result = self._ask(system, prompt, schema, step, max_tokens, images)

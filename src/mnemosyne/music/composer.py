@@ -248,6 +248,8 @@ class Night:
                  cluster_state=None, ledger_root=None):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
+        if self.artist.art != 'music':
+            raise ValueError('a composer night needs a composer')
         if self.artist.status not in ('working', 'ill'):
             raise ValueError('a living working artist is required')
         self.work_id = f'{artist_id}-w{len(self.artist.catalogue):05d}'
@@ -392,11 +394,14 @@ class Night:
         return sk
 
     def run(self, inner, *, drafts=3, key=None):
-        from ..literature import DRAFTING
+        from ..literature import DRAFTING, LANGUAGE
+        from ..lineage import LANGUAGE_NAMES
         token = DRAFTING.set(True)
+        spoken = LANGUAGE.set(LANGUAGE_NAMES.get(self.artist.language))
         try:
             return self._run(inner, drafts=drafts, key=key)
         finally:
+            LANGUAGE.reset(spoken)
             DRAFTING.reset(token)
 
     def _run(self, inner, *, drafts=3, key=None):
@@ -694,7 +699,8 @@ def main():
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
     from ..weave.backup import write_new
     life = Lineage.restore(json.loads(args.lineage.read_text()))
-    a = next(a for a in life.artists if a.id == args.artist) if args.artist else next(a for a in life.artists if a.status == 'working')
+    a = next(a for a in life.artists if a.id == args.artist) if args.artist else \
+        next(a for a in life.artists if a.status == 'working' and a.art == 'music')
     work = f'{a.id}-w{len(a.catalogue):05d}'
     if args.run_id and (Path(args.run_id).name != args.run_id or args.run_id in (".", "..")):
         parser.error("run-id must be a single directory name")
