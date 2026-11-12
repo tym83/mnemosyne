@@ -23,7 +23,7 @@ from . import translator
 
 FILE = 'translations.json'
 LONG = 1200
-BATCH = 12
+BATCH = 4
 
 
 class Batch(BaseModel):
@@ -89,6 +89,9 @@ def gather(root: Path) -> list[str]:
     strings([r.get('text') for r in life.get('reception', {}).get('reviews', [])], out)
     strings([s.get('proposal') for s in life.get('school_attempts', [])], out)
     strings(list(life.get('schools', {}).values()), out)
+    for p in sorted((root/'nights').rglob('*.txt')) if (root/'nights').exists() else []:
+        if not p.name.endswith('.ru.txt'):
+            strings(p.read_text(), out)
     for p in sorted((root/'nights').rglob('notebook.json')) if (root/'nights').exists() else []:
         record = json.loads(p.read_text())
         strings({k: record.get(k) for k in NOTEBOOK_FIELDS}, out)

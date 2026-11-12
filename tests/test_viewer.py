@@ -56,7 +56,7 @@ class ViewerTests(unittest.TestCase):
             memory.save()
             block = ru_block(Atelier(root), german)
             self.assertLess(block.index(german), block.index('Фрау Керн'))
-            self.assertIn('>перевод</button>', block)
+            self.assertIn('class="ru"', block)
 
 
 if __name__ == '__main__':

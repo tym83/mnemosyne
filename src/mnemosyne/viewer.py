@@ -67,7 +67,10 @@ class Atelier:
     def text(self, wid):
         texts = [p for p in self.files(wid) if p.suffix == '.txt' and not p.name.endswith('.ru.txt')]
         ru = [p for p in self.files(wid) if p.name.endswith('.ru.txt')]
-        return (texts[0].read_text() if texts else None), (ru[0].read_text() if ru else None)
+        original = texts[0].read_text() if texts else None
+        # The Translator's later rendering wins over the one made on the night.
+        later = self.memory.get(original) if original else None
+        return original, later or (ru[0].read_text() if ru else None)
 
     def reviews(self, wid):
         return [r for r in self.life.reception.reviews if r['work'] == wid]
@@ -147,10 +150,8 @@ h1,h2{font-weight:normal}pre{white-space:pre-wrap;font:inherit}.muted{color:var(
 table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 .work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
 .variants{color:var(--accent);font-size:.92em}
-.tr .ru{display:none}.tr.on .ru,body.ru .tr .ru{display:revert}.tr.on .orig,body.ru .tr .orig{display:none}
-body.ru .tr.on .ru{display:none}body.ru .tr.on .orig{display:revert}
-.trb,#trall{font:12px system-ui,sans-serif;color:var(--muted);background:none;border:1px solid var(--line);border-radius:4px;padding:2px 8px;cursor:pointer}
-#trall{float:right}
+.tr .ru{display:none}body.ru .tr .ru{display:revert}body.ru .tr .orig{display:none}
+#trall{position:sticky;top:8px;float:right;z-index:2;font:14px system-ui,sans-serif;color:var(--bg);background:var(--accent);border:0;border-radius:6px;padding:6px 12px;cursor:pointer}
 details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-ui,sans-serif}
 dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
 .cmd{font:14px ui-monospace,Menlo,monospace;background:var(--line);padding:8px 10px;border-radius:4px}
@@ -163,10 +164,8 @@ NOTATION = '<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.
 
 
 FLIP = '''<script>
-function label(b,on){if(b)b.textContent=on?'оригинал':'перевод'}
-function flip(el){el.classList.toggle('on');label(el.querySelector(':scope>.trb'),el.classList.contains('on')!==document.body.classList.contains('ru'))}
-function flipAll(){const on=document.body.classList.toggle('ru');document.querySelectorAll('.tr').forEach(e=>{e.classList.remove('on');label(e.querySelector(':scope>.trb'),on)});
-document.getElementById('trall').textContent=on?'оригинал везде':'перевод везде';try{localStorage.setItem('ru',on?'1':'')}catch(e){}}
+function flipAll(){const on=document.body.classList.toggle('ru');
+document.getElementById('trall').textContent=on?'Оригинал':'Перевод на русский';try{localStorage.setItem('ru',on?'1':'')}catch(e){}}
 try{if(localStorage.getItem('ru'))flipAll()}catch(e){}
 if(!document.querySelector('.tr'))document.getElementById('trall').remove()
 </script>'''
@@ -178,7 +177,7 @@ def page(title, body, scripts=''):
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
             f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
             f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
-            f'<button id="trall" onclick="flipAll()">перевод везде</button></nav>{body}{FLIP}</body></html>')
+            f'</nav><button id="trall" onclick="flipAll()">Перевод на русский</button>{body}{FLIP}</body></html>')
 
 
 def esc(text):
@@ -274,7 +273,7 @@ def toggle(original_html, russian_html, block=True):
     """The original in place; the translation replaces it on demand."""
     if block:
         return (f'<div class="tr"><div class="orig">{original_html}</div><div class="ru">{russian_html}</div>'
-                f'<button class="trb" onclick="flip(this.parentNode)">перевод</button></div>')
+                f'</div>')
     return f'<span class="tr"><span class="orig">{original_html}</span><span class="ru">{russian_html}</span></span>'
 
 
