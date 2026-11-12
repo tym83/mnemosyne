@@ -163,7 +163,8 @@ def run(request, root, key, objects, *, previous=None):
     else:
         from mnemosyne.music.composer import Night
         for artist in life.working():
-            night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None)
+            night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
+                          sound=request.get('render', True))
             result = night.run(request.get('inner', 'Спокойствие'), drafts=request.get('drafts', 3), key=None)
             records.extend(o for o in night.objects if o['kind'] != 'Atelier')
             if result['status'] == 'failed':

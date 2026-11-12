@@ -80,6 +80,7 @@ class FinalAudioTests(unittest.TestCase):
                 carriers.append({'movement_index': i, 'score': f'mv{i}/score.musicxml'})
             night = Night.__new__(Night)
             night.root = root
+            night.sound = True
             night.record = {'final': 'final', 'verdict': {'verdict': 'accept'}}
             final = {'id': 'final', 'stage': 'draft-02', 'form': 'symphony',
                      'plan': {'title': 'fixture'}, 'carriers': carriers[::-1]}
@@ -95,6 +96,18 @@ class FinalAudioTests(unittest.TestCase):
             self.assertEqual(final['audio']['remote'], remote)
             self.assertEqual(night.record['sounding_work'], 'final')
             self.assertNotIn('audio', night.sketches[0])
+
+    def test_sound_off_keeps_accepted_work_on_paper(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            night = Night.__new__(Night)
+            night.root = Path(tmp)
+            night.studio = Mock()
+            night.sound = False
+            night.record = {'final': 'final', 'verdict': {'verdict': 'accept'}}
+            night.render_final(night.root)
+            night.studio.run.assert_not_called()
+            self.assertTrue(night.record['sound'].startswith('off'))
+            self.assertNotIn('sound_pending', night.record)
 
     def test_unfinished_never_renders_even_with_woven_scores(self):
         with tempfile.TemporaryDirectory() as tmp:

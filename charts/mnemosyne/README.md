@@ -157,7 +157,8 @@ uv run --extra operator python hack/addon/kind_e2e.py --provider podman \
 Source e2e uses Helm's post-renderer only for the disposable kind cluster:
 controller and studio run repository source in Python bootstrap pods, with
 host-mounted source and exported artifacts. `render: false` avoids requiring
-audio tools in that bootstrap image; the real studio smoke separately exercises
+audio tools in that bootstrap image (in production it keeps accepted works as
+scores, drafts and notebooks only: the backup never depends on sound); the real studio smoke separately exercises
 rendering. It creates three technical study carriers from live Namespace and
 ConfigMap state, verifies all two-of-three survivor sets, exports, deletes only
 its own random-named kind cluster, creates a fresh one, applies restore and

@@ -54,7 +54,7 @@ addon:
   imagePullSecrets: []
   mode: chamber
   gpuResource: '' # e.g. the extended resource advertised by the installed device plugin
-  render: true # score, PDF and audio; false only for source-bootstrap codec tests
+  render: true # audio of accepted works; false keeps scores, drafts and notebooks only (the backup never needs sound)
   suspend: false
   window: {kind: night, timeZone: Etc/UTC, startHour: 1, endHour: 6}
   deadlineSeconds: 21600

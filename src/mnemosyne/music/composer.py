@@ -236,13 +236,16 @@ def art_sketch(sketch):
 
 
 class Night:
-    def __init__(self, life, artist_id, root, studio, *, backend=None):
+    def __init__(self, life, artist_id, root, studio, *, backend=None, sound=True):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
         if self.artist.status not in ('working', 'ill'):
             raise ValueError('a living working artist is required')
         self.work_id = f'{artist_id}-w{len(self.artist.catalogue):05d}'
         self.root, self.studio, self.backend = Path(root), studio, backend
+        # Sound is a side branch: the backup lives in scores and the process;
+        # a work may be rendered here, played by people, or left on paper.
+        self.sound = sound
         self.root.mkdir(parents=True, exist_ok=False)
         studio_record = {'pod': getattr(studio, 'pod', None), 'remote': getattr(studio, 'remote', None)}
         self.entries, self.sketches = [], []
@@ -603,6 +606,9 @@ class Night:
         """Only the accepted entry sounds, and only from its woven surfaces."""
         if self.record.get('verdict', {}).get('verdict') != 'accept':
             return
+        if not self.sound:
+            self.record['sound'] = 'off: scores only, to be rendered or played later'
+            return
         final = next(s for s in self.sketches if s['id'] == self.record['final'])
         def retained(score):
             folder = (self.root/score).parent
@@ -650,6 +656,7 @@ def main():
     parser.add_argument('--run-id', help='New notebook directory name when retaining an earlier failed attempt')
     parser.add_argument('--pod', choices=['studio-0', 'studio-1'], default='studio-0')
     parser.add_argument('--drafts', type=int, default=3)
+    parser.add_argument('--no-sound', action='store_true', help='Keep the accepted work as scores; render no audio')
     parser.add_argument('--key', type=Path, required=True, help='External existing or new X25519 private key')
     args = parser.parse_args()
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
@@ -667,7 +674,7 @@ def main():
         write_new(args.key, X25519PrivateKey.generate().private_bytes_raw())
     key = X25519PrivateKey.from_private_bytes(args.key.read_bytes())
     studio = Studio(root, args.pod)
-    night = Night(life, a.id, root, studio, backend=os.environ.get('WRITER'))
+    night = Night(life, a.id, root, studio, backend=os.environ.get('WRITER'), sound=not args.no_sound)
     studio.setup()
     inner = ideas.inner_life(args.scenarios, life.cluster, datetime.fromisoformat(life.date()))
     result = night.run(inner, drafts=args.drafts, key=key)
