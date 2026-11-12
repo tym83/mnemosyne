@@ -192,7 +192,7 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
               backend: str | None = None, rounds: int = 3,
               contemporaries: list[str] | None = None,
               illumination: dict | None = None, inner: str | None = None,
-              set_aside: str | None = None) -> tuple[Statement, list]:
+              set_aside: str | None = None, encounters: list[str] | None = None) -> tuple[Statement, list]:
     if not portrait.inner_critic:
         portrait.inner_critic = make_taste(portrait.name)
     w = Writer(nb, backend=backend, data_class="art")
@@ -221,6 +221,10 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
                  "\nРазверни его в замысел и проверь; сила переживания ещё не доказывает ценность идеи.")
         if illumination.get("problem"):
             base += "\nОставленная прежде задача: " + illumination["problem"]
+    if encounters:
+        base += ("\n\nРаботы других мастеров, музыкантов и писателей, с которыми ты недавно встретился. "
+                 "Можешь ответить на них, спорить, взять мысль в своё искусство или пройти мимо:\n" +
+                 "\n".join(f"- {e}" for e in encounters))
     if set_aside:
         base += ("\n\nОтложенный прежде замысел, который твой критик не принял. Можешь вернуться к нему "
                  "и довести, а можешь оставить: " + set_aside)

@@ -123,7 +123,8 @@ class WriterNight:
             [json.dumps({k: w.get(k) for k in ('idea', 'school', 'verdict')}, ensure_ascii=False) for w in a.catalogue],
             self.entries, backend=self.backend,
             contemporaries=[str(w['idea']) for b in life.artists if b.id != a.id for w in b.catalogue if w.get('idea')],
-            illumination=life.idea_seed(a.id), inner=inner, set_aside=a.problem)
+            illumination=life.idea_seed(a.id), inner=inner, set_aside=a.problem,
+            encounters=life.encounters(a.id))
         self.record.update(statement=st.model_dump(), interrogation=history)
         last = history[-1]['interrogation']
         if not ideas.accepted(last['verdict']):

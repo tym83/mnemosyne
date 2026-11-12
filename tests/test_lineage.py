@@ -265,3 +265,19 @@ class ArtsTests(unittest.TestCase):
         state = json.loads(json.dumps(life.state()))
         del state['parameters']['arts']
         self.assertEqual(Lineage.restore(state).p.arts, ('music',))
+
+
+class CrossArtTests(unittest.TestCase):
+    def test_arts_meet_answer_each_other_and_never_swap_schools(self):
+        life = Lineage('test', BORN, 9, Parameters(encounter_rate=.2))
+        for _ in range(400):
+            life.step({})
+        cross = [e for e in life.influences if e['source_art'] != e['target_art']]
+        self.assertTrue(cross)
+        self.assertNotIn('borrowed_method', {e['relation'] for e in cross})
+        a = life.artists[0]
+        b = next(x for x in life.artists if x.art != a.art)
+        b.catalogue.append({'id': 'w-real', 'idea': 'Вальс, который слышен только за стеной', 'synthetic': False})
+        life.influence(b, a, 'answered_work', .5) or life.influences.append(
+            {'source': b.id, 'target': a.id, 'relation': 'answered_work', 'night': life.night, 'work': 'w-real'})
+        self.assertTrue(any('за стеной' in e for e in life.encounters(a.id)))

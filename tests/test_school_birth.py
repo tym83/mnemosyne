@@ -104,7 +104,8 @@ class LineageTests(unittest.TestCase):
         self.assertTrue(SCHOOLS[record['id']].compose(record['plan'], 7).parts)
 
     def test_school_spreads_by_borrowed_method_and_apprenticeship(self):
-        life = Lineage('test', datetime(2025, 1, 1), seed=5)
+        from mnemosyne.lineage import Parameters
+        life = Lineage('test', datetime(2025, 1, 1), seed=5, parameters=Parameters(arts=('music',)))
         founder = life.artists[0]
         record = life.found_school(founder.id, born_record())
         for b in life.artists[1:]:

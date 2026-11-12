@@ -243,9 +243,11 @@ class Lineage:
     def influence(self, source: Artist, target: Artist, relation: str, weight: float):
         if relation not in ('apprenticeship', 'rebellion') and not self._meets(source, target):
             return False
+        latest = next((w for w in reversed(source.catalogue) if not w.get('synthetic') and w.get('idea')), None)
         edge = {'source': source.id, 'target': target.id, 'relation': relation,
                 'weight': weight, 'night': self.night, 'source_cluster': self.cluster,
-                'target_cluster': self.cluster}
+                'target_cluster': self.cluster, 'source_art': source.art, 'target_art': target.art,
+                'work': latest and latest['id']}
         self.influences.append(edge)
         if target.inner_critic:
             evolve(target.inner_critic, self.night, relation, .015 * (source.recognition - target.recognition))
@@ -385,9 +387,12 @@ class Lineage:
         others = [b for b in self.artists if b.id != a.id]
         if others and r.random() < p.encounter_rate * (1 - a.isolation):
             b = r.choice(others)
-            relation = r.choice(['friendship', 'rivalry', 'borrowed_method', 'answered_work', 'quarrel'])
+            # Across arts one cannot take a method, only answer, borrow an idea, befriend or quarrel.
+            relation = r.choice(['friendship', 'rivalry', 'borrowed_method', 'answered_work', 'quarrel']
+                                if b.art == a.art else
+                                ['friendship', 'answered_work', 'borrowed_idea', 'correspondence', 'quarrel'])
             if self.influence(b, a, relation, r.random()):
-                if relation == 'borrowed_method' and b.school in self.schools and a.school != b.school \
+                if relation == 'borrowed_method' and b.art == a.art and b.school in self.schools and a.school != b.school \
                         and r.random() < a.openness:
                     a.school = b.school
                     self.schools[b.school].setdefault('followers', []).append(a.id)
@@ -485,6 +490,18 @@ class Lineage:
                                      'rounds': len(history)})
         self.note(a, 'school_unborn', name=name, attempts=deepcopy(history))
         self._wound(a, self.p.despair_rejection)
+
+    def encounters(self, artist: str, nights: int = 120) -> list[str]:
+        """Recent works of others this artist met, in any art: material to answer, not instructions."""
+        works = {w['id']: (b, w) for b in self.artists for w in b.catalogue}
+        seen = []
+        for e in reversed(self.influences):
+            if e['target'] != artist or self.night - e['night'] > nights or not e.get('work') or e['work'] not in works:
+                continue
+            b, w = works[e['work']]
+            art = {'music': 'музыка', 'literature': 'литература'}.get(b.art, b.art)
+            seen.append(f"{e['relation']}: {('художник' if b.name == b.id else b.name)} ({art}) — {w['idea']}")
+        return seen[:6]
 
     def idea_seed(self, artist: str) -> dict | None:
         """Pass this seed into the idea stage; it must still face its inner critic."""
