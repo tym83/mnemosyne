@@ -408,8 +408,8 @@ class Night:
         a = self.artist
         sensed = feel(self.life.climate, a.sensitivity or temperament(a.id))
         inner = words(sensed, False, False) + '\n' + inner
-        name = 'художник' if a.name == a.id else a.name
-        names = {b.id: ('художник' if b.name == b.id else b.name) for b in self.life.artists}
+        name = 'творец' if a.name == a.id else a.name
+        names = {b.id: ('творец' if b.name == b.id else b.name) for b in self.life.artists}
         teachers = [names.get(t, t) for t in a.teachers]
         self.system = (f'Ты композитор {name}. {a.portrait}\nУчителя: {teachers}. '
                        'Художественные решения принимаешь ты. Не упоминай инфраструктуру. '

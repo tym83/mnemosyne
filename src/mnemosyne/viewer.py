@@ -149,7 +149,7 @@ def page(title, body, scripts=''):
     return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
-            f'<a href="artists.html">Художники</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
+            f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
             f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a>'
             f'</nav>{body}</body></html>')
 
@@ -202,7 +202,7 @@ def site(at, out: Path):
     rows = ''.join(f'<tr><td><a href="artist-{a.id}.html">{esc(at.name(a))}</a></td><td>{ART.get(a.art, a.art)}</td>'
                    f'<td>{LANGUAGE_NAMES.get(a.language, a.language)}</td><td>{a.status}</td><td>{len(a.catalogue)}</td>'
                    f'<td>{esc(a.school)}</td></tr>' for a in life.artists)
-    (out/'artists.html').write_text(page('Художники', '<h1>Художники</h1><table><tr><th>Имя</th><th>Искусство</th>'
+    (out/'artists.html').write_text(page('Творцы', '<h1>Творцы</h1><table><tr><th>Имя</th><th>Искусство</th>'
                                          '<th>Язык</th><th>Статус</th><th>Работ</th><th>Школа</th></tr>' + rows + '</table>'))
     live = [(a, w) for a, w in at.works() if not w.get('synthetic') or at.files(w['id'])]
     rows = ''.join(f'<tr><td><a href="work-{w["id"]}.html">{w["id"]}</a></td><td>{esc(at.name(a))}</td>'
@@ -292,7 +292,7 @@ def site(at, out: Path):
                        f'<li>{html.escape(m)}</li>' for m in r.get('manifesto', {}).get('manifesto', []))
                    + f'</ul><pre class="muted">{html.escape(r.get("source", ""))}</pre></div>' for r in life.schools.values())
     (out/'schools.html').write_text(page('Школы', '<h1>Школы</h1><table><tr><th>Школа</th><th>Искусство</th>'
-                                         '<th>Художников</th><th>Правила</th></tr>' + rows + '</table>'
+                                         '<th>Творцов</th><th>Правила</th></tr>' + rows + '</table>'
                                          + (f'<h1>Рождённые в мастерской</h1>{born}' if born else '')))
     names = {a.id: at.name(a) for a in life.artists}
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
@@ -300,7 +300,7 @@ def site(at, out: Path):
     (out/'timeline.html').write_text(page('Хронология', '<h1>Хронология</h1><table>' + rows + '</table>'))
     working = ', '.join(f'<a href="artist-{a.id}.html">{esc(at.name(a))}</a>' for a in life.working())
     body = (f'<h1>Мастерская {html.escape(life.cluster)}</h1><p class="muted">ночь {life.night} · {life.date()[:10]}</p>'
-            f'<p>Работают: {working}</p><p>Художников за всю историю: {len(life.artists)}, работ: '
+            f'<p>Работают: {working}</p><p>Творцов за всю историю: {len(life.artists)}, работ: '
             f'{sum(len(a.catalogue) for a in life.artists)}, живых работ: {len(live)}, рецензий: '
             f'{len(life.reception.reviews)}, событий: {len(life.events)}.</p>')
     (out/'index.html').write_text(page(f'Мастерская {life.cluster}', body))

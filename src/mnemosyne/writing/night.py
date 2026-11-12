@@ -107,7 +107,7 @@ class WriterNight:
         a, life = self.artist, self.life
         sensed = feel(life.climate, a.sensitivity or temperament(a.id))
         inner = words(sensed, False, False) + '\n' + inner
-        names = {b.id: ('художник' if b.name == b.id else b.name) for b in life.artists}
+        names = {b.id: ('творец' if b.name == b.id else b.name) for b in life.artists}
         teachers = [names.get(t, t) for t in a.teachers]
         if not a.portrait or a.portrait == '[portrait awaiting words]':
             p = ideas.self_portrait({'born': a.birth, 'age_days': a.age, 'teachers': teachers, 'art': 'литература',

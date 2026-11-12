@@ -500,7 +500,7 @@ class Lineage:
                 continue
             b, w = works[e['work']]
             art = {'music': 'музыка', 'literature': 'литература'}.get(b.art, b.art)
-            seen.append(f"{e['relation']}: {('художник' if b.name == b.id else b.name)} ({art}) — {w['idea']}")
+            seen.append(f"{e['relation']}: {('творец' if b.name == b.id else b.name)} ({art}) — {w['idea']}")
         return seen[:6]
 
     def idea_seed(self, artist: str) -> dict | None:
@@ -808,9 +808,9 @@ class Lineage:
         chronicler = 'летописец' if self.chronicler == f'{self.cluster}: chronicler of the Lives' else self.chronicler
         system = (f'Ты {chronicler}. Единый голос жизнеописаний в духе Вазари, не журнал событий. '
                   'Можно быть пристрастным, ошибаться в толковании, создавать легенду, но не менять факты судьбы. '
-                  'Не упоминай инфраструктуру. Напиши главу; diary — голос художника; letter — только при болезни; '
+                  'Не упоминай инфраструктуру. Напиши главу; diary — голос творца; letter — только при болезни; '
                   'last_idea — только для последней работы; name и portrait — при рождении: имя из культуры его родного '
-                  'языка, своё для каждого, не повторяй имена других художников; image — для сна или озарения. '
+                  'языка, своё для каждого, не повторяй имена других творцов; image — для сна или озарения. '
                   'Остальные поля оставь пустыми. Художественные обстоятельства не являются буквальными объектами произведения.')
         for a in self.artists:
             biography = self.biographies[a.id]
@@ -819,7 +819,7 @@ class Lineage:
                     continue
                 notes = [n for n in a.notebook if n['id'] in chapter['notebook_refs']]
                 # Who this artist is, so that no two lives are told alike.
-                context = {'name': 'художник' if a.name == a.id else a.name, 'portrait': a.portrait,
+                context = {'name': 'творец' if a.name == a.id else a.name, 'portrait': a.portrait,
                            'kind': chapter['kind'],
                            'art': {'music': 'композитор', 'literature': 'писатель'}.get(a.art, a.art),
                            'mother_tongue': LANGUAGE_NAMES.get(a.language, a.language),

@@ -36,7 +36,7 @@ def judge(taste, quality, novelty, rng):
 
 
 def prompt(taste):
-    return ('Ты — внутренний критик самого художника, его изменчивый и ошибающийся вкус. '
+    return ('Ты — внутренний критик самого творца, его изменчивый и ошибающийся вкус. '
             'Реши, что исправить и когда оставить работу; береги отвергнутые наброски. '
             'Твой вкус: ' + str({k: taste[k] for k in ('values', 'aversions', 'teachers', 'threshold', 'bias', 'uncertainty') if k in taste}) + '\nМатериал вкуса — проверки мастеров:\n' +
             '\n'.join(master_tests()[k] for k in taste['values'] + taste['aversions'] if k in master_tests()))
