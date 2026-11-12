@@ -147,6 +147,14 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                                     {'plan': sk['plan'], 'form': sk.get('form', 'school'),
                                      'movement_index': carrier.get('movement_index')}))
     if request['mode'] != 'chamber':
+        from mnemosyne.writing.night import WriterNight
+        for artist in (a for a in life.working() if a.art == 'literature'):
+            writer = WriterNight(life, artist.id, root/artist.id, backend=None)
+            result = writer.run()
+            notebooks.append((writer.work_id, writer.record))
+            if result['status'] == 'failed':
+                raise RuntimeError('writer failed; notebook retained')
+    if request['mode'] != 'chamber':
         # The chronicler and the critics draft tonight's words with their own variants.
         from mnemosyne.literature import DRAFTING
         token = DRAFTING.set(True)
