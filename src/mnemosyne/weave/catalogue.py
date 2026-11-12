@@ -10,7 +10,7 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
 
 
-def create(encoder, work_ids, *, carrier_ids=None):
+def create(encoder, work_ids, *, carrier_ids=None, first=0):
     work_ids = list(work_ids)
     if not work_ids or any(not isinstance(w, str) or not w for w in work_ids):
         raise ValueError('nonempty work IDs required')
@@ -21,6 +21,9 @@ def create(encoder, work_ids, *, carrier_ids=None):
             'envelope_bytes': encoder.total,
             # Position is the uint64 frame index; no repeated snapshot IDs.
             'works': work_ids}
+    if first:
+        # A later night continues the same rateless piece from this frame index.
+        body['first'] = first
     if carrier_ids is not None:
         carrier_ids = list(carrier_ids)
         if len(carrier_ids) != len(work_ids) or any(not isinstance(c, str) or not c for c in carrier_ids):
@@ -48,12 +51,13 @@ def metadata(catalogue, index, existing=None):
     result = deepcopy(existing or {})
     if 'backup' in result:
         raise ValueError('work already has backup metadata')
-    if not 0 <= index < len(catalogue['body']['works']):
+    position = index - catalogue['body'].get('first', 0)
+    if not 0 <= position < len(catalogue['body']['works']):
         raise ValueError('invalid catalogue index')
-    work = catalogue['body']['works'][index]
+    work = catalogue['body']['works'][position]
     result['backup'] = {'work': work, 'index': index, 'catalogue': deepcopy(catalogue)}
     if 'carriers' in catalogue['body']:
-        result['backup']['carrier'] = catalogue['body']['carriers'][index]
+        result['backup']['carrier'] = catalogue['body']['carriers'][position]
     return result
 
 
@@ -62,12 +66,15 @@ def validate_work(frame, work_metadata, key):
         backup = work_metadata['backup']
         body = verify(backup['catalogue'], key)
         snapshot, index, k, size, total, _ = fountain.unpack(frame, key)
+        position = index - body.get('first', 0)
+        if position < 0:
+            raise ValueError('frame before catalogue')
         if (snapshot.hex() != body['snapshot'] or index != backup['index']
-                or body['works'][index] != backup['work'] or k != body['k']
+                or body['works'][position] != backup['work'] or k != body['k']
                 or size + fountain.OVERHEAD != body['frame_bytes']
                 or total != body['envelope_bytes']):
             raise ValueError('work/frame mismatch')
-        if 'carriers' in body and backup.get('carrier') != body['carriers'][index]:
+        if 'carriers' in body and backup.get('carrier') != body['carriers'][position]:
             raise ValueError('carrier/frame mismatch')
         return body
     except (ValueError, KeyError, TypeError, IndexError) as exc:

@@ -122,18 +122,20 @@ class FinalAudioTests(unittest.TestCase):
 
     def test_unfinished_backup_keeps_status_and_notation(self):
         from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
-        from mnemosyne.atelier import obj
         with tempfile.TemporaryDirectory() as tmp:
             night = Night.__new__(Night)
-            night.root = Path(tmp)
+            night.root = Path(tmp)/'night'
+            night.root.mkdir()
             night.studio = Mock()
             night.sketches = []
-            night.objects = [obj('Notebook', 'unfinished', {'entries': ['retained']})]
+            night.life = Mock(schools={}, date=Mock(return_value='2025-07-01T00:00:00'))
+            night.cluster_state = [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'shop'}}]
+            night.ledger_root = Path(tmp)/'ledger'
             night.record = {'status': 'unfinished', 'verdict': {'verdict': 'rewrite'}}
             night.backup(X25519PrivateKey.generate())
             night.studio.run.assert_not_called()
             self.assertEqual(night.record['status'], 'unfinished')
-            self.assertTrue((night.root/'pending-envelope.bin').exists())
+            self.assertEqual(night.record['backup']['pending_pieces'], 1)
 
     def test_imported_unpitched_percussion_does_not_require_program_change(self):
         from music21 import converter, instrument, note, stream

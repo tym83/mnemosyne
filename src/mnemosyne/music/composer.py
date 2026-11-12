@@ -243,7 +243,8 @@ def art_sketch(sketch):
 
 
 class Night:
-    def __init__(self, life, artist_id, root, studio, *, backend=None, sound=True):
+    def __init__(self, life, artist_id, root, studio, *, backend=None, sound=True,
+                 cluster_state=None, ledger_root=None):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
         if self.artist.status not in ('working', 'ill'):
@@ -253,6 +254,8 @@ class Night:
         # Sound is a side branch: the backup lives in scores and the process;
         # a work may be rendered here, played by people, or left on paper.
         self.sound = sound
+        # Observed cluster objects for tonight's backup, and the atelier's shared ledger.
+        self.cluster_state, self.ledger_root = cluster_state, ledger_root
         from .school_birth import register_all
         register_all(life.schools)
         self.root.mkdir(parents=True, exist_ok=False)
@@ -543,107 +546,45 @@ class Night:
             self.save()
 
     def backup(self, key):
-        from ..state.collect import archive
-        from ..atelier import crds, NS
-        from ..weave import catalogue, fountain, payload, schools, surface, registry, school_series
-        from ..restore import recover_works
-        data = archive([*crds(), {'apiVersion': 'v1', 'kind': 'Namespace',
-                                  'metadata': {'name': NS}}, *self.objects])
-        (self.root/'state.tar.zst').write_bytes(data)
-        envelope = payload.seal(data, key.public_key(), context=fountain.DOMAIN)
-        roots = []
+        """Tonight's works carry the cluster's pending state pieces (never the atelier's
+        own history, which is the carrier). The ledger is shared across nights."""
+        from ..state.ledger import Ledger
+        from ..weave import registry, schools, surface
+        from ..weave.carry import carry
+        woven = self.root/'woven'
+        if self.cluster_state is None:
+            report = {'reason': 'no cluster state observed tonight', 'frame_decode_verified': False}
+            self.record['backup'] = report
+            dump(self.root/'decode.json', report)
+            self.render_final(woven)
+            return
+        ledger = Ledger(self.ledger_root or self.root.parent/'ledger')
+        observed = ledger.observe(self.cluster_state, self.life.date(), key.public_key())
+        carriers = []
         for sketch in self.sketches:
             if 'plan' not in sketch:
                 continue  # NotaGen sources stay retained; their developed works carry frames.
-            plan = sketch['plan']
-            school = 'symphony' if sketch.get('form') == 'symphony' else plan['school']
-            carriers = sketch.get('carriers') or [{'score': sketch['score']}]
-            for c in carriers:
-                carrier = {**sketch, **c, 'carrier_school': school, 'carrier_object': sketch['id']}
-                if 'movement_index' in c:
-                    carrier['id'] += f"-mv{c['movement_index']+1}"
-                    carrier['stage'] += f"-mv{c['movement_index']+1}"
-                root = schools.prepare(surface.read(self.root/c['score']), school)
-                capacity = schools.capacity(root) - school_series.OVERHEAD
-                if capacity > fountain.OVERHEAD:
-                    roots.append((carrier, root, capacity))
-        sizes = {min(1024, cap) for _, _, cap in roots}
-        sizes = {size for size in sizes if math.ceil(len(envelope)/(size-fountain.OVERHEAD)) <= fountain.MAX_K}
-        if not sizes:
-            report = {'archive_bytes': len(data), 'archive_sha256': hashlib.sha256(data).hexdigest(),
-                      'archive_recovered': False, 'frame_decode_verified': False,
-                      'reason': 'no carrier large enough for authenticated frame dimensions'}
-            self.record['backup'] = report
-            if self.record.get('status') != 'unfinished':
-                self.record['status'] = 'backup_pending_capacity'
-            (self.root/'pending-envelope.bin').write_bytes(envelope)
-            dump(self.root/'decode.json', report)
-            return
-        frame_size = max(sizes, key=lambda size: sum(cap//size for _, _, cap in roots)*(size-fountain.OVERHEAD))
-        encoder = fountain.Encoder(envelope, frame_size, key)
-        assignments = [(sk, root, cap//frame_size) for sk, root, cap in roots if cap >= frame_size]
-        count = sum(n for _, _, n in assignments)
-        # Several frames may belong to one work. Distinct frame slots retain the
-        # actual carrier identity as a prefix; the mapping is archived explicitly.
-        ids = [sk['id']+f'/frame-{j}' for sk, _, n in assignments for j in range(n)]
-        cat = catalogue.create(encoder, ids, carrier_ids=[sk['carrier_object']
-            for sk, _, n in assignments for _ in range(n)])
-        dump(self.root/'catalogue.json', cat)
-        woven = self.root/'woven'
-        woven.mkdir()
-        frames = []
-        index = 0
-        for sk, root, n in assignments:
-            registry.mark(root, (sk['carrier_school'], 'dynamics-fountain', '2'))
-            metadata = [{'carrier': sk['id'], **catalogue.metadata(cat, i)} for i in range(index, index+n)]
-            import xml.etree.ElementTree as ET
-            misc = root.find('./identification/miscellaneous')
-            ET.SubElement(misc, 'miscellaneous-field', name='mnemosyne.catalogue').text = json.dumps(metadata)
-            batch = [encoder.frame(i) for i in range(index, index+n)]
-            result = school_series.encode_many(root, batch, key)
-            path = woven/(sk['id']+'.musicxml')
-            surface.write(result, path)
-            decoded = registry.decode(path, key).frame
-            for frame, meta in zip(decoded, metadata, strict=True):
-                catalogue.validate_work(frame, meta, key)
-            frames.extend(decoded)
-            dump(path.with_suffix('.catalogue.json'), metadata)
-            index += n
-        report = {'archive_bytes': len(data), 'archive_sha256': hashlib.sha256(data).hexdigest(),
-                  'frames': count, 'required_source_frames': encoder.k,
-                  'frame_decode_verified': True, 'archive_recovered': False,
-                  'snapshot_boundary': 'after final verdict and biography, before weave/render/decode',
-                  'loss_tolerance_verified': False}
-        if count >= encoder.k:
-            recovered = fountain.recover(frames, key)
-            if recovered != data:
-                raise RuntimeError('archive differs after decode')
-            # Exercise the restore entry point on scores only, without sidecars.
-            restored, _, _ = recover_works(woven, key)
-            if restored != data:
-                raise RuntimeError('restore entry point differs')
-            report['archive_recovered'] = True
-        else:
-            report['pending_source_frames'] = encoder.k-count
-            (self.root/'pending-envelope.bin').write_bytes(envelope)
+            school = 'symphony' if sketch.get('form') == 'symphony' else sketch['plan']['school']
+            for c in sketch.get('carriers') or [{'score': sketch['score']}]:
+                name = sketch['id'] + (f"-mv{c['movement_index']+1}" if 'movement_index' in c else '')
+                carriers.append((name, schools.prepare(surface.read(self.root/c['score']), school), school))
+        report, _ = carry(ledger, carriers, key, woven)
+        report['observed'] = observed and {k: observed[k] for k in ('id', 'kind', 'at', 'k', 'target')}
         self.record['backup'] = report
-        self.record['catalogue'] = cat
         dump(self.root/'decode.json', report)
         self.render_final(woven)
         for path in woven.glob('*.musicxml'):
             registry.decode(path, key)
-        for sk, _, _ in assignments:
-            original = next(s for s in self.sketches if s['id'] == sk['id'] or
-                            sk['id'].startswith(s['id']+'-mv'))
-            files = [woven/(sk['id']+'.musicxml'), woven/(sk['id']+'.catalogue.json')]
+        for name in report['carriers']:
+            original = next(s for s in self.sketches if s['id'] == name or name.startswith(s['id']+'-mv'))
+            files = [woven/(name+'.musicxml'), woven/(name+'.catalogue.json')]
             original.setdefault('files', []).extend(str(p.relative_to(self.root)) for p in files)
-            original.setdefault('carried_frames', []).extend(
-                json.loads((woven/(sk['id']+'.catalogue.json')).read_text()))
+            original.setdefault('carried_frames', []).extend(json.loads(files[1].read_text()))
         report['post_render_decode_verified'] = True
         dump(self.root/'decode.json', report)
         if self.record.get('verdict', {}).get('verdict') == 'accept':
             self.record['status'] = ('sound_pending' if self.record.get('sound_pending') else
-                                     'complete' if report['archive_recovered'] else 'backup_pending_capacity')
+                                     'complete' if not report['pending_pieces'] else 'backup_carrying')
 
     def render_final(self, woven):
         """Only the accepted entry sounds, and only from its woven surfaces."""
@@ -691,6 +632,16 @@ class Night:
         self.record['sounding_work'] = final['id']
 
 
+def load_state(path):
+    import yaml
+    from ..restore import read_archive
+    if path.is_dir():
+        return [d for f in sorted(path.rglob('*.y*ml')) for d in yaml.safe_load_all(f.read_text()) if d]
+    if path.suffix == '.json':
+        return json.loads(path.read_text())
+    return read_archive(path.read_bytes())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--lineage', type=Path, required=True)
@@ -702,6 +653,8 @@ def main():
     parser.add_argument('--drafts', type=int, default=3)
     parser.add_argument('--no-sound', action='store_true', help='Keep the accepted work as scores; render no audio')
     parser.add_argument('--key', type=Path, required=True, help='External existing or new X25519 private key')
+    parser.add_argument('--state', type=Path, help='Cluster state tonight: state.collect archive, JSON list or manifest directory')
+    parser.add_argument('--ledger', type=Path, help='Shared snapshot ledger (default out/ledger/<cluster>)')
     args = parser.parse_args()
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
     from ..weave.backup import write_new
@@ -718,7 +671,9 @@ def main():
         write_new(args.key, X25519PrivateKey.generate().private_bytes_raw())
     key = X25519PrivateKey.from_private_bytes(args.key.read_bytes())
     studio = Studio(root, args.pod)
-    night = Night(life, a.id, root, studio, backend=os.environ.get('WRITER'), sound=not args.no_sound)
+    night = Night(life, a.id, root, studio, backend=os.environ.get('WRITER'), sound=not args.no_sound,
+                  cluster_state=load_state(args.state) if args.state else None,
+                  ledger_root=args.ledger or Path('out/ledger')/life.cluster)
     studio.setup()
     inner = ideas.inner_life(args.scenarios, life.cluster, datetime.fromisoformat(life.date()))
     result = night.run(inner, drafts=args.drafts, key=key)

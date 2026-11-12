@@ -76,7 +76,7 @@ def read_archive(data, *, include_secrets=False):
     return objects
 
 
-def recover_works(directory, key, *, include_secrets=False):
+def recover_works(directory, key, *, include_secrets=False, at=None):
     """Try every XML; damaged/unsupported works are erasures, never plaintext."""
     groups = defaultdict(list)
     report = {'decoded': [], 'rejected': [], 'snapshots': []}
@@ -118,12 +118,27 @@ def recover_works(directory, key, *, include_secrets=False):
                         raise DecodeError('conflicting multipart frame')
                     unique[frame['index']] = frame
                 data = frames.assemble(list(unique.values()), key)
-            objects = read_archive(data, include_secrets=include_secrets)
+            from .state.ledger import parse
+            header, archive = parse(data)
+            if header is None:
+                read_archive(data, include_secrets=include_secrets)
             digest = hashlib.sha256(data).hexdigest()
-            candidates[digest] = data, objects
-            report['snapshots'].append({'id': group[1], 'complete': True, 'sha256': digest})
+            candidates[digest] = header, archive, data
+            report['snapshots'].append({'id': group[1], 'complete': True, 'sha256': digest,
+                                        **({'kind': header['kind'], 'at': header['at']} if header else {})})
         except ValueError:
             report['snapshots'].append({'id': group[1], 'complete': False})
+    pieces = [(h, a) for h, a, _ in candidates.values() if h is not None]
+    if pieces:
+        # Cluster state over time: replay keyframe + deltas up to the chosen moment.
+        from .state.ledger import replay
+        data, objects, moment = replay(pieces, at)
+        if include_secrets is False and any(secret_resource(o['kind']) for o in objects):
+            raise ValueError('Secret resources are not supported by restore')
+        report['moment'] = moment
+        return data, objects, report
+    candidates = {d: (data, read_archive(data, include_secrets=include_secrets))
+                  for d, (_, _, data) in candidates.items()}
     if len(candidates) != 1:
         raise ValueError(f'expected one verified archive, found {len(candidates)}; '
                          f'decoded={len(report["decoded"])} rejected={len(report["rejected"])}; '
@@ -238,13 +253,14 @@ def main(argv=None):
     parser.add_argument('--kubeconfig', type=Path)
     parser.add_argument('--context')
     parser.add_argument('--dry-run', action='store_true', help='Verify and write manifests; never contact a cluster')
+    parser.add_argument('--at', help='ISO moment: restore the newest complete state not after it (default: newest)')
     args = parser.parse_args(argv)
     if args.apply and not (args.kubeconfig and args.context):
         parser.error('--apply requires explicit --kubeconfig and --context')
     if not args.works.is_dir():
         parser.error('--works must be a directory')
     key = X25519PrivateKey.from_private_bytes(args.key.read_bytes())
-    data, objects, report = recover_works(args.works, key, include_secrets=args.include_secrets)
+    data, objects, report = recover_works(args.works, key, include_secrets=args.include_secrets, at=args.at)
     objects, stage = ordered(objects)
     if args.output:
         output = args.output

@@ -58,35 +58,29 @@ def main():
     from mnemosyne.weave.backup import write_new
     write_new(root/'recipient.key', X25519PrivateKey.generate().private_bytes_raw())
     kube('-n','mnemosyne','create','secret','generic','recipient','--from-file=recipient.key='+str(root/'recipient.key'))
-    plan=json.loads((repo/'src/mnemosyne/music/schools/plans/tempo_canon.json').read_text())
-    # Existing method study explicitly used as a technical fixture, no quality claim.
     digest=args.base_image.split('@')[1]
     values={'addon':{'enabled':True,'render':False,'images':{r:{'digest':digest} for r in ('controller','studio')},
         'key':{'secretName':'recipient'},'window':{'kind':'always'},'snapshotNamespace':'mnemo-fixture',
         'inventory':[{'apiVersion':'v1','kind':'Namespace','resource':'namespaces'},
                      {'apiVersion':'v1','kind':'ConfigMap','resource':'configmaps','names':['memory']}],
-        'commissions':[{'idea':'Existing method study: technical recovery fixture',
-                        'method':'tempo_canon study from the repository','plan':{**plan,'seed':plan['seed']+i}} for i in range(3)],
         'resources':{'requests':{'cpu':'100m','memory':'512Mi'},'limits':{'cpu':'2','memory':'2Gi'}}}}
     vp=root/'values.yaml';vp.write_text(yaml.safe_dump(values))
     run('helm','install','e2e',repo/'charts/mnemosyne','--namespace','mnemosyne','--kubeconfig',kc,
         '--kube-context','kind-'+name,'-f',vp,'--post-renderer',repo/'hack/addon/source_postrender.py',env=env)
-    deadline=time.monotonic()+1800
-    complete=[]
+    # The atelier composes by itself; works arrive when the artists' lives bring them.
+    deadline=time.monotonic()+7200
+    verified=[]
     while time.monotonic()<deadline:
-        complete=list(works.glob('*/*/complete.json'))
-        if complete: break
+        verified=[p for p in works.glob('*/*/complete.json') if json.loads(p.read_text()).get('phase')=='Verified']
+        if verified: break
         time.sleep(5)
-    if not complete: raise RuntimeError('night timed out; cluster and source logs retained')
-    report=json.loads(complete[0].read_text())
-    if report.get('phase')!='Verified' or not report.get('loss_tolerance_verified'): raise RuntimeError(report)
+    if not verified: raise RuntimeError('cluster state still carrying; cluster and source logs retained')
     kube('-n','mnemosyne','wait','--for=condition=complete','job','-l','mnemosyne.art/atelier=e2e-atelier','--timeout=120s')
     from mnemosyne.cli import main as cli
     cli(['works','export','--source',str(works),'--output',str(root/'export')])
-    relative=complete[0].parent.relative_to(works)
-    full=root/'export'/relative/'woven'
+    every=sorted((root/'export').rglob('woven/*.musicxml'))
     scores=root/'survivors'; scores.mkdir()
-    for path in sorted(full.glob('*.musicxml'))[:2]: shutil.copyfile(path,scores/path.name)
+    for i,path in enumerate(every[:len(every)-len(every)*3//10]): shutil.copyfile(path,scores/f'{i:04d}-{path.name}')
     run('kind','delete','cluster','--name',name,env=env)
     create()
     cli(['restore','--works',str(scores),'--key',str(root/'recipient.key'),'--apply',
@@ -96,7 +90,7 @@ def main():
     actual_namespace=normalize(json.loads(kube('get','namespace','mnemo-fixture','-o','json',capture_output=True,text=True).stdout))
     if actual_namespace!=expected_namespace: raise RuntimeError('restored Namespace differs')
     (root/'result.json').write_text(json.dumps({'identical':True,'frame_decode_verified':True,
-        'lost_works':1,'total_works':3,'all_subsets_verified':True,'new_cluster':name,'scope':'Namespace + live ConfigMap; not volume data or whole-cluster conformance'},indent=2))
+        'lost_works':len(every)*3//10,'total_works':len(every),'new_cluster':name,'scope':'Namespace + live ConfigMap; not volume data or whole-cluster conformance'},indent=2))
     print((root/'result.json').read_text())
 
 

@@ -1,60 +1,118 @@
-"""Actual score transport; run music fixtures in a studio pod."""
+"""Composer nights carry cluster state, never the atelier's own history."""
 import json
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
+
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 
+from mnemosyne.atelier import obj
 from mnemosyne.music.composer import Night
 from mnemosyne.music.schools import SCHOOLS
 from mnemosyne.restore import recover_works
-from mnemosyne.weave import registry, schools, school_series, surface, fountain, payload
-from mnemosyne.weave.school_audit import plan_for
-from mnemosyne.atelier import obj
+from mnemosyne.state import ledger as ledger_module
+from mnemosyne.weave import fountain, payload, registry, school_series, schools, surface
+
+
+def plan_for(name):
+    return json.loads(Path(f'src/mnemosyne/music/schools/plans/{name}.json').read_text())
+
+
+def cluster(value='one'):
+    return [{'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'shop'}},
+            {'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': {'name': 'settings', 'namespace': 'shop'},
+             'data': {'mode': value}},
+            {'apiVersion': 'apps/v1', 'kind': 'Deployment', 'metadata': {'name': 'web', 'namespace': 'shop'},
+             'spec': {'replicas': 2, 'selector': {'matchLabels': {'app': 'web'}},
+                      'template': {'metadata': {'labels': {'app': 'web'}},
+                                   'spec': {'containers': [{'name': 'web', 'image': 'nginx:1.27'}]}}}},
+            obj('Notebook', 'fixture', {'entries': [{'idea': 'never payload'}]})]
+
+
+def night(root, state, ledger_root, date, works=16, accepted=True):
+    plan = plan_for('drone')
+    root.mkdir(parents=True)
+    path = root/'source.musicxml'
+    SCHOOLS['drone'].compose(plan, plan['seed']).write('musicxml', fp=path)
+    n = Night.__new__(Night)
+    n.root, n.studio, n.sound = root, Mock(), True
+    n.life = Mock(schools={}, date=Mock(return_value=date))
+    n.record = {'verdict': {'verdict': 'accept' if accepted else 'rewrite'}, 'final': 'w-0'}
+    n.sketches = [{'id': f'w-{i}', 'stage': f's-{i}', 'plan': plan, 'score': path.name, 'form': 'school'}
+                  for i in range(works)]
+    n.cluster_state, n.ledger_root = state, ledger_root
+    n.studio.run.return_value = {}
+    return n
 
 
 class ComposerTransportTests(unittest.TestCase):
-    def test_notebook_and_lives_recovered_from_scores_without_sidecars(self):
+    def test_cluster_restored_from_scores_and_atelier_is_not_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            plan = plan_for('additive')
-            path = root/'source.musicxml'
-            SCHOOLS['additive'].compose(plan, plan['seed']).write('musicxml', fp=path)
-            night = Night.__new__(Night)
-            night.root = root
-            night.studio = Mock()
-            night.sound = True
-            night.life = Mock(schools={})
-            night.record = {'verdict': {'verdict': 'accept'}, 'final': 'fixture-sketch-15'}
-            night.sketches = [{'id': f'fixture-sketch-{i}', 'stage': f'fixture-{i}', 'plan': plan,
-                               'score': path.name, 'form': 'school'} for i in range(16)]
-            night.objects = [obj('Notebook', 'fixture', {'entries': [{'idea': 'fixture', 'verdict': 'accept'}]}),
-                             obj('Biography', 'fixture', {'chapters': [{'text': 'fixture chapter'}]})]
+            tmp = Path(tmp)
             key = X25519PrivateKey.generate()
-            night.backup(key)
-            report = night.record['backup']
-            self.assertTrue(report['archive_recovered'])
-            self.assertTrue(report['post_render_decode_verified'])
-            restored, objects, _ = recover_works(root/'woven', key)
-            self.assertEqual(restored, (root/'state.tar.zst').read_bytes())
-            self.assertTrue({'Notebook', 'Biography', 'CustomResourceDefinition', 'Namespace'} <= {o['kind'] for o in objects})
-            self.assertEqual(night.studio.run.call_args.args[0]['action'], 'woven')
-            night.studio.run.assert_called_once()
-            self.assertEqual(night.studio.run.call_args.args[0]['xml'],
-                             (root/'woven/fixture-sketch-15.musicxml').read_text())
-            self.assertEqual(night.record['sounding_work'], 'fixture-sketch-15')
-            woven = next((root/'woven').glob('*.musicxml'))
+            n = night(tmp/'n1', cluster(), tmp/'ledger', '2025-07-01T00:00:00')
+            n.backup(key)
+            report = n.record['backup']
+            self.assertEqual(report['pending_pieces'], 0)
+            self.assertEqual(n.record['status'], 'complete')
+            data, objects, rep = recover_works(tmp/'n1/woven', key)
+            self.assertEqual({o['kind'] for o in objects}, {'Namespace', 'ConfigMap', 'Deployment'})
+            self.assertEqual(data, ledger_module.pack(ledger_module.members(cluster())))
+            self.assertEqual(rep['moment']['moment'], '2025-07-01T00:00:00')
+            woven = next((tmp/'n1/woven').glob('*.musicxml'))
             tree = surface.read(woven)
             field = tree.find('.//miscellaneous-field[@name="mnemosyne.catalogue"]')
-            self.assertIn('fixture-sketch', field.text)
-            mapping = json.loads(field.text)
-            self.assertEqual(mapping[0]['backup']['carrier'], woven.stem)
+            self.assertEqual(json.loads(field.text)[0]['backup']['carrier'], woven.stem)
             field.text = '{}'
-            changed = root/'tampered.musicxml'
-            surface.write(tree, changed)
+            surface.write(tree, tmp/'tampered.musicxml')
             with self.assertRaises(ValueError):
-                registry.decode(changed, key)
+                registry.decode(tmp/'tampered.musicxml', key)
+
+    def test_pieces_accumulate_across_nights_and_restore_chooses_a_moment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            key = X25519PrivateKey.generate()
+            led = tmp/'ledger'
+            # Night 1: one work starts the keyframe but cannot make it loss-tolerant.
+            night(tmp/'n1', cluster('one'), led, '2025-07-01T00:00:00', works=1).backup(key)
+            first = ledger_module.Ledger(led).pending()
+            self.assertEqual(len(first), 1)
+            carried = first[0]['carried']
+            # Night 2: unchanged cluster; new works continue the same piece after its last frame.
+            n2 = night(tmp/'n2', cluster('one'), led, '2025-07-02T00:00:00', works=16)
+            n2.backup(key)
+            self.assertIsNone(n2.record['backup']['observed'])
+            meta = json.loads(next((tmp/'n2/woven').glob('*.catalogue.json')).read_text())
+            self.assertEqual(meta[0]['backup']['catalogue']['body']['first'], carried)
+            self.assertFalse(ledger_module.Ledger(led).pending())
+            # Night 3: one change becomes a delta piece.
+            n3 = night(tmp/'n3', cluster('two'), led, '2025-07-03T00:00:00', works=16)
+            n3.backup(key)
+            self.assertEqual(n3.record['backup']['observed']['kind'], 'delta')
+            works = tmp/'all'
+            works.mkdir()
+            for d in ('n1', 'n2', 'n3'):
+                for p in (tmp/d/'woven').glob('*.musicxml'):
+                    (works/f'{d}-{p.name}').write_bytes(p.read_bytes())
+            _, latest, rep = recover_works(works, key)
+            self.assertEqual(next(o for o in latest if o['kind'] == 'ConfigMap')['data']['mode'], 'two')
+            self.assertEqual(len(rep['moment']['chain']), 2)
+            _, earlier, rep = recover_works(works, key, at='2025-07-02T12:00:00')
+            self.assertEqual(next(o for o in earlier if o['kind'] == 'ConfigMap')['data']['mode'], 'one')
+
+    def test_without_cluster_state_nothing_is_carried(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            n = night(Path(tmp)/'n', None, Path(tmp)/'ledger', '2025-07-01T00:00:00', accepted=False)
+            n.backup(X25519PrivateKey.generate())
+            self.assertIn('no cluster state', n.record['backup']['reason'])
+
+    def test_without_capacity_the_piece_waits_in_the_ledger(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            n = night(Path(tmp)/'n', cluster(), Path(tmp)/'ledger', '2025-07-01T00:00:00', works=0, accepted=False)
+            n.backup(X25519PrivateKey.generate())
+            self.assertEqual(n.record['backup']['pending_pieces'], 1)
+            self.assertTrue(any((Path(tmp)/'ledger/envelopes').iterdir()))
 
     def test_symphony_dynamics_registry_authenticates(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -69,18 +127,6 @@ class ComposerTransportTests(unittest.TestCase):
             frame = encoder.frame(0)
             surface.write(school_series.encode(root, frame, key), path)
             self.assertEqual(registry.decode(path, key).frame, [frame])
-
-    def test_no_capacity_preserves_pending_snapshot(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            night = Night.__new__(Night)
-            night.root = Path(tmp)
-            night.record = {}
-            night.sketches = []
-            night.objects = [obj('Notebook', 'fixture', {'entries': ['retained']})]
-            night.backup(X25519PrivateKey.generate())
-            self.assertEqual(night.record['status'], 'backup_pending_capacity')
-            self.assertFalse(night.record['backup']['archive_recovered'])
-            self.assertTrue((night.root/'pending-envelope.bin').is_file())
 
 
 if __name__ == '__main__':

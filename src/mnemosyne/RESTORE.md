@@ -6,12 +6,26 @@ uv run python -m mnemosyne.restore --works DIR --key KEYFILE \
   --output out/new-restore --apply --kubeconfig K --context C
 ```
 
+Restore returns the cluster to its state at a moment: API objects (workloads,
+services, configuration, custom resources such as Cozystack instances), not
+volume data. Operators then recreate instances empty; data comes from ordinary
+data backups, whose API objects may be part of the snapshot as their map.
+Choose the moment with `--at ISO`; the default is the newest complete state.
+
+The payload is the cluster only; the atelier's own history is the carrier.
+Each night's state becomes a keyframe or a delta piece in the atelier's ledger
+(`state.ledger`), sealed once and fountain-coded; works of later nights continue
+a piece from its last frame until it survives a 30% loss. Restore recovers
+every complete piece, replays the chain from the keyframe to the moment, and
+checks the replayed state against the piece's state identity.
+
 Every `.xml` and `.musicxml` under DIR is attempted. Unsupported, damaged and
 unwoven XML are reported as rejected paths and treated as lost works. Neither
 `frame.bin`, the original archive, nor an external catalogue is a restore input.
 MP3/PDF/MXL are not decoder inputs. See [retained codecs](weave/codecs/README.md).
 
-Frames are authenticated before grouping. Fountain snapshots and legacy
+Frames are authenticated before grouping. A single archive from before the
+ledger is still read as one keyframe. Fountain snapshots and legacy
 multipart bundles are reconstructed separately; duplicates do not add rank.
 School dynamics v1 and variable-capacity v2 frame batches are supported by
 retained codecs. Multiple equations in one work are lost together; redundancy
