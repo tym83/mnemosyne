@@ -140,3 +140,32 @@ def inner(life, a) -> str:
     if own:
         lines.append('Твоя собственная жизнь (это твоё, из этого можно писать): ' + ' '.join(own))
     return '\n'.join(lines)
+
+
+def remembered(life, a, works: int = 3, chapters: int = 2) -> str:
+    """The creator's memory of themselves: their last works as they wrote them, their diary, their Lives.
+
+    A model has no memory between nights; the continuity of a life is what the
+    creator carries into the next one.
+    """
+    from .weave.variants import plain
+    parts = []
+    done = [w for w in a.catalogue if not w.get('synthetic') and (w.get('excerpt') or w.get('idea'))][-works:]
+    for w in done:
+        head = f'«{w["title"]}»' if w.get('title') else 'работа'
+        verdict = {'accept': 'ты её принял', 'rewrite': 'ты её не довёл'}.get(w.get('verdict'), '')
+        line = f'{head}, ночь {w["night"]}' + (f', {verdict}' if verdict else '') + '.'
+        if w.get('excerpt'):
+            line += f' Начало: {w["excerpt"]}'
+        elif w.get('idea'):
+            line += f' Замысел: {plain(w["idea"])[:400]}'
+        if w.get('diary'):
+            line += f' В дневнике: {w["diary"]}'
+        parts.append(line)
+    lives = [c for c in life.biographies[a.id].chapters if c.get('text')][-chapters:] if a.id in life.biographies else []
+    out = []
+    if parts:
+        out.append('Что ты написал последним (не повторяй, продолжай свой путь):\n' + '\n'.join(f'- {p}' for p in parts))
+    if lives:
+        out.append('Как о тебе пишут в Жизнеописаниях:\n' + '\n'.join(f'- {plain(c["text"])[:600]}' for c in lives))
+    return '\n\n'.join(out)

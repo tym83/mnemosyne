@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from .. import artist as ideas
 from ..literature import LANGUAGE, Writer
 from ..weave.variants import plain
-from . import translator
+from . import poetics, translator
 from .schools import SCHOOLS
 
 
@@ -101,8 +101,9 @@ class WriterNight:
 
     def _run(self, inner, drafts):
         a, life = self.artist, self.life
-        from ..psyche import inner as inner_weather
-        inner = inner_weather(life, a) + '\n' + inner
+        from ..psyche import inner as inner_weather, remembered
+        own = remembered(life, a)
+        inner = '\n'.join(x for x in (inner_weather(life, a), own, inner) if x)
         names = {b.id: ('творец' if b.name == b.id else b.name) for b in life.artists}
         teachers = [names.get(t, t) for t in a.teachers]
         if not a.portrait or a.portrait == '[portrait awaiting words]':
@@ -111,10 +112,14 @@ class WriterNight:
                                     self.entries, backend=self.backend, inner=inner)
             a.name, a.portrait = p.name, plain(p.portrait)
             self.record['portrait'] = p.model_dump()
-        system = (f'Ты писатель {a.name}. {a.portrait}\nУчителя: {teachers}. '
-                  'Художественные решения принимаешь ты. Не упоминай инфраструктуру.')
+        home = next((w['school'] for w in reversed(a.catalogue) if w.get('school') in SCHOOLS), None)
+        system = (f'Ты писатель {a.name}. {a.portrait}\nТвои учителя: {", ".join(teachers) or "нет"}. '
+                  'Художественные решения принимаешь ты. Не упоминай технику, компьютеры, серверы.')
         portrait = ideas.SelfPortrait(name=a.name, portrait=a.portrait, what_i_am_as_artist=a.portrait,
                                       wounds=[], loves=[], fears=[], inner_critic={**a.inner_critic, 'teachers': teachers})
+        if home:
+            inner += ('\n\nТвоя школа — ' + poetics.brief(home, SCHOOLS[home].RULES) +
+                      '\nЗамысел может родиться внутри её поэтики, в споре с ней или вне её.')
         st, history = ideas.statement(portrait, 'литература',
             [json.dumps({k: w.get(k) for k in ('idea', 'school', 'verdict')}, ensure_ascii=False) for w in a.catalogue],
             self.entries, backend=self.backend,
@@ -128,10 +133,13 @@ class WriterNight:
             self.record['status'] = 'idea_rejected'
             return self.record
         a.problem = None
-        schools = {k: {'kind': m.KIND, 'rules': m.RULES} for k, m in SCHOOLS.items()}
-        method = self.ask(system, json.dumps({'idea': st.model_dump(), 'schools': schools,
-            'task': 'Choose the school that serves the idea, or invent_school (a future night will found it).'},
-            ensure_ascii=False), Method, 'method')
+        idea = self.idea_words(st)
+        choices = '\n\n'.join(f'{k} — {poetics.brief(k, m.RULES)}' for k, m in SCHOOLS.items())
+        method = self.ask(system, f'{idea}\n\nШколы, в которых можно работать:\n\n{choices}\n\n'
+                          'Выбери школу, чья поэтика — картина мира, время, голос, язык — служит этому замыслу, '
+                          'а не только её форму. В school напиши её код (слово перед тире). Если ни одна школа '
+                          'не держит замысел, выбери invent_school и назови школу, которую хочешь основать: '
+                          'её основание — дело отдельной ночи.', Method, 'method')
         self.record['method'] = method.model_dump()
         if method.kind == 'invent_school' or method.school not in SCHOOLS:
             life.school_attempts.append({'artist': a.id, 'night': life.night, 'status': 'requested',
@@ -143,13 +151,18 @@ class WriterNight:
         plan = {**deepcopy(school.EXAMPLE_PLAN), 'seed': rng.randrange(2**31), 'title': ''}
         frame = school.skeleton(plan, rng)
         self.record.update(plan=plan, frame=frame)
+        reader = poetics.full(method.school, school.RULES, keys=['forbidden', 'markers', 'reading'])
         corrections, final, reading = [], None, None
         for n in range(drafts):
-            draft = self.write(system, st, school, method.school, frame, corrections, n)
-            reading = self.ask(ideas.taste_prompt(a.inner_critic) + 'Прочитай черновик как его автор: держится ли '
-                               'замысел, живой ли язык, не повтор ли это. accept, rewrite или repetition.',
-                               json.dumps({'idea': st.idea, 'school': method.school, 'text': plain(draft['text'])},
-                                          ensure_ascii=False), Reading, f'read:{n}')
+            draft = self.write(system, idea, school, method.school, frame, corrections, n)
+            reading = self.ask(ideas.taste_prompt(a.inner_critic) +
+                               'Ты перечитываешь свой черновик дважды: как его автор и как читатель этой школы.\n'
+                               + reader + '\n\nДержится ли замысел? Есть ли в тексте живое: человек, вещь, '
+                               'мгновение, событие, — а не тезис? Понятно ли и интересно ли это по меркам этой '
+                               'школы (тёмное допустимо, если школа его требует, но текст должен держать)? Живой ли '
+                               'язык? Не повтор ли это? accept, rewrite или repetition; в corrections — что '
+                               'конкретно переписать.',
+                               f'{idea}\n\nЧерновик:\n\n{plain(draft["text"])}', Reading, f'read:{n}')
             draft['reading'] = reading.model_dump()
             final = draft
             if reading.verdict == 'accept':
@@ -160,7 +173,8 @@ class WriterNight:
                        'novelty': self.novelty(features(final['text'])),
                        'process': {'school': method.school, 'drafts': len(self.record['drafts'])}}
         work = life.record_work(a.id, observation)
-        work['school'] = method.school
+        work.update(school=method.school, title=plain(final['title']), excerpt=plain(final['text'])[:900],
+                    diary=plain(final.get('diary') or '')[:400])
         self.record.update(final=final['id'], verdict=reading.model_dump(),
                            status='accepted' if reading.verdict == 'accept' else 'unfinished')
         self.record['translation'] = translator.translate(final['text'], a.language, self.entries,
@@ -176,13 +190,26 @@ class WriterNight:
             life.biographies[a.id].chapters[-1]['text'] = chapter.text
         return self.record
 
-    def write(self, system, st, school, name, frame, corrections, n):
+    @staticmethod
+    def idea_words(st):
+        """The accepted idea as the writer would say it, not as a form to fill."""
+        parts = [f'Замысел: {st.idea}', f'Сверхзадача: {st.superobjective}', f'Мысль: {st.thought}',
+                 'Чувства: ' + '; '.join(st.emotions), 'Чего я боюсь: ' + '; '.join(st.risks)]
+        return '\n'.join(plain(p) for p in parts)
+
+    def write(self, system, idea, school, name, frame, corrections, n):
         problems = []
+        body = poetics.full(name, school.RULES)
         for attempt in range(3):
-            draft = self.ask(system, json.dumps({'idea': st.model_dump(), 'school': name, 'rules': school.RULES,
-                'frame': frame, 'corrections': corrections, 'form_problems': problems,
-                'task': 'Write the complete work in text, in your mother tongue, within the frame.'},
-                ensure_ascii=False), Draft, f'draft:{n}:{attempt}')
+            prompt = (f'{idea}\n\nТы пишешь в поэтике этой школы:\n{body}\n\n'
+                      f'Каркас этой работы (его проверяет код): {json.dumps(frame, ensure_ascii=False)}\n'
+                      + (f'\nЧто ты решил переписать после прошлого черновика:\n- ' + '\n- '.join(corrections) + '\n'
+                         if corrections else '')
+                      + (f'\nФорма не удержана: {"; ".join(problems)}\n' if problems else '')
+                      + '\nНапиши произведение целиком, на родном языке. История и живое в ней важнее всего; '
+                        'пиши для читателя, а не для отчёта о замысле. В diary — пара строк в дневник о том, '
+                        'что решилось в этом черновике.')
+            draft = self.ask(system, prompt, Draft, f'draft:{n}:{attempt}')
             problems = school.check(plain(draft.text), frame, self.artist.language)
             if not problems:
                 break
