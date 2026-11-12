@@ -157,7 +157,8 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
             from .resonance import copy_slurs
             copy_slurs(score.parts[player_index], one.parts[0])
             one.parts[0].editorial.sustain_pedal = getattr(score.parts[player_index].editorial, 'sustain_pedal', [])
-            write_midi(one,midi,plan['tempo'],performance=plan.get('school','symphony'),sample_vibrato=True)
+            write_midi(one,midi,plan['tempo'],performance=plan.get('school','symphony'),sample_vibrato=True,
+                       held_swell=plan.get('held_swell',False))
             patch=patches[(player['instrument'],technique)]
             normalized=work/patch['playback_file']
             from .live_performance import prepare_patch, seat

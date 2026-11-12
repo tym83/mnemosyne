@@ -36,7 +36,7 @@ def sources():
  yield 'tintinnabuli',piano,plan,players
 
 def patch_for(candidate,instrument,technique,dest):
- if candidate in ('sso','after-b','before'):
+ if candidate in ('sso','after-b','before') or candidate.startswith('after-b-'):
   playback_patch(BANK,instrument,technique,dest)
  elif candidate in ('vsco','vsco-live','after-a-b','salamander'):
   if instrument=='piano' and candidate in ('after-a-b','salamander'):
@@ -57,9 +57,15 @@ def patch_for(candidate,instrument,technique,dest):
 
 def render(candidate):
  folder=OUT/candidate;folder.mkdir(parents=True,exist_ok=True)
- live=candidate in ('after-b','vsco-live','after-a-b')
+ live=candidate in ('after-b','vsco-live','after-a-b') or candidate.startswith('after-b-')
+ if 'noswell' in candidate:
+  # Audition only: the same live layer without the held-tone swell.
+  import mnemosyne.music.live_performance as lp
+  base_profile=lp.profile
+  lp.profile=lambda school:{**base_profile(school),'swell':0.}
  for name,source,plan,players in sources():
   if candidate=='salamander' and name=='symphony':continue
+  if candidate.startswith('after-b-') and name!='symphony':continue
   if candidate=='vpo' and name=='tintinnabuli':
    (folder/'tintinnabuli-unavailable.json').write_text(json.dumps({'reason':'VPO has no piano; no substitution made'}));continue
   if (folder/f'{name}.json').exists():continue
@@ -94,6 +100,9 @@ def render(candidate):
       livepat=base.with_suffix('.live.sfz');ordered=sorted(events,key=lambda e:e['at'])
       mono=all(len(e['pitches'])==1 for e in events) and all(a['at']+a['duration']<=b['at']+1e-7 for a,b in zip(ordered,ordered[1:]))
       prepare_patch(pat,livepat,kind,legato=mono);pat=livepat
+      if 'norelease' in candidate and kind in ('strings','woodwinds','brass'):
+       blocks=livepat.read_text().split('<region>')
+       livepat.write_text(blocks[0]+''.join('<region>'+b for b in blocks[1:] if 'trigger=release' not in b))
      run([SFIZZ,'--sfz',pat,'--midi',mid,'--wav',wav,'--samplerate',RATE,'--use-eot'],log)
     data=pcm(wav);kind=REGISTRY[player['instrument']]['family']
     if not np.any(data):raise RuntimeError(f'Silent {base}')

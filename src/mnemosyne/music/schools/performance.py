@@ -80,7 +80,8 @@ def sounding_events(part, bpm=None):
         yield at, length, pitches, velocity(n), glide
 
 
-def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performance=None, sample_vibrato=False):
+def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performance=None, sample_vibrato=False,
+               held_swell=False):
     tracks = []
     audit = []
     for i, part in enumerate(score.parts):
@@ -108,7 +109,7 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performanc
         curve = getattr(part.editorial, 'school_expression', None)
         if performance is not None:
             from ..live_performance import expression_points
-            for at,value in expression_points(part,bpm,performance):
+            for at,value in expression_points(part,bpm,performance,held_swell):
                 events.append((round(at*960), 1, bytes([0xB0|channel,11,value])))
         elif curve:
             for at, gain in curve:

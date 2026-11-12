@@ -30,6 +30,7 @@ class SchoolPlan(BaseModel):
     audio_profile: Literal['native_sfz', 'technique_synthesis'] | None = None
     hall_profile: str | None = None
     study: str | None = None
+    held_swell: bool = False
     study_basis: str | None = None
     orchestration: str | list[dict] | None = None
     colour: str | None = None

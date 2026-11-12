@@ -73,9 +73,14 @@ class LivePerformanceTests(unittest.TestCase):
   self.assertGreater(np.ptp([v for _,v in values]),10)
   self.assertEqual(p.editorial.school_expression,before)
   self.assertEqual(expression_points(p,60,'reich'),[(a,round(v*96)) for a,v in before])
+ def test_held_tone_is_level_unless_the_plan_asks_for_swell(self):
+  p=stream.Part();p.insert(0,instrument.Violin());p.insert(0,note.Note(67,quarterLength=6))
+  piano=stream.Part();piano.insert(0,instrument.Piano());piano.insert(0,note.Note(67,quarterLength=6))
+  # Without the device a bowed tone follows the same phrase envelope as the piano.
+  self.assertEqual([v for _,v in expression_points(p,60,'symphony')],[v for _,v in expression_points(piano,60,'symphony')])
  def test_held_tone_opens_then_fades_into_release(self):
   p=stream.Part();p.insert(0,instrument.Violin());p.insert(0,note.Note(67,quarterLength=6))
-  values=dict(expression_points(p,60,'symphony'))
+  values=dict(expression_points(p,60,'symphony',held_swell=True))
   level=lambda t:values[min(values,key=lambda a:abs(a-t))]
   self.assertLess(level(0),level(2));self.assertLess(level(5.9),level(3))
   piano=stream.Part();piano.insert(0,instrument.Piano());piano.insert(0,note.Note(67,quarterLength=6))

@@ -9,6 +9,7 @@ import numpy as np
 
 def profile(school):
     # swell: how far a held tone opens after the attack and fades before release.
+    # It is a device the plan asks for (held_swell), never the default sound.
     if school in ('ustvolskaya', 'reich', 'additive', 'process', 'phase'):
         return dict(dynamics=0., timing=0., cadence=0., soft=1., swell=0.)
     if school == 'feldman':
@@ -82,9 +83,10 @@ def phrase_phase(at,spans):
     return 0.
 
 
-def expression_points(part, bpm, school):
+def expression_points(part, bpm, school, held_swell=False):
     """Multiply woven expression by a phrase envelope; never replace its data."""
     style=profile(school)
+    if not held_swell:style['swell']=0.
     spans=phrase_spans(part)
     curve=getattr(part.editorial,'school_expression',None)
     if not style['dynamics']:

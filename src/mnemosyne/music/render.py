@@ -333,7 +333,7 @@ def render_score(score, plan, destination, soundfont, *, compact=False):
     midi = work/'score.mid'
     sample_tail = release_tail_seconds(score, plan, sample_info)
     write_midi(score,midi,plan['tempo'],plan['ensemble']=='string_orchestra',tail_seconds=sample_tail,
-               performance=plan.get('school',''))
+               performance=plan.get('school',''),held_swell=plan.get('held_swell',False))
     run(['musicxml2ly','-o',work/'score.ly',xml],log)
     if synthetic:
         with (work/'score.ly').open('a') as file:

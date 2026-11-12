@@ -93,6 +93,8 @@ def audio_contract():
         'ensembles': {n: entries for n, entries in ENSEMBLES.items()
                       if all(REGISTRY[e['instrument']]['samples'].get('audio_available') is not False
                              for e in entries)},
+        'devices': {'held_swell': 'plan-level true/false: held string, wind, brass and voice tones open after '
+                    'the attack and fade before release. A deliberate expressive device, off by default.'},
         'rule': 'Use exact instrument identifiers. Solo voices cannot be rendered; '
                 'choir is not a substitute for solo voices. Revise the plan yourself within these capabilities.'}
 
