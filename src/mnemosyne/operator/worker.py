@@ -159,7 +159,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         from mnemosyne.literature import DRAFTING
         token = DRAFTING.set(True)
         try:
-            life.reception.write_words()
+            life.reception.write_words(life=life)
             life.write_words()
         finally:
             DRAFTING.reset(token)

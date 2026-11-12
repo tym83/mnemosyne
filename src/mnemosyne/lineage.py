@@ -809,7 +809,8 @@ class Lineage:
         system = (f'Ты {chronicler}. Единый голос жизнеописаний в духе Вазари, не журнал событий. '
                   'Можно быть пристрастным, ошибаться в толковании, создавать легенду, но не менять факты судьбы. '
                   'Не упоминай инфраструктуру. Напиши главу; diary — голос художника; letter — только при болезни; '
-                  'last_idea — только для последней работы; name и portrait — при рождении; image — для сна или озарения. '
+                  'last_idea — только для последней работы; name и portrait — при рождении: имя из культуры его родного '
+                  'языка, своё для каждого, не повторяй имена других художников; image — для сна или озарения. '
                   'Остальные поля оставь пустыми. Художественные обстоятельства не являются буквальными объектами произведения.')
         for a in self.artists:
             biography = self.biographies[a.id]
@@ -817,8 +818,16 @@ class Lineage:
                 if chapter['text'] is not None:
                     continue
                 notes = [n for n in a.notebook if n['id'] in chapter['notebook_refs']]
+                # Who this artist is, so that no two lives are told alike.
                 context = {'name': 'художник' if a.name == a.id else a.name, 'portrait': a.portrait,
-                           'kind': chapter['kind'],
+                           'kind': chapter['kind'], 'artist': a.id,
+                           'art': {'music': 'композитор', 'literature': 'писатель'}.get(a.art, a.art),
+                           'mother_tongue': LANGUAGE_NAMES.get(a.language, a.language),
+                           'character': {k: round(getattr(a, k), 2) for k in
+                                         ('drive', 'resilience', 'openness', 'isolation', 'skill')},
+                           'teachers': [next((b.name for b in self.artists if b.id == t), t) for t in a.teachers],
+                           'facts': chapter.get('facts', {}), 'night': chapter['night'],
+                           'names_taken': [b.name for b in self.artists if b.name != b.id and b.id != a.id],
                            'catalogue': [{k: w[k] for k in ('idea', 'method', 'halftones') if k in w}
                                          for w in a.catalogue if w['id'] in chapter['works']],
                            'previous_chapters': [c['text'] for c in biography.chapters

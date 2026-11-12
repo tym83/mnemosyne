@@ -183,7 +183,7 @@ class Reception:
                               chart=chart, programme=programme,
                               timestamps_ms=[i*337000 + r.randrange(256) for i in range(len(programme))]))
 
-    def write_words(self, writer_factory=None):
+    def write_words(self, writer_factory=None, life=None):
         if writer_factory is None:
             from .literature import Writer
             writer_factory = lambda nb: Writer(nb, role="critic", data_class="art")
@@ -191,8 +191,15 @@ class Reception:
             if not review['words_pending']:
                 continue
             critic = review['lens']
-            # Only the recorded opinion is supplied, never hidden merit.
-            context = {k: review[k] for k in ('score',)}
+            # The recorded opinion and the public facts of the work, never hidden merit.
+            context = {'score': review['score'], 'work': review['work'], 'night': review['night'],
+                       'revision_of': review.get('revision_of')}
+            if life is not None:
+                author = next((a for a in life.artists if a.id == self.works[review['work']]['artist']), None)
+                work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), {})
+                context.update(author=author and (author.name if author.name != author.id else author.id),
+                               art=author and author.art, school=work.get('school'), idea=work.get('idea'),
+                               kind=work.get('kind'))
             nb = []
             words = writer_factory(nb).ask('Write a review in this critic voice: ' + str(critic),
                                            str(context), ReviewWords, 'review:' + review['id'])

@@ -140,7 +140,7 @@ def main():
             from mnemosyne.literature import DRAFTING
             token = DRAFTING.set(True)
             try:
-                life.reception.write_words()
+                life.reception.write_words(life=life)
                 life.write_words()
             except Exception as exc:
                 real.append(['words', 'error', str(exc)[:200]])

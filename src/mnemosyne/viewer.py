@@ -46,10 +46,14 @@ class Atelier:
         return sorted(p for night in self.nights for p in night.rglob('*') if p.is_file() and wid in str(p))
 
     def notebook(self, wid):
-        for p in self.files(wid):
-            if p.name == 'notebook.json':
-                return json.loads(p.read_text())
-        return None
+        if not hasattr(self, '_notebooks'):
+            self._notebooks = {}
+            for night in self.nights:
+                for p in night.rglob('notebook.json'):
+                    record = json.loads(p.read_text())
+                    if record.get('opus'):
+                        self._notebooks[record['opus']] = record
+        return self._notebooks.get(wid)
 
     def text(self, wid):
         texts = [p for p in self.files(wid) if p.suffix == '.txt' and not p.name.endswith('.ru.txt')]
@@ -133,6 +137,7 @@ a{color:var(--accent)}nav{font:14px system-ui,sans-serif;margin-bottom:24px}nav 
 h1,h2{font-weight:normal}pre{white-space:pre-wrap;font:inherit}.muted{color:var(--muted)}
 table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 .work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
+.variants{color:var(--accent);font-size:.92em}
 #score{background:#fff;border-radius:6px;padding:8px;overflow-x:auto}
 """
 PLAYER = ('<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,'
@@ -144,12 +149,49 @@ def page(title, body, scripts=''):
     return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
-            f'<a href="artists.html">Художники</a><a href="works.html">Работы</a><a href="timeline.html">Хронология</a>'
+            f'<a href="artists.html">Художники</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
+            f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a>'
             f'</nav>{body}</body></html>')
 
 
 def esc(text):
     return html.escape(plain(text or ''))
+
+
+NOTE = {'dream': 'сон', 'illumination': 'озарение', 'preparation': 'подготовка', 'incubation': 'вынашивание',
+        'set_aside': 'отложенный замысел', 'school_unborn': 'нерождённая школа', 'school_birth': 'рождение школы',
+        'influence': 'встреча', 'draft_decision': 'решение о черновике', 'verification': 'проверка',
+        'period': 'новый период', 'life_words': 'слова для жизнеописания'}
+
+
+def marked(text):
+    """A draft with its variants visible: {a|b} shown as alternatives."""
+    import re
+    return re.sub(r'\{([^{}]*)\}', lambda m: '<span class="variants">[' + ' | '.join(
+        html.escape(o) for o in m.group(1).split('|')) + ']</span>', html.escape(text or '').replace('&#x27;', "'"))
+
+
+def notebook_html(record):
+    parts = []
+    st = record.get('statement') or {}
+    if st:
+        parts.append(f'<h3>Замысел</h3><p>{esc(st.get("idea"))}</p><p class="muted">{esc(st.get("thought"))}</p>')
+    for h in record.get('interrogation') or []:
+        iv = h['interrogation']
+        parts.append(f'<p><b>Внутренний критик, раунд {h["round"] + 1}: {html.escape(iv["verdict"])}</b><br>'
+                     f'{esc(iv.get("reasons") or "")}</p>')
+    for d in record.get('drafts') or []:
+        parts.append(f'<h3>Черновик {html.escape(d["id"])}</h3><pre>{marked(d.get("text"))}</pre>'
+                     f'<p class="muted">Дневник: {esc(d.get("diary"))}</p>'
+                     + (f'<p class="muted">Форма: {html.escape("; ".join(d["form_problems"]))}</p>' if d.get('form_problems') else '')
+                     + (f'<p class="muted">Чтение: {html.escape(d["reading"]["verdict"])} — {esc(d["reading"]["reasons"])}</p>'
+                        if d.get('reading') else ''))
+    for e in record.get('entries') or []:
+        if isinstance(e.get('result'), dict) and e['result'].get('diary'):
+            parts.append(f'<p class="muted">{html.escape(e["step"])}: {marked(e["result"]["diary"])}</p>')
+    if record.get('apparatus'):
+        parts.append('<p class="muted">Аппарат разночтений сохранён: варианты, из которых выбран итоговый текст.</p>')
+    return ''.join(parts)
 
 
 def site(at, out: Path):
@@ -174,11 +216,16 @@ def site(at, out: Path):
                         for w in a.catalogue if (a, w) in live)
         chapters = ''.join(f'<h3 class="muted">ночь {c["night"]} · {c["kind"]}</h3><p>{esc(c["text"])}</p>'
                            for c in life.biographies[a.id].chapters if c.get('text'))
+        notes = ''.join(f'<li>ночь {n["night"]} · {NOTE.get(n["kind"], n["kind"])}'
+                        + (f': {esc(n.get("idea") or n.get("image") or n.get("name") or "")[:200]}'
+                           if (n.get("idea") or n.get("image") or n.get("name")) else '') + '</li>'
+                        for n in a.notebook if n['kind'] not in ('draft_decision', 'verification', 'incubation'))
         body = (f'<h1>{esc(at.name(a))}</h1><p class="muted">{ART.get(a.art, a.art)} · '
                 f'{LANGUAGE_NAMES.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {esc(a.school)}'
                 f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p><p>{esc(a.portrait)}</p>'
                 f'<h2>Работы</h2><ul>{works or "<li class=muted>пока синтетические</li>"}</ul>'
-                f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}')
+                f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}'
+                f'<h2>Блокнот</h2><ul class="muted">{notes or "<li>пусто</li>"}</ul>')
         (out/f'artist-{a.id}.html').write_text(page(at.name(a), body))
     for a, w in live:
         parts, scripts = [], ''
@@ -203,7 +250,10 @@ def site(at, out: Path):
             parts.append(f'<h2>Партитура</h2><div id="score"></div><script>new opensheetmusicdisplay.'
                          f'OpenSheetMusicDisplay("score").load("scores/{w["id"]}.musicxml").then(o=>o.render())</script>')
             scripts += NOTATION
-        reviews = ''.join(f'<p><b>{html.escape(r["critic"])}</b> <span class="muted">ночь {r["night"]}, '
+        record = at.notebook(w['id'])
+        if record:
+            parts.append('<h2>Блокнот работы</h2>' + notebook_html(record))
+        reviews = ''.join(f'<p><b><a href="critic-{html.escape(r["critic"])}.html">{html.escape(r["lens"]["name"])}</a></b> <span class="muted">ночь {r["night"]}, '
                           f'оценка {r["score"]:.2f}</span><br>{esc(r.get("text"))}</p>' for r in at.reviews(w['id']))
         sources = ''.join(f'<li>{html.escape(str(p.relative_to(at.root)))}</li>' for p in at.files(w['id']))
         body = (f'<h1>{w["id"]}</h1><p class="muted"><a href="artist-{a.id}.html">{esc(at.name(a))}</a> · '
@@ -212,6 +262,38 @@ def site(at, out: Path):
                 + (f'<h2>Рецензии</h2>{reviews}' if reviews else '')
                 + f'<h2>Первоисточники</h2><ul class="muted">{sources or "<li>нет файлов</li>"}</ul>')
         (out/f'work-{w["id"]}.html').write_text(page(w['id'], body, scripts))
+    critics = {}
+    for r in life.reception.reviews:
+        critics.setdefault(r['critic'], []).append(r)
+    rows = ''.join(f'<tr><td><a href="critic-{html.escape(c)}.html">{html.escape(rs[0]["lens"]["name"])}</a></td>'
+                   f'<td>{len(rs)}</td><td>{sum(r["score"] for r in rs) / len(rs):.2f}</td></tr>' for c, rs in critics.items())
+    (out/'critics.html').write_text(page('Критики', '<h1>Критики</h1><table><tr><th>Критик</th><th>Рецензий</th>'
+                                         '<th>Средняя оценка</th></tr>' + rows + '</table>'))
+    for c, rs in critics.items():
+        lens = rs[0]['lens']
+        body = (f'<h1>{html.escape(lens["name"])}</h1><p class="muted">{html.escape(str(lens.get("voice", "")))} · '
+                f'репутация {lens["reputation"]:.2f}</p>' + ''.join(
+                    f'<div class="work"><a href="work-{r["work"]}.html">{r["work"]}</a> <span class="muted">ночь {r["night"]}, '
+                    f'оценка {r["score"]:.2f}{", пересмотр" if r.get("revision_of") else ""}</span><p>{esc(r.get("text"))}</p></div>'
+                    for r in rs))
+        (out/f'critic-{c}.html').write_text(page(lens['name'], body))
+    from .music.schools import SCHOOLS as MUSIC
+    from .writing.schools import SCHOOLS as LETTERS
+    used = {}
+    for a, w in at.works():
+        used.setdefault(w.get('school'), set()).add(a.id)
+    rows = ''.join(f'<tr><td>{html.escape(k)}</td><td>музыка</td><td>{len(used.get(k, ()))}</td><td class="muted">'
+                   f'{html.escape((MUSIC[k].__doc__ or "").strip().splitlines()[0] if MUSIC[k].__doc__ else "")}</td></tr>'
+                   for k in sorted(MUSIC))
+    rows += ''.join(f'<tr><td>{html.escape(k)}</td><td>литература</td><td>{len(used.get(k, ()))}</td>'
+                    f'<td class="muted">{html.escape(LETTERS[k].RULES)}</td></tr>' for k in sorted(LETTERS))
+    born = ''.join(f'<div class="work"><h2>{html.escape(r["name"])}</h2><p class="muted">основал '
+                   f'{html.escape(r.get("author", ""))}, ночь {r.get("night")}</p><ul>' + ''.join(
+                       f'<li>{html.escape(m)}</li>' for m in r.get('manifesto', {}).get('manifesto', []))
+                   + f'</ul><pre class="muted">{html.escape(r.get("source", ""))}</pre></div>' for r in life.schools.values())
+    (out/'schools.html').write_text(page('Школы', '<h1>Школы</h1><table><tr><th>Школа</th><th>Искусство</th>'
+                                         '<th>Художников</th><th>Правила</th></tr>' + rows + '</table>'
+                                         + (f'<h1>Рождённые в мастерской</h1>{born}' if born else '')))
     names = {a.id: at.name(a) for a in life.artists}
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
                    f'{esc(names.get(e["artist"], e["artist"]))}</a></td><td>{e["kind"]}</td></tr>' for e in life.events)
