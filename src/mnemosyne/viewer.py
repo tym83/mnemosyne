@@ -147,6 +147,10 @@ h1,h2{font-weight:normal}pre{white-space:pre-wrap;font:inherit}.muted{color:var(
 table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 .work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
 .variants{color:var(--accent);font-size:.92em}
+.tr .ru{display:none}.tr.on .ru,body.ru .tr .ru{display:revert}.tr.on .orig,body.ru .tr .orig{display:none}
+body.ru .tr.on .ru{display:none}body.ru .tr.on .orig{display:revert}
+.trb,#trall{font:12px system-ui,sans-serif;color:var(--muted);background:none;border:1px solid var(--line);border-radius:4px;padding:2px 8px;cursor:pointer}
+#trall{float:right}
 details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-ui,sans-serif}
 dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
 .cmd{font:14px ui-monospace,Menlo,monospace;background:var(--line);padding:8px 10px;border-radius:4px}
@@ -158,13 +162,23 @@ PLAYER = ('<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@m
 NOTATION = '<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.0/build/opensheetmusicdisplay.min.js"></script>'
 
 
+FLIP = '''<script>
+function label(b,on){if(b)b.textContent=on?'оригинал':'перевод'}
+function flip(el){el.classList.toggle('on');label(el.querySelector(':scope>.trb'),el.classList.contains('on')!==document.body.classList.contains('ru'))}
+function flipAll(){const on=document.body.classList.toggle('ru');document.querySelectorAll('.tr').forEach(e=>{e.classList.remove('on');label(e.querySelector(':scope>.trb'),on)});
+document.getElementById('trall').textContent=on?'оригинал везде':'перевод везде';try{localStorage.setItem('ru',on?'1':'')}catch(e){}}
+try{if(localStorage.getItem('ru'))flipAll()}catch(e){}
+if(!document.querySelector('.tr'))document.getElementById('trall').remove()
+</script>'''
+
+
 def page(title, body, scripts=''):
     return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
             f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
             f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
-            f'</nav>{body}</body></html>')
+            f'<button id="trall" onclick="flipAll()">перевод везде</button></nav>{body}{FLIP}</body></html>')
 
 
 def esc(text):
@@ -256,22 +270,30 @@ def school_link(k):
     return f'<a href="schools.html#{html.escape(k)}">{html.escape(school_name(k))}</a>' if k else ''
 
 
+def toggle(original_html, russian_html, block=True):
+    """The original in place; the translation replaces it on demand."""
+    if block:
+        return (f'<div class="tr"><div class="orig">{original_html}</div><div class="ru">{russian_html}</div>'
+                f'<button class="trb" onclick="flip(this.parentNode)">перевод</button></div>')
+    return f'<span class="tr"><span class="orig">{original_html}</span><span class="ru">{russian_html}</span></span>'
+
+
 def ru_block(at, text, tag='p'):
-    """Russian first; the original under a fold when the Translator rendered it."""
     if not text:
         return ''
     russian = at.ru(text)
     if russian is text:
         return f'<{tag}>{esc(text)}</{tag}>'
     if russian:
-        return (f'<{tag}>{esc(russian)}</{tag}><details><summary>оригинал</summary><{tag} class="muted">'
-                f'{esc(text)}</{tag}></details>')
-    return f'<{tag}>{esc(text)}</{tag}><p class="muted">перевод ещё не готов</p>'
+        return toggle(f'<{tag}>{esc(text)}</{tag}>', f'<{tag}>{esc(russian)}</{tag}>')
+    return f'<{tag}>{esc(text)}</{tag}>'
 
 
 def ru_inline(at, text):
     russian = at.ru(text)
-    return esc(russian if russian else text)
+    if russian is text or not russian:
+        return esc(text)
+    return toggle(esc(text), esc(russian), block=False)
 
 
 def statement_html(at, st):
@@ -355,9 +377,9 @@ def site(at, out: Path):
         original, ru = at.text(w['id'])
         if original:
             if ru:
-                parts.append(f'<h2>Текст</h2><pre>{html.escape(ru)}</pre><details><summary>оригинал '
-                             f'({LANGUAGE_NAMES.get(a.language, a.language)})</summary><pre class="muted">'
-                             f'{html.escape(original)}</pre></details>')
+                parts.append(f'<h2>Текст <span class="muted" style="font-size:.6em">'
+                             f'{LANGUAGE_NAMES.get(a.language, a.language)}</span></h2>'
+                             + toggle(f'<pre>{html.escape(original)}</pre>', f'<pre>{html.escape(ru)}</pre>'))
             else:
                 parts.append(f'<h2>Текст</h2><pre>{html.escape(original)}</pre>')
         scores = [p for p in at.files(w['id']) if p.suffix == '.musicxml']

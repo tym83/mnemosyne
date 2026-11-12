@@ -41,7 +41,7 @@ class ViewerTests(unittest.TestCase):
             self.assertIn('href="files/', page)
             self.assertTrue((root/'site'/'restore.html').exists())
 
-    def test_translation_memory_shows_russian_with_the_original_folded(self):
+    def test_original_first_translation_on_demand(self):
         from mnemosyne.viewer import ru_block
         from mnemosyne.writing.memory import Memory, foreign
         german = 'Frau Kern legte den Gartenschlüssel auf meinen Tisch.'
@@ -55,8 +55,8 @@ class ViewerTests(unittest.TestCase):
             memory.put(german, 'Фрау Керн положила садовый ключ на мой стол.')
             memory.save()
             block = ru_block(Atelier(root), german)
-            self.assertLess(block.index('Фрау Керн'), block.index('оригинал'))
-            self.assertIn(german, block)
+            self.assertLess(block.index(german), block.index('Фрау Керн'))
+            self.assertIn('>перевод</button>', block)
 
 
 if __name__ == '__main__':
