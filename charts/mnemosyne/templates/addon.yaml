@@ -12,10 +12,11 @@
 {{- $controller := printf "%s@%s" $a.images.controller.repository (required "Actions controller digest required" $a.images.controller.digest) }}
 {{- $studio := printf "%s@%s" $a.images.studio.repository (required "Actions studio digest required" $a.images.studio.digest) }}
 {{- if and (not $a.key.secretName) (not $a.key.volume) }}{{ fail "provide addon.key.secretName or addon.key.volume (file/CSI)" }}{{ end }}
+{{- if not $a.key.ownerPublic }}{{ fail "provide addon.key.ownerPublic (hex from mnemo keys new); the owner's private key stays outside the cluster" }}{{ end }}
 {{- if and (eq $a.mode "GPU") (or (not $a.gpuResource) (not (index $a.resources.limits $a.gpuResource))) }}{{ fail "GPU mode requires addon.gpuResource and its explicit resource limit" }}{{ end }}
 {{- $keyVolume := $a.key.volume }}
 {{- if $a.key.secretName }}
-{{- $keyVolume = dict "secret" (dict "secretName" $a.key.secretName "defaultMode" 288 "items" (list (dict "key" $a.key.secretKey "path" "recipient.key"))) }}
+{{- $keyVolume = dict "secret" (dict "secretName" $a.key.secretName "defaultMode" 288 "items" (list (dict "key" $a.key.secretKey "path" "atelier.key"))) }}
 {{- end }}
 {{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets }}
 {{- if $a.snapshotNamespace }}{{ $_ := set $runtime "snapshotNamespace" $a.snapshotNamespace }}{{ end }}

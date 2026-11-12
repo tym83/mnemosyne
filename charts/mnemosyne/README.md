@@ -2,7 +2,8 @@
 
 The `addon` section adds a namespaced kopf controller and one studio Job per
 Atelier/night. Existing `work` and `models` values retain their earlier behavior.
-The add-on is disabled until real image digests and a recipient key reference
+The add-on is disabled until real image digests, the atelier key reference and
+the owner's public key
 are supplied. No fabricated digest is shipped.
 
 The owner configures infrastructure only: window, resources, key, models,
@@ -23,7 +24,11 @@ qualities; everything else is the atelier's own creative freedom.
    existing Secret holding 32 **raw** X25519 private bytes), `imagePullSecrets`,
    and commissions: each has `idea`, `method`, and a complete approved school
    `plan`. Existing `music/schools/plans` are technical method studies, not
-   evidence of artistic quality. Keep the recipient key outside this cluster.
+   evidence of artistic quality. `mnemo keys new --output DIR` creates the owner's
+   key (keep it offline: only it opens snapshots) and the atelier's key (mount it
+   as the Secret); set `addon.key.ownerPublic` to the printed hex. The atelier
+   seals snapshots it cannot open and authenticates frames with a secret both
+   keys derive; its public key travels in every work.
 3. Install into a dedicated namespace:
 
    ```sh
@@ -137,7 +142,7 @@ mnemo works export --source /works --output /safe/works
 # S3 uses normal AWS credentials; --endpoint supports compatible object stores:
 mnemo works export --source s3://my-bucket/mnemosyne --output /safe/works
 # Select ONE snapshot/night; mixing multiple complete snapshots is rejected:
-mnemo restore --works /safe/works/<atelier>/<night>/woven --key /safe/recipient.key \
+mnemo restore --works /safe/works/<atelier>/<night>/woven --key /safe/owner.key \
   --output /safe/recovered --apply --kubeconfig /safe/new-kubeconfig --context new
 ```
 

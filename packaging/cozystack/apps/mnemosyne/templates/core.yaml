@@ -31,7 +31,7 @@ spec:
       suspend: {{ .Values.suspend }}
       images: {{ .Values.images | toJson }}
       imagePullSecrets: {{ .Values.imagePullSecrets | toJson }}
-      key: {secretName: {{ .Values.keySecretName | quote }}}
+      key: {secretName: {{ .Values.keySecretName | quote }}, ownerPublic: {{ .Values.ownerPublicKey | quote }}}
       window: {{ .Values.window | toJson }}
       resources: {{ $resources | toJson }}
       inventory:

@@ -12,6 +12,7 @@ images:
   studio: {repository: ghcr.io/tym83/mnemosyne-studio, digest: ''}
 imagePullSecrets: []
 keySecretName: ''
+ownerPublicKey: '' # hex from mnemo keys new; the owner's private key never enters the cluster
 models: {endpoints: {}, roles: {}}
 window: {kind: night, timeZone: Etc/UTC, startHour: 1, endHour: 6}
 # Existing tenant bucket; provision through the platform's Bucket application.

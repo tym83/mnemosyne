@@ -76,6 +76,16 @@ def read_archive(data, *, include_secrets=False):
     return objects
 
 
+def atelier_of(path):
+    """The atelier public key a score was written with, or None for legacy works."""
+    from .weave import surface
+    try:
+        field = surface.read(path).find('.//miscellaneous-field[@name="mnemosyne.atelier"]')
+    except Exception:
+        return None  # the decoder reports unreadable works as erasures
+    return field.text.strip() if field is not None and field.text else None
+
+
 def recover_works(directory, key, *, include_secrets=False, at=None):
     """Try every XML; damaged/unsupported works are erasures, never plaintext."""
     groups = defaultdict(list)
@@ -87,21 +97,27 @@ def recover_works(directory, key, *, include_secrets=False, at=None):
         try:
             if path.stat().st_size > 32 * 1024 * 1024:
                 raise DecodeError('carrier exceeds size limit')
+            from .weave import keys as split
             if texts:
                 from .weave import variants
-                decoded = registry.Decoded('fountain-batch-v1', variants.decode_many(json.loads(path.read_text()), key))
+                volume = json.loads(path.read_text())
+                atelier = volume.get('atelier')
+                work_key = split.reading(key, atelier)
+                decoded = registry.Decoded('fountain-batch-v1', variants.decode_many(volume, work_key))
             else:
-                decoded = registry.decode(path, key)
+                atelier = atelier_of(path)
+                work_key = split.reading(key, atelier)
+                decoded = registry.decode(path, work_key)
             if decoded.transport in ('fountain-v1', 'fountain-batch-v1'):
                 batch = decoded.frame if decoded.transport == 'fountain-batch-v1' else [decoded.frame]
-                identities = [fountain.unpack(frame, key) for frame in batch]
+                identities = [fountain.unpack(frame, work_key) for frame in batch]
                 if not identities or len({(s, k, z, t) for s, i, k, z, t, v in identities}) != 1:
                     raise DecodeError('mixed or empty fountain batch')
                 snapshot, _, k, size, total, _ = identities[0]
-                group = ('fountain-v1', snapshot.hex(), k, size, total)
+                group = ('fountain-v1', snapshot.hex(), k, size, total, atelier)
             elif decoded.transport == 'multipart-v1':
                 f = decoded.frame
-                group = ('multipart-v1', f['bundle'].hex(), f['count'], f['total'], f['chunk_size'])
+                group = ('multipart-v1', f['bundle'].hex(), f['count'], f['total'], f['chunk_size'], atelier)
             else:
                 raise DecodeError('unsupported frame transport')
             if decoded.transport == 'fountain-batch-v1':
@@ -113,16 +129,18 @@ def recover_works(directory, key, *, include_secrets=False, at=None):
             report['rejected'].append(str(path.relative_to(directory)))
     candidates = {}
     for group, fs in groups.items():
+        from .weave import keys as split
+        group_key = split.reading(key, group[-1])
         try:
             if group[0] == 'fountain-v1':
-                data = fountain.recover(fs, key)
+                data = fountain.recover(fs, group_key)
             else:
                 unique = {}
                 for frame in fs:
                     if frame['index'] in unique and unique[frame['index']] != frame:
                         raise DecodeError('conflicting multipart frame')
                     unique[frame['index']] = frame
-                data = frames.assemble(list(unique.values()), key)
+                data = frames.assemble(list(unique.values()), group_key)
             from .state.ledger import parse
             header, archive = parse(data)
             if header is None:

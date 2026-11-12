@@ -41,8 +41,11 @@ def carry(ledger, carriers, key, destination):
         span, encoder = tonight[entry['id']], encoders[entry['id']]
         metadata = [{'carrier': name, **catalogue.metadata(span['catalogue'], i)} for i in range(first, first + count)]
         batch = [encoder.frame(i) for i in range(first, first + count)]
+        atelier = key.atelier_public() if hasattr(key, 'atelier_public') else None
         if school == 'variants':
             volume = {**variants.encode_many(root, batch, key), 'catalogue': metadata}
+            if atelier:
+                volume['atelier'] = atelier
             path = destination/(name + '.variants.json')
             path.write_text(json.dumps(volume, ensure_ascii=False, indent=1))
             if variants.decode_many(json.loads(path.read_text()), key) != batch:
@@ -55,6 +58,9 @@ def carry(ledger, carriers, key, destination):
         registry.mark(root, (school, 'dynamics-fountain', '2'))
         misc = root.find('./identification/miscellaneous')
         ET.SubElement(misc, 'miscellaneous-field', name='mnemosyne.catalogue').text = json.dumps(metadata)
+        if atelier:
+            # Public: lets the owner derive this atelier's authentication secret.
+            ET.SubElement(misc, 'miscellaneous-field', name='mnemosyne.atelier').text = atelier
         path = destination/(name + '.musicxml')
         surface.write(school_series.encode_many(root, batch, key), path)
         decoded = registry.decode(path, key).frame

@@ -61,6 +61,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('restore', help='decode works and optionally apply; see mnemo restore --help')
+    keys = commands.add_parser('keys').add_subparsers(dest='action', required=True)
+    new = keys.add_parser('new', help="create the owner's key (keep offline) and the atelier's key (for the cluster)")
+    new.add_argument('--output', type=Path, required=True)
     status = commands.add_parser('status')
     works = commands.add_parser('works').add_subparsers(dest='action', required=True)
     listing = works.add_parser('list')
@@ -74,6 +77,18 @@ def main(argv=None):
     export.add_argument('--pod', help='Export from an existing studio pod over kubectl exec')
     export.add_argument('--endpoint', help='S3-compatible endpoint')
     args = parser.parse_args(argv)
+    if args.command == 'keys':
+        from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+        from .weave.backup import write_new
+        args.output.mkdir(parents=True, exist_ok=True)
+        owner, atelier = X25519PrivateKey.generate(), X25519PrivateKey.generate()
+        write_new(args.output/'owner.key', owner.private_bytes_raw())
+        write_new(args.output/'atelier.key', atelier.private_bytes_raw())
+        public = owner.public_key().public_bytes_raw().hex()
+        print(json.dumps({'owner_key': str(args.output/'owner.key'), 'keep': 'offline; needed only to restore',
+                          'atelier_key': str(args.output/'atelier.key'), 'cluster_secret': 'atelier.key',
+                          'ownerPublic': public}))
+        return
     kube = ['kubectl']
     if args.kubeconfig:
         kube += ['--kubeconfig', str(args.kubeconfig)]

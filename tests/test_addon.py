@@ -54,7 +54,7 @@ class AddonChartTests(unittest.TestCase):
     def values(self):
         return {'addon': {'enabled': True, 'images': {
             role: {'digest': 'sha256:'+'a'*64} for role in ['controller','studio']},
-            'key': {'secretName': 'recipient'}}}
+            'key': {'secretName': 'atelier', 'ownerPublic': '00'*32}}}
 
     def render(self, values):
         with tempfile.TemporaryDirectory() as tmp:
@@ -114,10 +114,12 @@ class TransportTests(unittest.TestCase):
     def test_key_file_and_invalid_length(self):
         from mnemosyne.operator.keys import load
         with tempfile.TemporaryDirectory() as tmp:
+            from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
+            owner = X25519PrivateKey.generate().public_key().public_bytes_raw().hex()
             path = Path(tmp)/'key';path.write_bytes(bytes(range(32)))
-            self.assertEqual(load({'path':str(path)}).private_bytes_raw(),bytes(range(32)))
+            self.assertEqual(load({'path':str(path),'ownerPublic':owner}).atelier.private_bytes_raw(),bytes(range(32)))
             path.write_bytes(b'bad')
-            with self.assertRaises(ValueError): load({'path':str(path)})
+            with self.assertRaises(ValueError): load({'path':str(path),'ownerPublic':owner})
 
     def test_vault_rejects_plain_http_before_reading_token(self):
         from mnemosyne.operator.keys import load

@@ -37,7 +37,7 @@ class Packaging(unittest.TestCase):
 
     def active(self, namespace='tenant-one', mode='background'):
         # Render fixtures only. These hashes identify no published image.
-        app = self.render(self.app, {'enabled': True, 'mode': mode, 'keySecretName': 'recipient',
+        app = self.render(self.app, {'enabled': True, 'mode': mode, 'keySecretName': 'atelier', 'ownerPublicKey': '00' * 32,
             'images': {r: {'digest': 'sha256:' + 'a' * 64} for r in ('controller', 'studio')}}, namespace)
         return next(x['spec']['values'] for x in app if x['kind'] == 'HelmRelease')
 

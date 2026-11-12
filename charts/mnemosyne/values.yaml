@@ -89,16 +89,19 @@ addon:
     storageClass: null # null uses default; empty string means no dynamic provisioner
     keep: true
     s3: {bucket: '', endpoint: '', prefix: mnemosyne}
-  # 32 raw X25519 bytes, mounted only in studio. No Secret API reads for keys.
+  # The atelier's own 32-byte X25519 key, mounted only in studio (from `mnemo keys new`).
+  # The owner's private key never enters the cluster: only ownerPublic (hex) does,
+  # so the atelier seals snapshots it cannot open. No Secret API reads for keys.
   key:
+    ownerPublic: '' # required: hex public key printed by `mnemo keys new`
     provider: file # file (including Secret/CSI), vault (KV v2), or kms (AWS Decrypt)
     vault: {address: '', path: '', tokenFile: /key/token, field: recipient, namespace: ''}
     kms: {keyId: '', region: '', ciphertextFile: /key/recipient.enc, encryptionContext: {}}
     secretName: ''
-    secretKey: recipient.key
+    secretKey: atelier.key
     # Alternatively a CSI/PVC/projected volume supplied by Vault/KMS integration.
     volume: {}
-    path: /key/recipient.key
+    path: /key/atelier.key
   env: [] # env/valueFrom for model or S3 credentials
   volumes: [] # optional model/sample mounts
   volumeMounts: []

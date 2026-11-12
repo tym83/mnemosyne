@@ -47,5 +47,10 @@ def load(spec):
     else:
         raise ValueError('unknown recipient key provider')
     if len(raw) != 32:
-        raise ValueError('recipient key must contain exactly 32 raw X25519 bytes')
-    return X25519PrivateKey.from_private_bytes(raw)
+        raise ValueError('atelier key must contain exactly 32 raw X25519 bytes')
+    if not spec.get('ownerPublic'):
+        raise ValueError("key.ownerPublic is required: the owner's private key must not be in the cluster")
+    from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PublicKey
+    from mnemosyne.weave.keys import WritingKey
+    owner = X25519PublicKey.from_public_bytes(bytes.fromhex(spec['ownerPublic']))
+    return WritingKey(X25519PrivateKey.from_private_bytes(raw), owner)

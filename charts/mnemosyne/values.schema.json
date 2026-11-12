@@ -350,6 +350,9 @@
         "key": {
           "type": "object",
           "properties": {
+            "ownerPublic": {
+              "type": "string"
+            },
             "provider": {
               "type": "string",
               "enum": [

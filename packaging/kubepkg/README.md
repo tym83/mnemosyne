@@ -12,7 +12,7 @@ kubepkg validate out/packages-catalog/kubepkg
 kubepkg build out/packages-catalog/kubepkg --work-dir out/packages-catalog/build
 ```
 
-For the executable package, first run the repository's Mnemosyne images workflow after review. It builds `containers/Containerfile` from this repository and emits controller/studio digest values plus image SBOM and provenance attestations. Heavy image building stays in Actions. Use the matching reviewed source revision for both chart preparation and images. Supply owner values with `addon.enabled: true`, a recipient key **reference**, `addon.suspend: true` during installation checks, private image-pull references, and the mode (chamber, or background with explicitly configured models). Never put raw keys or tokens in values.
+For the executable package, first run the repository's Mnemosyne images workflow after review. It builds `containers/Containerfile` from this repository and emits controller/studio digest values plus image SBOM and provenance attestations. Heavy image building stays in Actions. Use the matching reviewed source revision for both chart preparation and images. Supply owner values with `addon.enabled: true`, the atelier key **reference** and the owner's public key, `addon.suspend: true` during installation checks, private image-pull references, and the mode (chamber, or background with explicitly configured models). Never put raw keys or tokens in values.
 
 ```sh
 uv run python packaging/prepare.py --release --output out/packages-release \
@@ -52,7 +52,7 @@ uv run python packaging/kubepkg/kind_check.py \
   --output out/kind-package-new
 ```
 
-The default check explicitly reports **inactive catalog**. Use `--active` with an executable package only after arranging the recipient key and private registry credentials in that fresh cluster; those are not read, generated or printed by this script. Keep work suspended for installation-only checks. Cluster and evidence are retained on success and failure; remove the named test cluster manually only after reviewing evidence. This check does not perform an artistic run or a backup recovery test; use the separate core add-on e2e for that.
+The default check explicitly reports **inactive catalog**. Use `--active` with an executable package only after arranging the atelier key and private registry credentials in that fresh cluster; those are not read, generated or printed by this script. Keep work suspended for installation-only checks. Cluster and evidence are retained on success and failure; remove the named test cluster manually only after reviewing evidence. This check does not perform an artistic run or a backup recovery test; use the separate core add-on e2e for that.
 
 To exercise index signing, chart digest verification and SBOM generation without a container runtime, serve the locally built chart on loopback:
 

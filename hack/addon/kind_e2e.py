@@ -56,11 +56,14 @@ def main():
     kube('create','namespace','mnemosyne')
     from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
     from mnemosyne.weave.backup import write_new
-    write_new(root/'recipient.key', X25519PrivateKey.generate().private_bytes_raw())
-    kube('-n','mnemosyne','create','secret','generic','recipient','--from-file=recipient.key='+str(root/'recipient.key'))
+    owner, atelier = X25519PrivateKey.generate(), X25519PrivateKey.generate()
+    write_new(root/'owner.key', owner.private_bytes_raw())
+    write_new(root/'atelier.key', atelier.private_bytes_raw())
+    # Only the atelier key and the owner's public key enter the cluster.
+    kube('-n','mnemosyne','create','secret','generic','atelier','--from-file=atelier.key='+str(root/'atelier.key'))
     digest=args.base_image.split('@')[1]
     values={'addon':{'enabled':True,'render':False,'images':{r:{'digest':digest} for r in ('controller','studio')},
-        'key':{'secretName':'recipient'},'window':{'kind':'always'},'snapshotNamespace':'mnemo-fixture',
+        'key':{'secretName':'atelier','ownerPublic':owner.public_key().public_bytes_raw().hex()},'window':{'kind':'always'},'snapshotNamespace':'mnemo-fixture',
         'inventory':[{'apiVersion':'v1','kind':'Namespace','resource':'namespaces'},
                      {'apiVersion':'v1','kind':'ConfigMap','resource':'configmaps','names':['memory']}],
         'resources':{'requests':{'cpu':'100m','memory':'512Mi'},'limits':{'cpu':'2','memory':'2Gi'}}}}
@@ -83,7 +86,7 @@ def main():
     for i,path in enumerate(every[:len(every)-len(every)*3//10]): shutil.copyfile(path,scores/f'{i:04d}-{path.name}')
     run('kind','delete','cluster','--name',name,env=env)
     create()
-    cli(['restore','--works',str(scores),'--key',str(root/'recipient.key'),'--apply',
+    cli(['restore','--works',str(scores),'--key',str(root/'owner.key'),'--apply',
          '--kubeconfig',str(kc),'--context','kind-'+name,'--output',str(root/'restore')])
     actual=normalize(json.loads(kube('get','configmap','memory','-n','mnemo-fixture','-o','json',capture_output=True,text=True).stdout))
     if actual!=expected: raise RuntimeError('restored ConfigMap differs')

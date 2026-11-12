@@ -25,17 +25,18 @@ spec:
       "digest": {"type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$"}}}}}, "imagePullSecrets":
       {"type": "array", "items": {"type": "object", "required": ["name"], "properties":
       {"name": {"type": "string"}}}}, "keySecretName": {"type": "string", "default":
-      ""}, "models": {"type": "object", "x-kubernetes-preserve-unknown-fields": true},
-      "window": {"type": "object", "properties": {"kind": {"type": "string", "enum":
-      ["night", "weekends", "always"]}, "timeZone": {"type": "string"}, "startHour":
-      {"type": "integer", "minimum": 0, "maximum": 23}, "endHour": {"type": "integer",
-      "minimum": 0, "maximum": 23}}}, "s3": {"type": "object", "properties": {"bucket":
-      {"type": "string", "default": ""}, "endpoint": {"type": "string", "default":
-      ""}, "prefix": {"type": "string", "default": ""}, "credentialsSecretName": {"type":
-      "string", "default": ""}, "accessKeyField": {"type": "string", "default": "accessKey"},
-      "secretKeyField": {"type": "string", "default": "secretKey"}}, "description":
-      "Existing tenant Bucket endpoint and bucket name; credentials are mounted by
-      reference, never queried by this chart."}}, "title": "Mnemosyne atelier"}'
+      ""}, "ownerPublicKey": {"type": "string", "default": ""}, "models": {"type":
+      "object", "x-kubernetes-preserve-unknown-fields": true}, "window": {"type":
+      "object", "properties": {"kind": {"type": "string", "enum": ["night", "weekends",
+      "always"]}, "timeZone": {"type": "string"}, "startHour": {"type": "integer",
+      "minimum": 0, "maximum": 23}, "endHour": {"type": "integer", "minimum": 0, "maximum":
+      23}}}, "s3": {"type": "object", "properties": {"bucket": {"type": "string",
+      "default": ""}, "endpoint": {"type": "string", "default": ""}, "prefix": {"type":
+      "string", "default": ""}, "credentialsSecretName": {"type": "string", "default":
+      ""}, "accessKeyField": {"type": "string", "default": "accessKey"}, "secretKeyField":
+      {"type": "string", "default": "secretKey"}}, "description": "Existing tenant
+      Bucket endpoint and bucket name; credentials are mounted by reference, never
+      queried by this chart."}}, "title": "Mnemosyne atelier"}'
   release:
     prefix: mnemosyne-
     labels:
@@ -78,6 +79,8 @@ spec:
       - imagePullSecrets
     - - spec
       - keySecretName
+    - - spec
+      - ownerPublicKey
     - - spec
       - models
     - - spec
