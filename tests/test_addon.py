@@ -54,8 +54,7 @@ class AddonChartTests(unittest.TestCase):
     def values(self):
         return {'addon': {'enabled': True, 'images': {
             role: {'digest': 'sha256:'+'a'*64} for role in ['controller','studio']},
-            'key': {'secretName': 'recipient'},
-            'commissions': [{'idea': 'Owner fixture', 'method': 'method study', 'plan': {}}]}}
+            'key': {'secretName': 'recipient'}}}
 
     def render(self, values):
         with tempfile.TemporaryDirectory() as tmp:

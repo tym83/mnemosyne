@@ -32,7 +32,6 @@ spec:
       images: {{ .Values.images | toJson }}
       imagePullSecrets: {{ .Values.imagePullSecrets | toJson }}
       key: {secretName: {{ .Values.keySecretName | quote }}}
-      commissions: {{ .Values.commissions | toJson }}
       window: {{ .Values.window | toJson }}
       resources: {{ $resources | toJson }}
       inventory:

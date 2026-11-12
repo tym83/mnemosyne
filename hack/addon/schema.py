@@ -20,7 +20,7 @@ schema = infer(yaml.safe_load((chart/'values.yaml').read_text()))
 schema['$schema'] = 'http://json-schema.org/draft-07/schema#'
 a = schema['properties']['addon']['properties']
 a['rbacScope'] = {'type': 'string', 'enum': ['cluster', 'namespace']}
-for field in ('mode', 'window', 'inventory', 'commissions'):
+for field in ('mode', 'window', 'inventory'):
     a[field] = RUNTIME['properties'][field]
 for role in ('controller', 'studio'):
     a['images']['properties'][role]['properties']['digest']['pattern'] = '^$|^sha256:[a-f0-9]{64}$'

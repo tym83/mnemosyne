@@ -11,14 +11,13 @@
 {{- $claim := $a.artifacts.existingClaim | default (printf "%s-works" .Release.Name) }}
 {{- $controller := printf "%s@%s" $a.images.controller.repository (required "Actions controller digest required" $a.images.controller.digest) }}
 {{- $studio := printf "%s@%s" $a.images.studio.repository (required "Actions studio digest required" $a.images.studio.digest) }}
-{{- if and (eq $a.mode "chamber") (not $a.commissions) }}{{ fail "chamber requires owner-authored addon.commissions" }}{{ end }}
 {{- if and (not $a.key.secretName) (not $a.key.volume) }}{{ fail "provide addon.key.secretName or addon.key.volume (file/CSI)" }}{{ end }}
 {{- if and (eq $a.mode "GPU") (or (not $a.gpuResource) (not (index $a.resources.limits $a.gpuResource))) }}{{ fail "GPU mode requires addon.gpuResource and its explicit resource limit" }}{{ end }}
 {{- $keyVolume := $a.key.volume }}
 {{- if $a.key.secretName }}
 {{- $keyVolume = dict "secret" (dict "secretName" $a.key.secretName "defaultMode" 288 "items" (list (dict "key" $a.key.secretKey "path" "recipient.key"))) }}
 {{- end }}
-{{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets "commissions" $a.commissions }}
+{{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets }}
 {{- if $a.snapshotNamespace }}{{ $_ := set $runtime "snapshotNamespace" $a.snapshotNamespace }}{{ end }}
 {{- $env := concat (list (dict "name" "MNEMO_NAMESPACE" "value" .Release.Namespace) (dict "name" "MNEMO_STORAGE" "value" "/runtime/storage.json") (dict "name" "MNEMO_KEY_FILE" "value" $a.key.path) (dict "name" "MNEMOSYNE_MODELS" "value" "/config/models.yaml") (dict "name" "WRITER_CACHE" "value" "/works/cache")) $a.env }}
 {{- $mounts := concat (list (dict "name" "works" "mountPath" "/works") (dict "name" "runtime" "mountPath" "/runtime" "readOnly" true) (dict "name" "models" "mountPath" "/config" "readOnly" true) (dict "name" "key" "mountPath" "/key" "readOnly" true) (dict "name" "tmp" "mountPath" "/tmp")) $a.volumeMounts }}

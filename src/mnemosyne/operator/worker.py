@@ -97,33 +97,45 @@ def weave(data, sources, destination, key, *, include_secrets=False):
     return report
 
 
-def chamber(request, root):
-    """Owner-authored commissions; the runtime makes no artistic judgments."""
+def choose_school(artist, work, schools):
+    """The artist's own choice, seeded by the work: their school when they have
+    one, otherwise drawn towards traditions they have not yet tried."""
+    import random
+    rng = random.Random(int.from_bytes(hashlib.sha256(work['id'].encode()).digest()[:8]))
+    if artist.school in schools and rng.random() < .7:
+        return artist.school
+    used = {}
+    for w in artist.catalogue:
+        used[w.get('school')] = used.get(w.get('school'), 0) + 1
+    names = sorted(schools)
+    return rng.choices(names, weights=[1/(1+used.get(n, 0)) for n in names])[0]
+
+
+def chamber(life, root):
+    """Without models, the atelier still composes by itself: every work the
+    artists' lives bring tonight, accepted or not, gets a real score from a
+    school the artist chooses. Nobody outside the atelier supplies ideas."""
     from mnemosyne.music.schools import SCHOOLS
-    from mnemosyne.music.schools.plan import SchoolPlan
-    from mnemosyne.music.schools.common import validate
+    plans = Path(__file__).parents[1]/'music/schools/plans'
     sources, records = [], []
-    commissions = request.get('commissions', [])
-    if not commissions:
-        raise ValueError('chamber mode requires owner-authored idea, method and plan')
-    for i, commission in enumerate(commissions):
-        if not commission.get('idea') or not commission.get('method'):
-            raise ValueError('commission needs an idea and method')
-        plan = commission['plan']
-        SchoolPlan.model_validate(plan)
-        validate(plan)
-        name = f'opus-{hashlib.sha256(root.name.encode()).hexdigest()[:12]}-{i:04d}'
-        draft = root/name
-        draft.mkdir()
-        dump(draft/'commission.json', commission)
-        score = SCHOOLS[plan['school']].compose(plan, plan['seed'])
-        score.write('musicxml', fp=draft/'draft.musicxml')
-        sources.append((name, draft/'draft.musicxml', plan['school'], {'plan': plan, 'form': 'school'}))
-        records.extend([obj('Opus', name, {'art': 'music', 'title': plan['title'],
-            'idea': commission['idea'], 'method': commission['method'], 'notebook': name,
-            'artisticVerdict': 'owner-commission; not evaluated'}),
-            obj('Notebook', name, {'opus': name, 'commission': commission, 'drafts': [name]}),
-            obj('Sketch', name, {'opus': name, 'stage': 'draft', 'plan': plan})])
+    for a in life.artists:
+        for work in (w for w in a.catalogue if w['night'] == life.night):
+            school = choose_school(a, work, [s for s in SCHOOLS if (plans/f'{s}.json').exists()])
+            plan = json.loads((plans/f'{school}.json').read_text())
+            plan['seed'] = int.from_bytes(hashlib.sha256(work['id'].encode()).digest()[:4], 'big')
+            plan['title'] = f'{a.name} — {work["id"]}'
+            work['school'] = school
+            draft = root/work['id']
+            draft.mkdir()
+            score = SCHOOLS[school].compose(plan, plan['seed'])
+            score.write('musicxml', fp=draft/'draft.musicxml')
+            sources.append((work['id'], draft/'draft.musicxml', school, {'plan': plan, 'form': 'school'}))
+            records.extend([obj('Opus', work['id'], {'art': 'music', 'artist': a.id, 'title': plan['title'],
+                'school': school, 'notebook': work['id'], 'kind': work['kind'],
+                'artisticVerdict': work['verdict'], 'quality': work['quality']}),
+                obj('Notebook', work['id'], {'opus': work['id'], 'process': work['process'],
+                    'drafts': [work['id']]}),
+                obj('Sketch', work['id'], {'opus': work['id'], 'stage': 'draft', 'plan': plan})])
     return sources, records
 
 
@@ -140,7 +152,8 @@ def upload(root, storage):
         s3.upload_file(str(path), storage['bucket'], prefix+'/'+path.relative_to(root).as_posix())
 
 
-def run(request, root, key, objects, *, previous=None):
+def run(request, root, key, objects, *, previous=None, climate=None):
+    """climate comes only from the cluster sensor, never from the request."""
     root.mkdir(parents=True, exist_ok=False)
     dump(root/'request.json', request)
     if request['mode'] != 'chamber':
@@ -153,19 +166,20 @@ def run(request, root, key, objects, *, previous=None):
     life = Lineage.restore(previous) if previous else Lineage(request['atelier'], datetime.now(timezone.utc))
     # The same resumable fate engine runs in every mode. Synthetic fate works remain
     # labelled synthetic; they are not counted as completed musical works.
-    life.step(request.get('climate', {}))
+    life.step(climate or {})
     dump(root/'lineage.json', life.state())
     atelier = Atelier(life.cluster, root/'atelier')
     atelier.lineage(life)
     sources, records = [], []
     if request['mode'] == 'chamber':
-        sources, records = chamber(request, root)
+        sources, records = chamber(life, root)
     else:
         from mnemosyne.music.composer import Night
         for artist in life.working():
             night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
                           sound=request.get('render', True))
-            result = night.run(request.get('inner', 'Спокойствие'), drafts=request.get('drafts', 3), key=None)
+            # Inner life is the felt climate the composer derives itself; nothing is supplied.
+            result = night.run('', drafts=request.get('drafts', 3), key=None)
             records.extend(o for o in night.objects if o['kind'] != 'Atelier')
             if result['status'] == 'failed':
                 raise RuntimeError('composer failed; notebook retained')
@@ -216,6 +230,17 @@ def run(request, root, key, objects, *, previous=None):
     return records, report
 
 
+def sense(api, namespace, base):
+    """Private sensor history beside the checkpoint; only qualities reach the artists."""
+    from mnemosyne.mood import mood
+    from mnemosyne.sensor import Sensor, incluster
+    path = base/'sensor-private.json'
+    history = json.loads(path.read_text()) if path.exists() else []
+    history = (history + [Sensor(namespace, fetch=incluster(api)).read(history[-1] if history else None)])[-90:]
+    dump(path, history)
+    return mood(history)
+
+
 def main():
     os.umask(0o077)
     request = json.loads(os.environ['MNEMO_REQUEST'])
@@ -233,7 +258,8 @@ def main():
                            request.get('includeSecrets', False))
         previous = (json.loads(checkpoint.read_text()) if checkpoint.exists()
                     else restored_lineage(api, namespace, request['atelier']))
-        records, report = run(request, root, key, objects, previous=previous)
+        records, report = run(request, root, key, objects, previous=previous,
+                              climate=sense(api, request.get('snapshotNamespace') or namespace, base))
         publish(api, namespace, records)
         dump(checkpoint, json.loads((root/'lineage.json').read_text()))
         upload(root, storage)

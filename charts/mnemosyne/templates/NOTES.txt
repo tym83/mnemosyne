@@ -10,6 +10,6 @@ Uninstall retains works PVC, CRDs and Atelier. Do not delete the namespace or PV
 For explicit disposal set addon.artifacts.keep=false before uninstall (external claims remain external).
 No images have been built by this chart. Use digests from the repository Actions workflow.
 {{ else }}
-Addon disabled: supply Actions image digests, key reference and owner-authored commissions,
+Addon disabled: supply Actions image digests and a key reference,
 then set addon.enabled=true. Existing model/window runner remains available.
 {{ end }}

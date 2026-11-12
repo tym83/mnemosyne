@@ -8,7 +8,7 @@ metadata:
     kubepkg.dev/home: https://github.com/tym83/scheherazade
 spec:
   version: 0.2.0
-  build: 1
+  build: 2
   sources:
     core:
       dir: charts/mnemosyne

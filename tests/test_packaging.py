@@ -77,12 +77,16 @@ class Packaging(unittest.TestCase):
             values['addon'][field] = value
             self.assertIn(message, self.render(ROOT / 'charts/mnemosyne', values, ok=False))
 
-    def test_owner_commission_required(self):
-        values = self.active(mode='chamber')
-        self.assertIn('owner-authored', self.render(ROOT / 'charts/mnemosyne', values, ok=False))
-        # This is a schema fixture, not a commissioned artwork or live execution.
-        values['addon']['commissions'] = [{'idea': 'test', 'method': 'test', 'plan': {}}]
-        self.render(ROOT / 'charts/mnemosyne', values)
+    def test_owner_has_no_artistic_inputs(self):
+        # Chamber composes by itself; the owner supplies infrastructure only.
+        docs = self.render(ROOT / 'charts/mnemosyne', self.active(mode='chamber'))
+        config = next(d for d in docs if d['kind'] == 'ConfigMap' and 'runtime.json' in d['data'])
+        runtime = json.loads(config['data']['runtime.json'])
+        for key in ('commissions', 'climate', 'inner'):
+            self.assertNotIn(key, json.dumps(runtime))
+        from mnemosyne.operator.schema import RUNTIME
+        self.assertFalse({'commissions', 'climate', 'inner'} & set(RUNTIME['properties']))
+        self.assertNotIn('x-kubernetes-preserve-unknown-fields', RUNTIME)
 
     def test_digest_required_and_scope_enum(self):
         values = self.active()

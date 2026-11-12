@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_BUILD = 1  # Raise when changing published package content.
+PACKAGE_BUILD = 2  # Raise when changing published package content.
 app = ROOT / 'packaging/cozystack/apps/mnemosyne'
 core = json.loads((ROOT / 'charts/mnemosyne/values.schema.json').read_text())
 a = core['properties']['addon']['properties']
@@ -20,7 +20,7 @@ def infer(value):
 schema = infer(values)
 schema['title'] = 'Mnemosyne atelier'
 p = schema['properties']
-for key in ('images', 'commissions', 'window', 'imagePullSecrets'):
+for key in ('images', 'window', 'imagePullSecrets'):
     p[key] = a[key]
 p['imagePullSecrets'] = {'type': 'array', 'items': {'type': 'object', 'required': ['name'], 'properties': {'name': {'type': 'string'}}}}
 p['mode']['enum'] = ['chamber', 'background']
@@ -30,8 +30,7 @@ p['resources'] = {'type': 'object', 'additionalProperties': {'type': 'string'}, 
 p['resourcesPreset']['enum'] = ['s1.small', 's1.medium', 's1.large', 'u1.small', 'u1.medium']
 p['storageClass']['x-cozystack-options'] = {'source': 'storageclass'}
 p['storageClass']['description'] = 'Empty uses the tenant default storage class.'
-p['commissions']['description'] = 'Owner-authored idea, method and complete approved plan; required for chamber.'
-p['enabled']['description'] = 'Requires real image digests, recipient key and an approved commission for chamber.'
+p['enabled']['description'] = 'Requires real image digests and a recipient key.'
 p['suspend']['description'] = 'Keep work paused until the owner enables execution.'
 p['s3']['description'] = 'Existing tenant Bucket endpoint and bucket name; credentials are mounted by reference, never queried by this chart.'
 (app / 'values.schema.json').write_text(json.dumps(schema, indent=2) + '\n')

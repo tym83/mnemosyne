@@ -56,10 +56,6 @@ spec:
                   includeSecrets:
                     type: boolean
                     default: false
-                  climate: &id002
-                    type: object
-                    x-kubernetes-preserve-unknown-fields: true
-                  inner: *id001
                   window:
                     type: object
                     properties:
@@ -102,22 +98,6 @@ spec:
                         resource:
                           type: string
                           pattern: ^[a-z][a-z0-9]*$
-                  commissions:
-                    type: array
-                    items:
-                      type: object
-                      required:
-                      - idea
-                      - method
-                      - plan
-                      properties:
-                        idea:
-                          type: string
-                          minLength: 1
-                        method:
-                          type: string
-                          minLength: 1
-                        plan: *id002
           status:
             type: object
             x-kubernetes-preserve-unknown-fields: true

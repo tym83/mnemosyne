@@ -9,7 +9,6 @@ RUNTIME = {'type': 'object', 'required': ['mode', 'inventory'], 'properties': {
     'drafts': {'type': 'integer', 'minimum': 1, 'maximum': 10},
     'snapshotNamespace': STRING,
     'includeSecrets': {'type': 'boolean', 'default': False},
-    'climate': DOCUMENT, 'inner': STRING,
     'window': {'type': 'object', 'properties': {
         'kind': {'type': 'string', 'enum': ['night', 'weekends', 'idle', 'always']},
         'timeZone': STRING,
@@ -21,10 +20,6 @@ RUNTIME = {'type': 'object', 'required': ['mode', 'inventory'], 'properties': {
             'apiVersion': {'type': 'string', 'pattern': '^[a-z0-9.-]+(/[a-z0-9]+)?$'},
             'kind': {'type': 'string', 'pattern': '^[A-Za-z][A-Za-z0-9]*$'},
             'resource': {'type': 'string', 'pattern': '^[a-z][a-z0-9]*$'}}}},
-    'commissions': {'type': 'array', 'items': {'type': 'object',
-        'required': ['idea', 'method', 'plan'], 'properties': {
-            'idea': {'type': 'string', 'minLength': 1},
-            'method': {'type': 'string', 'minLength': 1}, 'plan': DOCUMENT}}},
 }}
 
 

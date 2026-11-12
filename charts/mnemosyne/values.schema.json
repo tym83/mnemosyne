@@ -263,31 +263,6 @@
             }
           }
         },
-        "commissions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": [
-              "idea",
-              "method",
-              "plan"
-            ],
-            "properties": {
-              "idea": {
-                "type": "string",
-                "minLength": 1
-              },
-              "method": {
-                "type": "string",
-                "minLength": 1
-              },
-              "plan": {
-                "type": "object",
-                "x-kubernetes-preserve-unknown-fields": true
-              }
-            }
-          }
-        },
         "priorityClassName": {
           "type": "string"
         },

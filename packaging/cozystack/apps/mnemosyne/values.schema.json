@@ -4,7 +4,7 @@
     "enabled": {
       "type": "boolean",
       "default": false,
-      "description": "Requires real image digests, recipient key and an approved commission for chamber."
+      "description": "Requires real image digests and a recipient key."
     },
     "mode": {
       "type": "string",
@@ -99,32 +99,6 @@
     "keySecretName": {
       "type": "string",
       "default": ""
-    },
-    "commissions": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "idea",
-          "method",
-          "plan"
-        ],
-        "properties": {
-          "idea": {
-            "type": "string",
-            "minLength": 1
-          },
-          "method": {
-            "type": "string",
-            "minLength": 1
-          },
-          "plan": {
-            "type": "object",
-            "x-kubernetes-preserve-unknown-fields": true
-          }
-        }
-      },
-      "description": "Owner-authored idea, method and complete approved plan; required for chamber."
     },
     "models": {
       "type": "object",

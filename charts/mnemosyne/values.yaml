@@ -40,7 +40,7 @@ notagen:
   weightsFile: /notagen/model.ckpt
   weights: {existingClaim: '', size: 10Gi, storageClass: ''}
 
-# Portable addon. Enable after Actions supplies real digests and an owner commission.
+# Portable addon. Enable after Actions supplies real digests and a key reference.
 addon:
   enabled: false
   # namespace uses only Role/RoleBinding and requires an existing priority class.
@@ -85,7 +85,7 @@ addon:
     - {apiVersion: mnemosyne.art/v1alpha1, kind: Review, resource: reviews}
     - {apiVersion: mnemosyne.art/v1alpha1, kind: AudienceLog, resource: audiencelogs}
     - {apiVersion: mnemosyne.art/v1alpha1, kind: Edition, resource: editions}
-  commissions: [] # required in chamber: [{idea: ..., method: ..., plan: {...}}]
+  # No artistic inputs exist here: ideas, schools, climate and moods belong to the atelier.
   priorityClassName: '' # empty creates release-scoped minimum integer priority
   resources:
     requests: {cpu: '100m', memory: 512Mi}

@@ -24,17 +24,56 @@ def quantity(value):
     return float(s)
 
 
+API = {'pods': 'api/v1', 'services': 'api/v1', 'endpoints': 'api/v1', 'resourcequotas': 'api/v1',
+       'events': 'api/v1', 'deployments.apps': 'apis/apps/v1', 'statefulsets.apps': 'apis/apps/v1',
+       'daemonsets.apps': 'apis/apps/v1', 'jobs.batch': 'apis/batch/v1', 'cronjobs.batch': 'apis/batch/v1',
+       'networkpolicies.networking.k8s.io': 'apis/networking.k8s.io/v1',
+       'roles.rbac.authorization.k8s.io': 'apis/rbac.authorization.k8s.io/v1',
+       'rolebindings.rbac.authorization.k8s.io': 'apis/rbac.authorization.k8s.io/v1'}
+
+
+class NotFound(Exception):
+    pass
+
+
+def incluster(api):
+    """GET through the controller's own service account; forbidden stays unknown."""
+    from kubernetes.client.exceptions import ApiException
+    def fetch(path):
+        try:
+            return api.call_api(path, 'GET', response_type='object', auth_settings=['BearerToken'],
+                                _return_http_data_only=True)
+        except ApiException as exc:
+            if exc.status == 404:
+                raise NotFound(path) from exc
+            raise
+    return fetch
+
+
 class Sensor:
-    def __init__(self, namespace='tenant-scheherazade', runner=subprocess.run):
-        if namespace != 'tenant-scheherazade':
+    def __init__(self, namespace='tenant-scheherazade', runner=subprocess.run, fetch=None):
+        # Without an in-cluster fetch this is the workshop development sensor.
+        if fetch is None and namespace != 'tenant-scheherazade':
             raise ValueError('workshop sensor is restricted to tenant-scheherazade')
-        self.namespace, self.runner = namespace, runner
+        self.namespace, self.runner, self.fetch = namespace, runner, fetch
         self.base = ['kubectl', '--kubeconfig', str(Path('~/workshop.txt').expanduser()),
                      '--context', 'admin@workshop', '--request-timeout=15s', '-n', namespace]
 
     def read(self, previous=None, now=None):
         missing = []
         def get(resource, raw=False):
+            if self.fetch is not None:
+                path = resource if raw else f'/{API[resource]}/namespaces/{self.namespace}/{resource.split(".")[0]}'
+                try:
+                    return self.fetch(path)
+                except NotFound:
+                    if resource == '/api/v1/namespaces/'+self.namespace:
+                        return {'absent': True}
+                    missing.append(resource)
+                    return None
+                except Exception:
+                    missing.append(resource)
+                    return None
             args = ['get', '--raw', resource] if raw else ['get', resource, '-o', 'json']
             try:
                 result = self.runner(self.base + args, capture_output=True, text=True, timeout=20)

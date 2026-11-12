@@ -8,36 +8,31 @@ spec:
     plural: mnemosynes
     singular: mnemosyne
     openAPISchema: '{"type": "object", "properties": {"enabled": {"type": "boolean",
-      "default": false, "description": "Requires real image digests, recipient key
-      and an approved commission for chamber."}, "mode": {"type": "string", "default":
-      "chamber", "enum": ["chamber", "background"]}, "suspend": {"type": "boolean",
-      "default": true, "description": "Keep work paused until the owner enables execution."},
-      "resourcesPreset": {"type": "string", "default": "s1.small", "enum": ["s1.small",
-      "s1.medium", "s1.large", "u1.small", "u1.medium"]}, "resources": {"type": "object",
-      "additionalProperties": {"type": "string"}, "description": "Flat limits; cozy-lib
-      derives requests using platform allocation ratios."}, "size": {"type": "string",
-      "default": "20Gi"}, "storageClass": {"type": "string", "default": "", "x-cozystack-options":
-      {"source": "storageclass"}, "description": "Empty uses the tenant default storage
-      class."}, "existingClaim": {"type": "string", "default": ""}, "images": {"type":
-      "object", "properties": {"controller": {"type": "object", "properties": {"repository":
+      "default": false, "description": "Requires real image digests and a recipient
+      key."}, "mode": {"type": "string", "default": "chamber", "enum": ["chamber",
+      "background"]}, "suspend": {"type": "boolean", "default": true, "description":
+      "Keep work paused until the owner enables execution."}, "resourcesPreset": {"type":
+      "string", "default": "s1.small", "enum": ["s1.small", "s1.medium", "s1.large",
+      "u1.small", "u1.medium"]}, "resources": {"type": "object", "additionalProperties":
+      {"type": "string"}, "description": "Flat limits; cozy-lib derives requests using
+      platform allocation ratios."}, "size": {"type": "string", "default": "20Gi"},
+      "storageClass": {"type": "string", "default": "", "x-cozystack-options": {"source":
+      "storageclass"}, "description": "Empty uses the tenant default storage class."},
+      "existingClaim": {"type": "string", "default": ""}, "images": {"type": "object",
+      "properties": {"controller": {"type": "object", "properties": {"repository":
       {"type": "string"}, "digest": {"type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$"}}},
       "studio": {"type": "object", "properties": {"repository": {"type": "string"},
       "digest": {"type": "string", "pattern": "^$|^sha256:[a-f0-9]{64}$"}}}}}, "imagePullSecrets":
       {"type": "array", "items": {"type": "object", "required": ["name"], "properties":
       {"name": {"type": "string"}}}}, "keySecretName": {"type": "string", "default":
-      ""}, "commissions": {"type": "array", "items": {"type": "object", "required":
-      ["idea", "method", "plan"], "properties": {"idea": {"type": "string", "minLength":
-      1}, "method": {"type": "string", "minLength": 1}, "plan": {"type": "object",
-      "x-kubernetes-preserve-unknown-fields": true}}}, "description": "Owner-authored
-      idea, method and complete approved plan; required for chamber."}, "models":
-      {"type": "object", "x-kubernetes-preserve-unknown-fields": true}, "window":
-      {"type": "object", "properties": {"kind": {"type": "string", "enum": ["night",
-      "weekends", "always"]}, "timeZone": {"type": "string"}, "startHour": {"type":
-      "integer", "minimum": 0, "maximum": 23}, "endHour": {"type": "integer", "minimum":
-      0, "maximum": 23}}}, "s3": {"type": "object", "properties": {"bucket": {"type":
-      "string", "default": ""}, "endpoint": {"type": "string", "default": ""}, "prefix":
-      {"type": "string", "default": ""}, "credentialsSecretName": {"type": "string",
-      "default": ""}, "accessKeyField": {"type": "string", "default": "accessKey"},
+      ""}, "models": {"type": "object", "x-kubernetes-preserve-unknown-fields": true},
+      "window": {"type": "object", "properties": {"kind": {"type": "string", "enum":
+      ["night", "weekends", "always"]}, "timeZone": {"type": "string"}, "startHour":
+      {"type": "integer", "minimum": 0, "maximum": 23}, "endHour": {"type": "integer",
+      "minimum": 0, "maximum": 23}}}, "s3": {"type": "object", "properties": {"bucket":
+      {"type": "string", "default": ""}, "endpoint": {"type": "string", "default":
+      ""}, "prefix": {"type": "string", "default": ""}, "credentialsSecretName": {"type":
+      "string", "default": ""}, "accessKeyField": {"type": "string", "default": "accessKey"},
       "secretKeyField": {"type": "string", "default": "secretKey"}}, "description":
       "Existing tenant Bucket endpoint and bucket name; credentials are mounted by
       reference, never queried by this chart."}}, "title": "Mnemosyne atelier"}'
@@ -83,8 +78,6 @@ spec:
       - imagePullSecrets
     - - spec
       - keySecretName
-    - - spec
-      - commissions
     - - spec
       - models
     - - spec

@@ -60,7 +60,7 @@ def prepare(args):
         recipe['spec']['package']['images'] = [f"{v['repository']}@{v['digest']}" for v in addon['images'].values()]
         ready = recipe['spec']['package']['variants'][0]['components'][0]['install']['readyWhen']
         ready.append({'apiVersion': 'apps/v1', 'kind': 'Deployment', 'name': 'mnemosyne-atelier-controller', 'condition': 'Available'})
-        # Site-specific key/commission values belong in a private package or in
+        # Site-specific key values belong in a private package or in
         # Package values. Never put key bytes or tokens in an owner values file.
     (kp / 'recipe.yaml').write_text(yaml.safe_dump(recipe, sort_keys=False))
     subprocess.run(['helm', 'lint', str(kp / 'charts/mnemosyne')], check=True)

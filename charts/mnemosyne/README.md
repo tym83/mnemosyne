@@ -2,9 +2,14 @@
 
 The `addon` section adds a namespaced kopf controller and one studio Job per
 Atelier/night. Existing `work` and `models` values retain their earlier behavior.
-The add-on is disabled until real image digests, a recipient key reference and
-owner-authored chamber commissions are supplied. No fabricated digest or default
-artistic idea is shipped.
+The add-on is disabled until real image digests and a recipient key reference
+are supplied. No fabricated digest is shipped.
+
+The owner configures infrastructure only: window, resources, key, models,
+storage and snapshot scope. There is no setting for ideas, schools, plans,
+moods or climate. The climate is read by a read-only sensor in the atelier's
+namespace (forbidden reads stay unknown) and reaches artists only as felt
+qualities; everything else is the atelier's own creative freedom.
 
 ## Installation
 
@@ -48,8 +53,10 @@ for an explicitly requested retry; do not delete notebooks.
 
 ## Modes and keys
 
-- `chamber`: no model calls, approved commission plans, CPU composition, weave,
-  score/PDF/audio and decode. Synthetic fate records remain marked synthetic.
+- `chamber`: no model calls. Every work the artists' lives bring that night,
+  accepted or not, gets a score from a school the artist chooses (their own
+  school, or traditions they have not tried yet); then weave, optional audio
+  and decode.
 - `background`: existing composer with configured cluster model endpoints.
 - `GPU`: the same pipeline plus an explicitly supplied `gpuResource` and matching
   resource limit. Models/endpoints and device plugin are supplied by the owner.
