@@ -79,6 +79,24 @@ class AddonChartTests(unittest.TestCase):
         self.assertEqual(pvc['metadata']['annotations']['helm.sh/resource-policy'], 'keep')
         self.assertEqual(next(d for d in docs if d['kind']=='PriorityClass')['value'], -2147483648)
 
+    def test_gallery_reads_only_and_history_needs_its_digest(self):
+        values = self.values()
+        values['addon'].update(gallery={'enabled': True},
+                               history={'source': 'https://example.org/h.tar.gz', 'sha256': 'b' * 64})
+        docs = self.render(values)
+        gallery = next(d for d in docs if d['kind'] == 'Deployment' and d['metadata']['name'].endswith('-gallery'))
+        spec = gallery['spec']['template']['spec']
+        self.assertFalse(spec['automountServiceAccountToken'])
+        self.assertTrue(next(v for v in spec['volumes'] if v['name'] == 'works')['persistentVolumeClaim']['readOnly'])
+        self.assertTrue(spec['containers'][0]['volumeMounts'][0]['readOnly'])
+        job = next(d for d in docs if d['kind'] == 'Job')
+        self.assertIn('b' * 64, job['spec']['template']['spec']['containers'][0]['command'])
+        config = next(d for d in docs if d['kind'] == 'ConfigMap' and 'runtime.json' in d['data'])
+        self.assertIn('podAffinity', json.loads(config['data']['runtime.json'])['pod']['affinity'])
+        values['addon']['history'] = {'source': 'https://example.org/h.tar.gz', 'sha256': ''}
+        with self.assertRaises(ValueError):
+            self.render(values)
+
     def test_reject_missing_digests_and_accidental_secret_inventory(self):
         values = self.values(); values['addon']['images']['studio']['digest'] = ''
         with self.assertRaises(ValueError): self.render(values)

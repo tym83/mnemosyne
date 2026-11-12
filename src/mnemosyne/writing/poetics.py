@@ -9,11 +9,12 @@ to its rules of form.
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]/'atlas'/'literature'/'poetics'
+ROOT = Path(os.environ.get('MNEMO_ASSETS') or Path(__file__).resolve().parents[3])/'atlas'/'literature'/'poetics'
 
 LABELS = (('worldview', 'Картина мира'), ('reader', 'Читатель'), ('time', 'Время'),
           ('composition', 'Композиция'), ('narrator', 'Повествователь'), ('character', 'Персонаж'),

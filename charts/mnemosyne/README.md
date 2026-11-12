@@ -155,6 +155,38 @@ the namespace or CRDs is a separate destructive operation. Explicitly set
 `addon.artifacts.keep: false` before uninstall only if removal is desired;
 externally supplied claims are never owned by this chart.
 
+## A lived history and the gallery
+
+An atelier can arrive with a history lived elsewhere, for example a year run
+by `hack/year/run_year.py`. Pack it, publish the archive where the cluster can
+fetch it over HTTPS, and give its digest:
+
+```bash
+mnemo history export --root out/year/leonia-year --out leonia-history.tar.gz
+# prints the sha256
+helm upgrade --install atelier charts/mnemosyne -n atelier \
+  --set addon.enabled=true \
+  --set addon.history.source=https://example.org/leonia-history.tar.gz \
+  --set addon.history.sha256=<sha256> \
+  --set addon.gallery.enabled=true
+```
+
+After install a Job unpacks the archive into the atelier's directory on the
+volume: lineage, nights, works, notebooks, carriers and the ledger. It refuses
+an archive that contains keys and never overwrites an atelier that already
+lives there. The studio's next night continues that life. Install with the
+same atelier key and owner public key the history was woven with, so the
+ledger goes on in one chain; restore the cluster state the history describes
+with `mnemo restore --works <dir> --key owner.key --apply` before or after.
+
+The gallery serves the history as a read-only site: creators, works with their
+drafts, scores and translations, the inner critic's rounds, critics, Lives,
+schools with their manifestos, the timeline and how to restore. It mounts the
+volume read-only, has no service account token and no keys, and rebuilds the
+site every `addon.gallery.refreshSeconds`. Expose it with
+`addon.gallery.ingress` or a port-forward to share it. The volume is
+ReadWriteOnce, so with the gallery on, the studio is scheduled on its node.
+
 ## Validation and release gates
 
 ```sh

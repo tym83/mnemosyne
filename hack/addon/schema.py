@@ -27,6 +27,9 @@ for role in ('controller', 'studio'):
 a['key']['properties']['provider'] = {'type': 'string', 'enum': ['file', 'vault', 'kms']}
 a['controllerReplicas'] = {'const': 1}
 a['deadlineSeconds'] = {'type': 'integer', 'minimum': 60}
+a['history']['properties']['source']['pattern'] = '^$|^https://'
+a['history']['properties']['sha256']['pattern'] = '^$|^[a-f0-9]{64}$'
+a['gallery']['properties']['service']['properties']['type'] = {'type': 'string', 'enum': ['ClusterIP', 'NodePort', 'LoadBalancer']}
 schema['allOf'] = [{'if': {'properties': {'addon': {'properties': {'enabled': {'const': True}}}}},
     'then': {'properties': {'addon': {'properties': {'images': {'properties': {
         role: {'properties': {'digest': {'minLength': 71}}} for role in ('controller', 'studio')}}}}}}}]

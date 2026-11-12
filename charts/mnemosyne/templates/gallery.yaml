@@ -1,0 +1,109 @@
+{{- if .Values.addon.enabled }}
+{{- $a := .Values.addon }}
+{{- $name := printf "%s-atelier" .Release.Name }}
+{{- $claim := $a.artifacts.existingClaim | default (printf "%s-works" .Release.Name) }}
+{{- $controller := printf "%s@%s" $a.images.controller.repository $a.images.controller.digest }}
+{{- $security := dict "allowPrivilegeEscalation" false "readOnlyRootFilesystem" true "capabilities" (dict "drop" (list "ALL")) }}
+{{- $pod := dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "fsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault") }}
+{{- $together := dict "podAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" (list (dict "topologyKey" "kubernetes.io/hostname" "labelSelector" (dict "matchLabels" (dict "app.kubernetes.io/name" (printf "%s-gallery" $name)))))) }}
+{{- $env := list (dict "name" "MNEMO_ASSETS" "value" "/opt/mnemosyne") (dict "name" "HOME" "value" "/tmp") }}
+{{- if $a.history.source }}
+{{- if not $a.history.sha256 }}{{ fail "addon.history.sha256 is required with addon.history.source" }}{{ end }}
+# A lived history moves into the volume once; a living atelier is never overwritten.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}-history
+  annotations: {helm.sh/hook: 'post-install,post-upgrade', helm.sh/hook-weight: '0', helm.sh/hook-delete-policy: before-hook-creation}
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      {{- if $a.gallery.enabled }}
+      # The volume is ReadWriteOnce: every pod that mounts it shares the gallery's node.
+      affinity: {{ toJson $together }}
+      {{- end }}
+      securityContext: {{ toJson $pod }}
+      imagePullSecrets: {{ toJson $a.imagePullSecrets }}
+      containers:
+      - name: history
+        image: {{ $controller }}
+        command: [mnemo, history, import, --source, {{ $a.history.source | quote }},
+                  --sha256, {{ $a.history.sha256 | quote }}, --into, /works/{{ $name }}]
+        env: {{ toJson $env }}
+        securityContext: {{ toJson $security }}
+        resources: {requests: {cpu: 50m, memory: 256Mi}, limits: {cpu: '1', memory: 1Gi}}
+        volumeMounts: [{name: works, mountPath: /works}, {name: tmp, mountPath: /tmp}]
+      volumes:
+      - {name: works, persistentVolumeClaim: {claimName: {{ $claim }}}}
+      - {name: tmp, emptyDir: {}}
+---
+{{- end }}
+{{- if $a.gallery.enabled }}
+# The gallery reads the volume read-only and serves the history; no token, no keys, no writes.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: {{ $name }}-gallery}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: {{ $name }}-gallery}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: {{ $name }}-gallery}}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext: {{ toJson $pod }}
+      imagePullSecrets: {{ toJson $a.imagePullSecrets }}
+      nodeSelector: {{ toJson $a.nodeSelector }}
+      tolerations: {{ toJson $a.tolerations }}
+      containers:
+      - name: gallery
+        image: {{ $controller }}
+        command: [python, -m, mnemosyne.gallery, --root, /works/{{ $name }}, --site, /site/current,
+                  --port, '8080', --every, {{ $a.gallery.refreshSeconds | quote }}]
+        env: {{ toJson $env }}
+        ports: [{name: http, containerPort: 8080}]
+        readinessProbe: {httpGet: {path: /, port: http}, periodSeconds: 10}
+        securityContext: {{ toJson $security }}
+        resources: {{ toJson $a.gallery.resources }}
+        volumeMounts: [{name: works, mountPath: /works, readOnly: true}, {name: site, mountPath: /site}, {name: tmp, mountPath: /tmp}]
+      volumes:
+      - {name: works, persistentVolumeClaim: {claimName: {{ $claim }}, readOnly: true}}
+      - {name: site, emptyDir: {sizeLimit: 2Gi}}
+      - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: {{ $name }}-gallery}
+spec:
+  type: {{ $a.gallery.service.type }}
+  selector: {app.kubernetes.io/name: {{ $name }}-gallery}
+  ports: [{name: http, port: {{ $a.gallery.service.port }}, targetPort: http}]
+---
+{{- if $a.gallery.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}-gallery
+  {{- with $a.gallery.ingress.annotations }}
+  annotations: {{ toJson . }}
+  {{- end }}
+spec:
+  {{- with $a.gallery.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with $a.gallery.ingress.tls }}
+  tls: {{ toJson . }}
+  {{- end }}
+  rules:
+  - host: {{ required "addon.gallery.ingress.host is required" $a.gallery.ingress.host | quote }}
+    http:
+      paths: [{path: /, pathType: Prefix, backend: {service: {name: {{ $name }}-gallery, port: {name: http}}}}]
+---
+{{- end }}
+{{- end }}
+{{- end }}

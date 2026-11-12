@@ -82,7 +82,23 @@ addon:
   resources:
     requests: {cpu: '100m', memory: 512Mi}
     limits: {cpu: '1', memory: 2Gi}
-  quota: {requests.cpu: '2', requests.memory: 3Gi, limits.cpu: '3', limits.memory: 4Gi, pods: '3'}
+  quota: {requests.cpu: '2', requests.memory: 3Gi, limits.cpu: '4', limits.memory: 5Gi, pods: '5'}
+  # A history lived elsewhere (mnemo history export) moves into the volume once, after
+  # install; a living atelier is never overwritten. The archive holds no keys.
+  history:
+    source: '' # https URL of the archive
+    sha256: ''
+  # Read-only site of the atelier's history: works, drafts, notebooks, critics, Lives,
+  # schools and how to restore. No keys, no token, no writes. The volume is ReadWriteOnce,
+  # so the studio is scheduled beside the gallery.
+  gallery:
+    enabled: false
+    refreshSeconds: 900
+    service: {type: ClusterIP, port: 80}
+    ingress: {enabled: false, className: '', host: '', annotations: {}, tls: []}
+    resources:
+      requests: {cpu: 50m, memory: 192Mi}
+      limits: {cpu: 500m, memory: 768Mi}
   artifacts:
     existingClaim: ''
     size: 20Gi

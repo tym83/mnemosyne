@@ -25,6 +25,9 @@
 {{- $volumes := concat (list (dict "name" "works" "persistentVolumeClaim" (dict "claimName" $claim)) (dict "name" "runtime" "configMap" (dict "name" $name)) (dict "name" "models" "configMap" (dict "name" (printf "%s-models" .Release.Name))) (merge (dict "name" "key") $keyVolume) (dict "name" "tmp" "emptyDir" dict)) $a.volumes }}
 {{- $security := dict "allowPrivilegeEscalation" false "capabilities" (dict "drop" (list "ALL")) "readOnlyRootFilesystem" true }}
 {{- $pod := dict "serviceAccountName" (printf "%s-studio" $name) "priorityClassName" $priority "securityContext" (dict "runAsNonRoot" true "runAsUser" 10001 "runAsGroup" 10001 "fsGroup" 10001 "seccompProfile" (dict "type" "RuntimeDefault")) "imagePullSecrets" $a.imagePullSecrets "nodeSelector" $a.nodeSelector "tolerations" $a.tolerations "volumes" $volumes "containers" (list (dict "name" "studio" "image" $studio "command" (list "python" "-m" "mnemosyne.operator.worker") "resources" $a.resources "securityContext" $security "env" $env "volumeMounts" $mounts)) }}
+{{- if $a.gallery.enabled }}
+{{- $_ := set $pod "affinity" (dict "podAffinity" (dict "requiredDuringSchedulingIgnoredDuringExecution" (list (dict "topologyKey" "kubernetes.io/hostname" "labelSelector" (dict "matchLabels" (dict "app.kubernetes.io/name" (printf "%s-gallery" $name))))))) }}
+{{- end }}
 apiVersion: v1
 kind: ConfigMap
 metadata: {name: {{ $name }}}

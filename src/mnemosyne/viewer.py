@@ -24,7 +24,10 @@ class Atelier:
     def __init__(self, root: Path):
         self.root = Path(root)
         self.life = Lineage.restore(json.loads((self.root/'lineage.json').read_text()))
-        self.nights = sorted((self.root/'nights').glob('[0-9][0-9][0-9]')) if (self.root/'nights').exists() else []
+        # A lived history keeps nights under nights/; a studio volume keeps them beside lineage.json.
+        self.home = self.root/'nights' if (self.root/'nights').is_dir() else self.root
+        self.nights = sorted(p for p in self.home.iterdir() if p.is_dir() and p.name not in ('ledger', 'cache', 'site')
+                             and ((p/'decode.json').exists() or (p/'request.json').exists() or p.name.isdigit()))
         self.year = [json.loads(l) for l in (self.root/'year.jsonl').read_text().splitlines()] \
             if (self.root/'year.jsonl').exists() else []
         from .writing.memory import Memory
@@ -555,7 +558,7 @@ def site(at, out: Path):
 
 
 def restore_page(at, out):
-    ledger_path = at.root/'nights'/'ledger'/'ledger.json'
+    ledger_path = at.home/'ledger'/'ledger.json'
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else {'pieces': []}
     rows = ''.join(f'<tr><td>{"ключевой кадр" if p["kind"] == "keyframe" else "изменения"}</td><td>{p["at"][:10]}</td>'
                    f'<td>{p["bytes"]} байт</td><td>{p["carried"]} из {p["target"]}</td>'
