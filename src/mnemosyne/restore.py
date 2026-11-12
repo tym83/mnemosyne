@@ -169,6 +169,11 @@ def recover_works(directory, key, *, include_secrets=False, at=None):
         return data, objects, report
     candidates = {d: (data, read_archive(data, include_secrets=include_secrets))
                   for d, (_, _, data) in candidates.items()}
+    if not candidates and groups:
+        frames_seen = {g[1][:12]: (len(set(map(repr, fs))), g[2]) for g, fs in groups.items() if g[0] == 'fountain-v1'}
+        raise ValueError('no snapshot is complete yet: ' + ', '.join(
+            f'snapshot {sid} has {n} frames of at least {k} needed (more with losses)' for sid, (n, k) in frames_seen.items())
+            + '; the atelier has not woven enough works since this snapshot')
     if len(candidates) != 1:
         raise ValueError(f'expected one verified archive, found {len(candidates)}; '
                          f'decoded={len(report["decoded"])} rejected={len(report["rejected"])}; '

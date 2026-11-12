@@ -58,12 +58,16 @@ def main(argv=None):
     if argv and argv[0] == 'restore':
         from .restore import main as restore
         return restore(argv[1:])
+    if argv and argv[0] == 'translate':
+        from .writing.memory import main as translate
+        return translate(argv[1:])
     if argv and argv[0] == 'view':
         from .viewer import main as view
         return view(argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('restore', help='decode works and optionally apply; see mnemo restore --help')
+    commands.add_parser('translate', help="the Translator renders the atelier's foreign texts into Russian")
     commands.add_parser('view', help='read the atelier history in the console or export a site; see mnemo view --help')
     keys = commands.add_parser('keys').add_subparsers(dest='action', required=True)
     new = keys.add_parser('new', help="create the owner's key (keep offline) and the atelier's key (for the cluster)")

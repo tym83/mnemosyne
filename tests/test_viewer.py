@@ -37,6 +37,26 @@ class ViewerTests(unittest.TestCase):
             self.assertTrue((root/'site'/f'work-{w["id"]}.html').exists())
             self.assertIn('Старый пруд.', (root/'site'/f'work-{w["id"]}.html').read_text())
             self.assertEqual(before, (root/'lineage.json').read_bytes())
+            page = (root/'site'/f'work-{w["id"]}.html').read_text()
+            self.assertIn('href="files/', page)
+            self.assertTrue((root/'site'/'restore.html').exists())
+
+    def test_translation_memory_shows_russian_with_the_original_folded(self):
+        from mnemosyne.viewer import ru_block
+        from mnemosyne.writing.memory import Memory, foreign
+        german = 'Frau Kern legte den Gartenschlüssel auf meinen Tisch.'
+        self.assertTrue(foreign(german))
+        self.assertFalse(foreign('Фрау Керн положила ключ на стол.'))
+        life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/'lineage.json').write_text(json.dumps(life.state()))
+            memory = Memory(root)
+            memory.put(german, 'Фрау Керн положила садовый ключ на мой стол.')
+            memory.save()
+            block = ru_block(Atelier(root), german)
+            self.assertLess(block.index('Фрау Керн'), block.index('оригинал'))
+            self.assertIn(german, block)
 
 
 if __name__ == '__main__':

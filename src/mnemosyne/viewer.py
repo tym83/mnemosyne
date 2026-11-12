@@ -26,6 +26,15 @@ class Atelier:
         self.nights = sorted((self.root/'nights').glob('[0-9][0-9][0-9]')) if (self.root/'nights').exists() else []
         self.year = [json.loads(l) for l in (self.root/'year.jsonl').read_text().splitlines()] \
             if (self.root/'year.jsonl').exists() else []
+        from .writing.memory import Memory
+        self.memory = Memory(self.root)
+
+    def ru(self, text):
+        """The Russian of a text: itself when it is Russian, the Translator's rendering, or None."""
+        from .writing.memory import foreign
+        if not text or not foreign(text):
+            return text
+        return self.memory.get(text)
 
     def name(self, a):
         return a.id if a.name == a.id else a.name
@@ -138,6 +147,10 @@ h1,h2{font-weight:normal}pre{white-space:pre-wrap;font:inherit}.muted{color:var(
 table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
 .work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
 .variants{color:var(--accent);font-size:.92em}
+details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-ui,sans-serif}
+dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
+.cmd{font:14px ui-monospace,Menlo,monospace;background:var(--line);padding:8px 10px;border-radius:4px}
+.lead{font-size:1.05em;border-left:3px solid var(--accent);padding-left:14px}
 #score{background:#fff;border-radius:6px;padding:8px;overflow-x:auto}
 """
 PLAYER = ('<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,'
@@ -150,7 +163,7 @@ def page(title, body, scripts=''):
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
             f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
-            f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a>'
+            f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
             f'</nav>{body}</body></html>')
 
 
@@ -171,24 +184,131 @@ def marked(text):
         html.escape(o) for o in m.group(1).split('|')) + ']</span>', html.escape(text or '').replace('&#x27;', "'"))
 
 
-def notebook_html(record):
+CHAPTER = {'birth': 'рождение', 'first_accepted': 'первая принятая работа', 'writer_work': 'работа',
+           'death': 'смерть', 'despair': 'отчаяние', 'illness': 'болезнь', 'school_birth': 'рождение школы',
+           'teacher': 'ученичество', 'renounce': 'уход из искусства'}
+
+VERDICT = {'accept': 'принята', 'rewrite': 'не доведена', 'repetition': 'повтор', 'unfinished': 'не доведена'}
+
+STATEMENT = (('idea', 'Замысел'), ('superobjective', 'Сверхзадача'), ('thought', 'Мысль'),
+             ('why_i_must_say_it', 'Почему я должен это сказать'), ('why_now', 'Почему сейчас'),
+             ('freshness', 'В чём новизна'), ('not_a_cliche_because', 'Почему это не штамп'),
+             ('emotions', 'Чувства'), ('how_it_changes_a_heart', 'Что это меняет в читателе'),
+             ('why_admired', 'За что этим можно восхищаться'), ('timeless_or_of_the_world', 'Вечное или сегодняшнее'),
+             ('risks', 'Чего я боюсь'), ('operators_used', 'Приёмы и учителя'))
+
+SCHOOL_RU = {
+    'haiku': ('Хайку', 'Японское трёхстишие 5–7–5: одно мгновение, сезонное слово, разрыв между образами.'),
+    'chastushka': ('Частушка', 'Русский фольклорный куплет: четыре строки, хорей, рифма, поворот в последней строке.'),
+    'sonnet': ('Сонет', 'Четырнадцать строк с рифмовкой; мысль поворачивает в последних строках.'),
+    'bylina': ('Былина', 'Эпический сказ тоническим стихом: зачин, повторы, постоянные эпитеты.'),
+    'fairy_tale': ('Волшебная сказка', 'Сказка по функциям Проппа: недостача, путь, испытание, возвращение.'),
+    'eluard': ('Элюар', 'Сюрреалистическая лирика Поля Элюара: свободный стих, рефрен, сцепление несоединимых образов.'),
+    'pavic': ('Павич', 'Роман-словарь в духе «Хазарского словаря»: статьи с перекрёстными ссылками, читать можно в любом порядке.'),
+    'minimalism': ('Минимализм', 'Короткая проза в духе Карвера: сцены без авторских оценок и объяснённых чувств, главное — в недосказанном.'),
+    'tintinnabuli': ('Тинтиннабули', 'Метод Арво Пярта: мелодия по ступеням и голос, звучащий по трезвучию.'),
+    'stochastic': ('Стохастическая', 'Музыка масс звуков Ксенакиса: плотности и распределения вместо мелодий.'),
+    'micropolyphony': ('Микрополифония', 'Густые каноны Лигети, в которых отдельные голоса сливаются в ткань.'),
+    'serial': ('Серийная', 'Двенадцатитоновая серия и её преобразования.'),
+    'feldman': ('Фелдман', 'Тихие, очень долгие формы Мортона Фелдмана, почти без событий.'),
+    'process': ('Процессуальная', 'Музыка постепенного процесса: фазовые сдвиги и медленные изменения.'),
+    'additive': ('Аддитивная', 'Мотив растёт и убывает по одной ноте за раз.'),
+    'in_c': ('«In C»', 'Открытая форма Терри Райли: исполнители идут по общим фигурам каждый в своём темпе.'),
+    'spectral': ('Спектральная', 'Гармония из спектра обертонов одного звука.'),
+    'sonorism': ('Сонористика', 'Польская сонористика: кластеры и тембровые пятна вместо нот.'),
+    'messiaen': ('Мессиан', 'Лады ограниченной транспозиции и необратимые ритмы.'),
+    'ustvolskaya': ('Уствольская', 'Жёсткие кластеры, удары и аскетичная сила.'),
+    'chance': ('Музыка случая', 'Решения принимает жребий, как у Кейджа.'),
+    'tempo_canon': ('Темповый канон', 'Канон, в котором голоса идут в разных темпах, как у Нанкарроу.'),
+    'aleatoric_counterpoint': ('Алеаторический контрапункт', 'Голоса заданы, но их встречи свободны, как у Лютославского.'),
+    'fibonacci': ('Фибоначчи', 'Пропорции формы по числам Фибоначчи.'),
+    'polystylism': ('Полистилистика', 'Столкновение стилей и цитат, как у Шнитке.'),
+    'scelsi': ('Шелси', 'Музыка одного звука, раскрытого изнутри.'),
+    'drone': ('Дроун', 'Долгий выдержанный тон, на котором всё меняется медленно.'),
+}
+
+FILE_KIND = (
+    ('woven/', '.musicxml', 'Партитура-носитель: в оттенках динамики нот зашифрован кусок резервной копии кластера.'),
+    ('woven/', '.catalogue.json', 'Каталог носителя: какие куски копии лежат в этой работе и в каком порядке.'),
+    ('woven/', '.variants.json', 'Том разночтений: выбор между авторскими вариантами слов шифрует кусок копии.'),
+    ('woven/', '.audience.json', 'Отклик публики: тоже носитель куска копии.'),
+    ('', 'draft.musicxml', 'Черновик партитуры, каким его оставил композитор.'),
+    ('', 'notebook.json', 'Блокнот ночи: замысел, внутренний критик, выбор школы, все черновики и чтения.'),
+    ('', '.ru.txt', 'Перевод текста на русский, сделанный Переводчиком.'),
+    ('', '.txt', 'Текст работы на языке автора.'),
+    ('', '.mid', 'MIDI, собранный из нот.'),
+)
+
+
+def file_kind(path):
+    name = str(path)
+    for where, suffix, text in FILE_KIND:
+        if where in name and name.endswith(suffix):
+            return text, bool(where)
+    return '', False
+
+
+def school_name(k):
+    return SCHOOL_RU.get(k, (k, ''))[0] if k else ''
+
+
+def school_link(k):
+    return f'<a href="schools.html#{html.escape(k)}">{html.escape(school_name(k))}</a>' if k else ''
+
+
+def ru_block(at, text, tag='p'):
+    """Russian first; the original under a fold when the Translator rendered it."""
+    if not text:
+        return ''
+    russian = at.ru(text)
+    if russian is text:
+        return f'<{tag}>{esc(text)}</{tag}>'
+    if russian:
+        return (f'<{tag}>{esc(russian)}</{tag}><details><summary>оригинал</summary><{tag} class="muted">'
+                f'{esc(text)}</{tag}></details>')
+    return f'<{tag}>{esc(text)}</{tag}><p class="muted">перевод ещё не готов</p>'
+
+
+def ru_inline(at, text):
+    russian = at.ru(text)
+    return esc(russian if russian else text)
+
+
+def statement_html(at, st):
+    rows = []
+    for k, label in STATEMENT[1:]:
+        value = st.get(k)
+        if not value:
+            continue
+        items = value if isinstance(value, list) else [value]
+        rows.append(f'<dt>{label}</dt><dd>' + ''.join(ru_block(at, v) for v in items) + '</dd>')
+    return '<dl>' + ''.join(rows) + '</dl>'
+
+
+def notebook_html(at, record):
     parts = []
     st = record.get('statement') or {}
     if st:
-        parts.append(f'<h3>Замысел</h3><p>{esc(st.get("idea"))}</p><p class="muted">{esc(st.get("thought"))}</p>')
+        parts.append('<h3>Манифест замысла</h3><p class="muted">Прежде чем писать, творец отвечает себе, '
+                     'что и зачем он делает.</p>' + statement_html(at, st))
     for h in record.get('interrogation') or []:
         iv = h['interrogation']
-        parts.append(f'<p><b>Внутренний критик, раунд {h["round"] + 1}: {html.escape(iv["verdict"])}</b><br>'
-                     f'{esc(iv.get("reasons") or "")}</p>')
-    for d in record.get('drafts') or []:
-        parts.append(f'<h3>Черновик {html.escape(d["id"])}</h3><pre>{marked(d.get("text"))}</pre>'
-                     f'<p class="muted">Дневник: {esc(d.get("diary"))}</p>'
-                     + (f'<p class="muted">Форма: {html.escape("; ".join(d["form_problems"]))}</p>' if d.get('form_problems') else '')
-                     + (f'<p class="muted">Чтение: {html.escape(d["reading"]["verdict"])} — {esc(d["reading"]["reasons"])}</p>'
-                        if d.get('reading') else ''))
-    for e in record.get('entries') or []:
-        if isinstance(e.get('result'), dict) and e['result'].get('diary'):
-            parts.append(f'<p class="muted">{html.escape(e["step"])}: {marked(e["result"]["diary"])}</p>')
+        parts.append(f'<h3>Внутренний критик, раунд {h["round"] + 1}: {VERDICT.get(iv["verdict"], iv["verdict"])}</h3>'
+                     + ru_block(at, iv.get('reasons')))
+    method = record.get('method')
+    if method:
+        parts.append('<h3>Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
+                                             else 'новая школа «' + esc(method['school']) + '»') + '</h3>'
+                     + ru_block(at, method.get('reason')))
+    for n, d in enumerate(record.get('drafts') or [], 1):
+        reading = d.get('reading') or {}
+        parts.append(f'<h3>Черновик {n}: {ru_inline(at, d.get("title"))}</h3>'
+                     f'<details><summary>текст черновика с вариантами</summary><pre>{marked(d.get("text"))}</pre></details>'
+                     + ('<p class="muted">Дневник автора:</p>' + ru_block(at, d.get('diary')) if d.get('diary') else '')
+                     + (f'<p class="muted">Форма не удержана: {html.escape("; ".join(d["form_problems"]))}</p>'
+                        if d.get('form_problems') else '')
+                     + (f'<p class="muted">Автор перечитал: {VERDICT.get(reading["verdict"], reading["verdict"])}</p>'
+                        + ru_block(at, reading.get('reasons')) if reading else ''))
     if record.get('apparatus'):
         parts.append('<p class="muted">Аппарат разночтений сохранён: варианты, из которых выбран итоговый текст.</p>')
     return ''.join(parts)
@@ -201,20 +321,21 @@ def site(at, out: Path):
     life = at.life
     rows = ''.join(f'<tr><td><a href="artist-{a.id}.html">{esc(at.name(a))}</a></td><td>{ART.get(a.art, a.art)}</td>'
                    f'<td>{LANGUAGE_NAMES.get(a.language, a.language)}</td><td>{a.status}</td><td>{len(a.catalogue)}</td>'
-                   f'<td>{esc(a.school)}</td></tr>' for a in life.artists)
+                   f'<td>{school_link(a.school) if a.school in SCHOOL_RU else esc(a.school or "")}</td></tr>' for a in life.artists)
     (out/'artists.html').write_text(page('Творцы', '<h1>Творцы</h1><table><tr><th>Имя</th><th>Искусство</th>'
                                          '<th>Язык</th><th>Статус</th><th>Работ</th><th>Школа</th></tr>' + rows + '</table>'))
     live = [(a, w) for a, w in at.works() if not w.get('synthetic') or at.files(w['id'])]
     rows = ''.join(f'<tr><td><a href="work-{w["id"]}.html">{w["id"]}</a></td><td>{esc(at.name(a))}</td>'
-                   f'<td>{ART.get(a.art, a.art)}</td><td>{w["night"]}</td><td>{w["verdict"]}</td>'
-                   f'<td>{esc(w.get("school") or "")}</td></tr>' for a, w in live)
+                   f'<td>{ART.get(a.art, a.art)}</td><td>{w["night"]}</td><td>{VERDICT.get(w["verdict"], w["verdict"])}</td>'
+                   f'<td>{school_link(w.get("school"))}</td></tr>' for a, w in live)
     (out/'works.html').write_text(page('Работы', '<h1>Работы</h1><table><tr><th>Работа</th><th>Автор</th><th>Искусство</th>'
                                        '<th>Ночь</th><th>Вердикт</th><th>Школа</th></tr>' + rows + '</table>'))
     for a in life.artists:
-        works = ''.join(f'<li><a href="work-{w["id"]}.html">{w["id"]}</a> — ночь {w["night"]}, {w["verdict"]}'
-                        f'{": " + esc(w.get("idea"))[:120] if w.get("idea") else ""}</li>'
+        works = ''.join(f'<li><a href="work-{w["id"]}.html">{w["id"]}</a> — ночь {w["night"]}, '
+                        f'{VERDICT.get(w["verdict"], w["verdict"])}, школа {school_link(w.get("school")) or "—"}'
+                        f'{": " + ru_inline(at, w.get("idea"))[:160] + "…" if w.get("idea") else ""}</li>'
                         for w in a.catalogue if (a, w) in live)
-        chapters = ''.join(f'<h3 class="muted">ночь {c["night"]} · {c["kind"]}</h3><p>{esc(c["text"])}</p>'
+        chapters = ''.join(f'<h3 class="muted">ночь {c["night"]} · {CHAPTER.get(c["kind"], c["kind"])}</h3>{ru_block(at, c["text"])}'
                            for c in life.biographies[a.id].chapters if c.get('text'))
         notes = ''.join(f'<li>ночь {n["night"]} · {NOTE.get(n["kind"], n["kind"])}'
                         + (f': {esc(n.get("idea") or n.get("image") or n.get("name") or "")[:200]}'
@@ -222,21 +343,27 @@ def site(at, out: Path):
                         for n in a.notebook if n['kind'] not in ('draft_decision', 'verification', 'incubation'))
         body = (f'<h1>{esc(at.name(a))}</h1><p class="muted">{ART.get(a.art, a.art)} · '
                 f'{LANGUAGE_NAMES.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {esc(a.school)}'
-                f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p><p>{esc(a.portrait)}</p>'
+                f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p>{ru_block(at, a.portrait)}'
                 f'<h2>Работы</h2><ul>{works or "<li class=muted>пока синтетические</li>"}</ul>'
                 f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}'
                 f'<h2>Блокнот</h2><ul class="muted">{notes or "<li>пусто</li>"}</ul>')
         (out/f'artist-{a.id}.html').write_text(page(at.name(a), body))
+    (out/'files').mkdir(exist_ok=True)
     for a, w in live:
         parts, scripts = [], ''
+        record = at.notebook(w['id']) or {}
         original, ru = at.text(w['id'])
         if original:
-            parts.append(f'<h2>Текст</h2><pre>{html.escape(original)}</pre>')
-        if ru:
-            parts.append(f'<h2>Перевод</h2><pre>{html.escape(ru)}</pre>')
+            if ru:
+                parts.append(f'<h2>Текст</h2><pre>{html.escape(ru)}</pre><details><summary>оригинал '
+                             f'({LANGUAGE_NAMES.get(a.language, a.language)})</summary><pre class="muted">'
+                             f'{html.escape(original)}</pre></details>')
+            else:
+                parts.append(f'<h2>Текст</h2><pre>{html.escape(original)}</pre>')
         scores = [p for p in at.files(w['id']) if p.suffix == '.musicxml']
         if scores:
-            score = scores[-1]
+            # The composer's clean draft for reading; the woven score carries the backup in its dynamics.
+            score = next((p for p in scores if p.name == 'draft.musicxml'), scores[-1])
             copyfile(score, out/'scores'/f'{w["id"]}.musicxml')
             midi = out/'scores'/f'{w["id"]}.mid'
             try:
@@ -247,20 +374,37 @@ def site(at, out: Path):
                 scripts += PLAYER
             except Exception as exc:
                 parts.append(f'<p class="muted">MIDI не собран: {html.escape(str(exc))}</p>')
-            parts.append(f'<h2>Партитура</h2><div id="score"></div><script>new opensheetmusicdisplay.'
-                         f'OpenSheetMusicDisplay("score").load("scores/{w["id"]}.musicxml").then(o=>o.render())</script>')
+            parts.append(f'<h2>Партитура</h2><div id="score">загружается…</div><script>(function(){{'
+                         f'const view=new opensheetmusicdisplay.OpenSheetMusicDisplay("score",{{drawTitle:false,drawComposer:false,drawCredits:false}});'
+                         f'view.load("scores/{w["id"]}.musicxml").then(()=>{{document.getElementById("score")'
+                         f'.firstChild.remove?.();view.render()}}).catch(e=>{{document.getElementById("score")'
+                         f'.textContent="Ноты не открылись: "+e}})}})()</script>')
             scripts += NOTATION
-        record = at.notebook(w['id'])
         if record:
-            parts.append('<h2>Блокнот работы</h2>' + notebook_html(record))
+            parts.append('<h2>Как работа рождалась</h2>' + notebook_html(at, record))
         reviews = ''.join(f'<p><b><a href="critic-{html.escape(r["critic"])}.html">{html.escape(r["lens"]["name"])}</a></b> <span class="muted">ночь {r["night"]}, '
-                          f'оценка {r["score"]:.2f}</span><br>{esc(r.get("text"))}</p>' for r in at.reviews(w['id']))
-        sources = ''.join(f'<li>{html.escape(str(p.relative_to(at.root)))}</li>' for p in at.files(w['id']))
-        body = (f'<h1>{w["id"]}</h1><p class="muted"><a href="artist-{a.id}.html">{esc(at.name(a))}</a> · '
-                f'{ART.get(a.art, a.art)} · ночь {w["night"]} · {w["verdict"]} · {esc(w.get("school") or "")}</p>'
-                + (f'<p>{esc(w.get("idea"))}</p>' if w.get('idea') else '') + ''.join(parts)
+                          f'оценка {r["score"]:.2f}</span></p>{ru_block(at, r.get("text"))}' for r in at.reviews(w['id']))
+        sources = []
+        for p in at.files(w['id']):
+            rel = p.relative_to(at.root)
+            (out/'files'/rel).parent.mkdir(parents=True, exist_ok=True)
+            copyfile(p, out/'files'/rel)
+            what, carrier = file_kind(rel)
+            sources.append(f'<li><a href="files/{html.escape(str(rel))}">{html.escape(p.name)}</a>'
+                           f'{" · <b>носитель копии</b>" if carrier else ""}<br><span class="muted">{what}</span></li>')
+        final = next((d for d in record.get('drafts', []) if d['id'] == record.get('final')), None)
+        title = ru_inline(at, final['title']) if final and final.get('title') else w['id']
+        idea = record.get('statement', {}).get('idea') or w.get('idea')
+        body = (f'<h1>{title}</h1><p class="muted"><a href="artist-{a.id}.html">{esc(at.name(a))}</a> · '
+                f'{ART.get(a.art, a.art)} · школа {school_link(w.get("school")) or "—"} · ночь {w["night"]} · '
+                f'{VERDICT.get(w["verdict"], w["verdict"])} · <span title="номер работы">{w["id"]}</span></p>'
+                + (f'<h2>Замысел</h2><div class="lead">{ru_block(at, idea)}</div>' if idea else '')
+                + ''.join(parts)
                 + (f'<h2>Рецензии</h2>{reviews}' if reviews else '')
-                + f'<h2>Первоисточники</h2><ul class="muted">{sources or "<li>нет файлов</li>"}</ul>')
+                + '<h2>Первоисточники</h2><p class="muted">Файлы, из которых собрана эта страница. Носители '
+                  'хранят куски зашифрованной резервной копии кластера; как из них поднять кластер — на странице '
+                  '<a href="restore.html">Восстановление</a>.</p>'
+                + f'<ul>{"".join(sources) or "<li>нет файлов</li>"}</ul>')
         (out/f'work-{w["id"]}.html').write_text(page(w['id'], body, scripts))
     critics = {}
     for r in life.reception.reviews:
@@ -274,7 +418,7 @@ def site(at, out: Path):
         body = (f'<h1>{html.escape(lens["name"])}</h1><p class="muted">{html.escape(str(lens.get("voice", "")))} · '
                 f'репутация {lens["reputation"]:.2f}</p>' + ''.join(
                     f'<div class="work"><a href="work-{r["work"]}.html">{r["work"]}</a> <span class="muted">ночь {r["night"]}, '
-                    f'оценка {r["score"]:.2f}{", пересмотр" if r.get("revision_of") else ""}</span><p>{esc(r.get("text"))}</p></div>'
+                    f'оценка {r["score"]:.2f}{", пересмотр" if r.get("revision_of") else ""}</span>{ru_block(at, r.get("text"))}</div>'
                     for r in rs))
         (out/f'critic-{c}.html').write_text(page(lens['name'], body))
     from .music.schools import SCHOOLS as MUSIC
@@ -282,18 +426,33 @@ def site(at, out: Path):
     used = {}
     for a, w in at.works():
         used.setdefault(w.get('school'), set()).add(a.id)
-    rows = ''.join(f'<tr><td>{html.escape(k)}</td><td>музыка</td><td>{len(used.get(k, ()))}</td><td class="muted">'
-                   f'{html.escape((MUSIC[k].__doc__ or "").strip().splitlines()[0] if MUSIC[k].__doc__ else "")}</td></tr>'
-                   for k in sorted(MUSIC))
-    rows += ''.join(f'<tr><td>{html.escape(k)}</td><td>литература</td><td>{len(used.get(k, ()))}</td>'
-                    f'<td class="muted">{html.escape(LETTERS[k].RULES)}</td></tr>' for k in sorted(LETTERS))
-    born = ''.join(f'<div class="work"><h2>{html.escape(r["name"])}</h2><p class="muted">основал '
-                   f'{html.escape(r.get("author", ""))}, ночь {r.get("night")}</p><ul>' + ''.join(
-                       f'<li>{html.escape(m)}</li>' for m in r.get('manifesto', {}).get('manifesto', []))
-                   + f'</ul><pre class="muted">{html.escape(r.get("source", ""))}</pre></div>' for r in life.schools.values())
-    (out/'schools.html').write_text(page('Школы', '<h1>Школы</h1><table><tr><th>Школа</th><th>Искусство</th>'
-                                         '<th>Творцов</th><th>Правила</th></tr>' + rows + '</table>'
-                                         + (f'<h1>Рождённые в мастерской</h1>{born}' if born else '')))
+    def school_row(k, art, rules):
+        name, about = SCHOOL_RU.get(k, (k, ''))
+        authors = ', '.join(f'<a href="artist-{x}.html">{esc(at.name(at.artist(x)))}</a>' for x in sorted(used.get(k, ())))
+        return (f'<tr id="{html.escape(k)}"><td><b>{html.escape(name)}</b></td><td>{art}</td>'
+                f'<td>{about or ru_inline(at, rules)}</td><td>{authors or "—"}</td></tr>')
+    rows = ''.join(school_row(k, 'музыка', (MUSIC[k].__doc__ or '').strip().split('\n\n')[0]) for k in sorted(MUSIC))
+    rows += ''.join(school_row(k, 'литература', LETTERS[k].RULES) for k in sorted(LETTERS))
+    born = ''.join(f'<div class="work" id="{html.escape(k)}"><h2>{html.escape(r["name"])}</h2><p class="muted">основал '
+                   f'{html.escape(r.get("author", ""))}, ночь {r.get("night")}</p><h3>Манифест</h3><ul>' + ''.join(
+                       f'<li>{ru_inline(at, m)}</li>' for m in r.get('manifesto', {}).get('manifesto', []))
+                   + f'</ul><details><summary>устав школы в коде</summary><pre class="muted">'
+                     f'{html.escape(r.get("source", ""))}</pre></details></div>' for k, r in life.schools.items())
+    asked = ''.join(f'<div class="work"><h2>«{ru_inline(at, s["proposal"]["school"])}»</h2><p class="muted">'
+                    f'<a href="artist-{s["artist"]}.html">{esc(at.name(at.artist(s["artist"])))}</a>, ночь {s["night"]}, '
+                    f'{ART.get(s.get("art"), s.get("art") or "")} · '
+                    f'{ {"requested": "заявлена, ждёт ночи основания", "born": "основана", "unborn": "не родилась"}.get(s["status"], s["status"])}'
+                    f'</p>{ru_block(at, s["proposal"].get("reason"))}</div>' for s in life.school_attempts)
+    (out/'schools.html').write_text(page('Школы', '<h1>Школы</h1><p class="muted">Школы — это формы, в которых творцы '
+                                         'работают. Каждая записана кодом: она задаёт каркас работы и проверяет форму, '
+                                         'но никогда не пишет слов и не судит о ценности. Админ кластера школы не выбирает.'
+                                         '</p><table><tr><th>Школа</th><th>Искусство</th><th>О чём</th><th>Кто в ней работал</th></tr>'
+                                         + rows + '</table>'
+                                         + (f'<h1>Рождённые в мастерской</h1>{born}' if born else '')
+                                         + (f'<h1>Заявленные школы</h1><p class="muted">Творец решил, что ни одна школа не '
+                                            'держит его замысел, и заявил свою. Её основание — отдельная ночь: устав, '
+                                            'манифест, проверка, что она не повторяет существующие.</p>' + asked if asked else '')))
+    restore_page(at, out)
     names = {a.id: at.name(a) for a in life.artists}
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
                    f'{esc(names.get(e["artist"], e["artist"]))}</a></td><td>{e["kind"]}</td></tr>' for e in life.events)
@@ -305,6 +464,47 @@ def site(at, out: Path):
             f'{len(life.reception.reviews)}, событий: {len(life.events)}.</p>')
     (out/'index.html').write_text(page(f'Мастерская {life.cluster}', body))
     return out
+
+
+def restore_page(at, out):
+    ledger_path = at.root/'nights'/'ledger'/'ledger.json'
+    ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else {'pieces': []}
+    rows = ''.join(f'<tr><td>{"ключевой кадр" if p["kind"] == "keyframe" else "изменения"}</td><td>{p["at"][:10]}</td>'
+                   f'<td>{p["bytes"]} байт</td><td>{p["carried"]} из {p["target"]}</td>'
+                   f'<td>{"собран" if p["complete"] else "ещё вплетается"}</td></tr>' for p in ledger['pieces'])
+    complete = [p for p in ledger['pieces'] if p['complete']]
+    status = (f'Кластер можно восстановить на любой момент с {complete[0]["at"][:10]} по {complete[-1]["at"][:10]}.'
+              if complete else 'Пока ни один снимок не вплетён целиком: кластер из этих работ ещё не восстанавливается. '
+              'Первый снимок (ключевой кадр) — самый большой; дальше идут только изменения, и они вплетаются быстро.')
+    from shutil import copyfile
+    carriers = [p for night in at.nights for p in sorted((night/'woven').glob('*')) if p.is_file()]
+    for p in carriers:
+        (out/'files'/p.relative_to(at.root)).parent.mkdir(parents=True, exist_ok=True)
+        copyfile(p, out/'files'/p.relative_to(at.root))
+    body = f"""<h1>Восстановление</h1>
+<p class="lead">Работы мастерской — одновременно резервная копия кластера. Не данные томов, а состояние кластера:
+все объекты API (инстансы, сервисы, настройки) на определённый момент. Копия зашифрована ключом владельца и разрезана
+на куски, а куски вплетены в ноты, варианты слов и отклик публики. Восстановить можно на любой сохранённый момент.</p>
+<h2>Состояние копии</h2><p>{status}</p>
+<table><tr><th>Снимок</th><th>Момент</th><th>Размер</th><th>Вплетено кадров</th><th>Состояние</th></tr>{rows}</table>
+<p class="muted">Кадров нужно больше исходного числа: копия переживает потерю до 30% работ.</p>
+<h2>Как поднять кластер</h2>
+<ol>
+<li><b>Ключ владельца.</b> Его создают один раз командой <code>mnemo keys new --output DIR</code>. Файл
+<code>owner.key</code> хранится у владельца вне кластера; в кластер уходит только открытая часть. Без этого ключа
+работы читаются как искусство, но копия из них не извлекается.</li>
+<li><b>Работы.</b> Нужна папка с работами: отсюда — раздел «Первоисточники» на страницах работ (носители копии
+помечены), или вся папка <code>nights/</code> мастерской. Сейчас носителей: {len(carriers)}.</li>
+<li><b>Проверка без кластера.</b><pre class="cmd">mnemo restore --works nights/ --key owner.key --dry-run --at 2025-06-30T23:59:59Z</pre>
+Команда собирает куски, проверяет подписи, расшифровывает и пишет манифесты состояния на этот момент в новую папку.
+Без <code>--at</code> берётся самое новое состояние.</li>
+<li><b>Применение.</b><pre class="cmd">mnemo restore --works nights/ --key owner.key --apply --kubeconfig new.kubeconfig --context new</pre>
+Манифесты применяются к новому кластеру. Секреты по умолчанию не восстанавливаются; их включает
+<code>--include-secrets</code>, если владелец разрешил их в копии.</li>
+</ol>
+<h2>Носители</h2><ul class="muted">{''.join(f'<li><a href="files/{html.escape(str(p.relative_to(at.root)))}">{html.escape(p.name)}</a></li>'
+    for p in carriers)}</ul>"""
+    (out/'restore.html').write_text(page('Восстановление', body))
 
 
 def main(argv):

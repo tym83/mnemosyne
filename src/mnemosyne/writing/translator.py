@@ -45,7 +45,8 @@ def translate(text: str, language: str, notebook: list, *, backend=None, step='t
     # The Translator writes Russian and never drafts variants: he is not one of the artists.
     drafting, spoken = DRAFTING.set(False), LANGUAGE.set(None)
     original = plain(text)
-    prompt = f'Язык оригинала: {LANGUAGE_NAMES.get(language, language)}.\n\n{original}'
+    name = LANGUAGE_NAMES.get(language)
+    prompt = (f'Язык оригинала: {name}.\n\n' if name else '') + original
     try:
         result = writer.ask(SYSTEM, prompt, Translation, step).text
         for attempt in range(2):
