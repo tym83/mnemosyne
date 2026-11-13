@@ -47,9 +47,7 @@ TURNS = ('пожар в доме в девять лет', 'брат-близне
          'младшая сестра, которую пришлось растить самому')
 
 
-GENDERS = (('female', .48), ('male', .48), ('nonbinary', .04))
-GENDER_WORDS = {'female': 'Ты — женщина.', 'male': 'Ты — мужчина.',
-                'nonbinary': 'Ты — небинарный человек: не мужчина и не женщина.'}
+GENDER_WORDS = {'female': 'Ты — женщина.', 'male': 'Ты — мужчина.'}
 # The creator's temper in art: comedy is as old as tragedy, and quiet sorrow is one temper among many.
 TEMPERS = ('комический: смешное в людях и в себе, анекдот, розыгрыш, нелепость',
            'авантюрный: дорога, погоня, риск, сюжет, который тянет вперёд',
@@ -85,12 +83,7 @@ def hand(a) -> str:
 
 def gender(a) -> str:
     r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:gender'.encode()).digest()[:8]))
-    x, total = r.random(), 0.
-    for g, w in GENDERS:
-        total += w
-        if x < total:
-            return g
-    return 'female'
+    return 'female' if r.random() < .5 else 'male'
 
 
 def temper(a, night: int | None = None) -> str:
