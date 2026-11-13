@@ -216,6 +216,10 @@ def validate(plan, *, study=False):
     return seconds
 
 
+def on_grid(q, grid=.125):
+    return max(grid, math.floor(q / grid + 1e-9) * grid)
+
+
 def transform(ps, ds, operation):
     ps, ds = list(ps), list(ds)
     if operation == 'inversion':
@@ -343,19 +347,19 @@ def realize_section(plan, mi, si, start, slots, rng):
                     events.append((beats[0], beat_q, [ch[0]], t))
                 else:
                     for x in beats[1:]:
-                        events.append((x, beat_q * .75, ch, t))
+                        events.append((x, on_grid(beat_q * .75), ch, t))
             elif pattern == 'march':
                 for k, x in enumerate(beats):
                     if role == 'bass':
                         if k % 2 == 0:
-                            events.append((x, beat_q * .75, [ch[0] if k % 4 == 0 else ch[2]], t))
+                            events.append((x, on_grid(beat_q * .75), [ch[0] if k % 4 == 0 else ch[2]], t))
                     elif k % 2 == 1 or len(beats) == 1:
                         events.append((x, beat_q * .5, ch, t))
             elif pattern == 'pulse':
                 step = beat_q / 2 if density > .6 else beat_q
                 x = a
                 while x < a + bar_q - 1e-9:
-                    events.append((x, step * .9, [ch[0]] if role == 'bass' else ch, t)); x += step
+                    events.append((x, on_grid(step * .75), [ch[0]] if role == 'bass' else ch, t)); x += step
             elif pattern == 'offbeat':
                 for x in beats:
                     events.append((x + beat_q / 2, beat_q / 2, ch, t))
@@ -367,7 +371,7 @@ def realize_section(plan, mi, si, start, slots, rng):
                     events.append((x, step, [tones[k % len(tones)]], t)); x += step; k += 1
             elif pattern == 'walking':
                 for k, x in enumerate(beats):
-                    events.append((x, beat_q * .9, [ch[k % 3] if k % 2 == 0 else centre + scale[(k + 1) % len(scale)]], t))
+                    events.append((x, on_grid(beat_q * .75), [ch[k % 3] if k % 2 == 0 else centre + scale[(k + 1) % len(scale)]], t))
             elif pattern == 'hits':
                 for k, x in enumerate(beats):
                     if k == 0 or rng.random() < density * .5:
@@ -383,7 +387,7 @@ def realize_section(plan, mi, si, start, slots, rng):
                 step = beat_q / 2
                 x, k = a, 0
                 while x < a + bar_q - 1e-9:
-                    events.append((x, step * .9, [cell[k % len(cell)]], t)); x += step; k += 1
+                    events.append((x, on_grid(step * .75), [cell[k % len(cell)]], t)); x += step; k += 1
             elif pattern == 'points':
                 for k in range(round(bar_q * 2)):
                     if rng.random() < density * .35:
@@ -409,7 +413,9 @@ def realize_section(plan, mi, si, start, slots, rng):
                         d = end - x
                     if d <= 1e-9:
                         break
-                    events.append((x, d * (.95 if role in ('melody', 'counter') else 1), [p], (x - start) / (end - start)))
+                    # Breath between melodic notes stays on the notation grid: no 0.95-long notes and their tuplets.
+                    gap = (.25 if d >= 1 else .125 if d >= .5 else 0) if role in ('melody', 'counter') else 0
+                    events.append((x, d - gap, [p], (x - start) / (end - start)))
                     x += d
                 if pattern == 'line' and role not in ('melody', 'counter', 'bass'):
                     continue
@@ -513,6 +519,21 @@ def movement(plan, index):
           'tempo': bpm, 'duration': start * 60 / bpm, 'school': 'symphony', 'audio_profile': 'native_sfz',
           'meters': meters, 'held_swell': bool(plan.get('held_swell', False))}
     score, assignment = orchestrate(lines, op)
+    from music21 import dynamics, expressions
+    # Dynamics at changes, technique names at first use: the same notation hygiene as grammar v1.
+    for part in score.parts:
+        last = {}
+        for item in list(part.recurse()):
+            if isinstance(item, dynamics.Dynamic):
+                kind, value = 'dynamic', item.value
+            elif isinstance(item, expressions.TextExpression):
+                kind, value = 'technique', item.content
+            else:
+                continue
+            if last.get(kind) == value:
+                item.activeSite.remove(item)
+            else:
+                last[kind] = value
     return score, op, assignment, {'grammar': 2, 'sections': sections, 'seconds': op['duration'],
                                    'bars': sum(s['bars'] for s in mv['sections']), 'tempo': bpm}
 
