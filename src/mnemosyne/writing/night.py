@@ -111,6 +111,21 @@ def around(life, a):
         f'{names[k]} — {n} из {total}' for k, n in recent.most_common(4)) + '.'
 
 
+FOUNDING_EVENTS = ('illumination', 'period', 'master', 'surpassed', 'return', 'illness_recovery', 'bereavement',
+                   'secret_miracle', 'rediscovery')
+
+
+def ready_to_found(life, a, nights: int = 90) -> bool:
+    """Founding a school is a turning point: after a great event in the creator's life, rarely otherwise."""
+    if a.pending_idea:
+        return True
+    if any(e['artist'] == a.id and e['kind'] in FOUNDING_EVENTS and life.night - e['night'] <= nights
+           for e in life.events):
+        return True
+    r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:{life.night}:found'.encode()).digest()[:8]))
+    return r.random() < .02 + .06 * max(0., a.openness - .6)
+
+
 def assurance(a) -> float:
     """How sure of themselves a creator is tonight, about -1..1: steadiness, drive and recognition against despair."""
     return max(-1., min(1., .5 * a.resilience + .4 * a.drive + .4 * min(1., a.recognition) - .8 * a.despair - .4))
@@ -163,7 +178,7 @@ class WriterNight:
 
     def _run(self, inner, drafts):
         a, life = self.artist, self.life
-        from ..psyche import inner as inner_weather, remembered
+        from ..psyche import gender, inner as inner_weather, remembered
         own = remembered(life, a)
         inner = '\n'.join(x for x in (inner_weather(life, a), own, inner) if x)
         names = {b.id: ('творец' if b.name == b.id else b.name) for b in life.artists}
@@ -176,7 +191,14 @@ class WriterNight:
             self.record['portrait'] = p.model_dump()
         SCHOOLS = founding.schools(life)
         home = next((w['school'] for w in reversed(a.catalogue) if w.get('school') in SCHOOLS), None)
-        system = (f'Ты писатель {a.name}. {a.portrait}\nТвои учителя: {", ".join(teachers) or "нет"}. '
+        if home is None:
+            # A newcomer has no school of their own yet: the teacher's, or the one their reading raised them in.
+            taught = [w.get('school') for t in a.teachers for b in life.artists if b.id == t for w in b.catalogue
+                      if w.get('school') in SCHOOLS]
+            home = taught[-1] if taught else library(life, a)[0]
+        from ..psyche import hand, temper
+        system = (f'Ты — {a.name}, {"писательница" if gender(a) == "female" else "писатель"}. {a.portrait}\n'
+                  f'Твои учителя: {", ".join(teachers) or "нет"}.\n{temper(a)}\n{hand(a)}\n'
                   'Художественные решения принимаешь ты. Не упоминай технику, компьютеры, серверы.')
         portrait = ideas.SelfPortrait(name=a.name, portrait=a.portrait, what_i_am_as_artist=a.portrait,
                                       wounds=[], loves=[], fears=[], inner_critic={**a.inner_critic, 'teachers': teachers})
@@ -200,39 +222,48 @@ class WriterNight:
         idea = self.idea_words(st)
         known = library(life, a)
         choices = '\n\n'.join(f'{k} — {poetics.brief(k, SCHOOLS[k].RULES)}' for k in known)
+        ready = ready_to_found(life, a)
+        founding_words = ('Если ни одна школа не держит замысел и ты чувствуешь, что пришло время своего пути, '
+                          'выбери invent_school и в school назови школу, которую хочешь основать: ты напишешь её '
+                          'поэтику и манифест, внутренний критик проверит, не повторяет ли она известную, и этой же '
+                          'ночью ты напишешь в ней первую вещь. Это большое решение в жизни, его не принимают '
+                          'каждый год.' if ready else
+                          'Основать свою школу — большое решение в жизни, и сейчас не его время: выбери из тех, '
+                          'что знаешь, ту, что ближе всего, даже если она держит замысел не целиком.')
         method = self.ask(system, f'{idea}\n\nШколы, которые ты знаешь:\n\n{choices}\n\n{tradition(a)}\n'
                           f'{around(life, a)}\n\n'
                           'Выбери школу, чья поэтика — картина мира, время, голос, язык — служит этому замыслу, '
-                          'а не только её форму. В school напиши её код (слово перед тире). Если ни одна школа '
-                          'не держит замысел, выбери invent_school и в school назови школу, которую хочешь '
-                          'основать: ты напишешь её поэтику и манифест, твой внутренний критик проверит, не '
-                          'повторяет ли она известную, и этой же ночью ты напишешь в ней первую вещь.',
+                          'а не только её форму. В school напиши её код (слово перед тире). ' + founding_words,
                           Method, 'method')
-        self.record['method'] = method.model_dump()
-        if method.kind == 'invent_school' or method.school not in SCHOOLS:
+        self.record['method'] = {**method.model_dump(), 'ready_to_found': ready}
+        unborn = None
+        if (method.kind == 'invent_school' or method.school not in SCHOOLS) and ready:
             self.system = system
             record, history = founding.found(self, idea, method, SCHOOLS)
             self.record['school_birth'] = {'proposal': method.model_dump(), 'attempts': history}
             if record is None:
                 with self.LIFE:
                     life.school_unborn(a.id, method.school, history)
-                # The school stays in the notebooks; the story is still to be written, in the nearest school known.
                 last = history[-1]['judgement'] if history else {}
-                method = self.ask(system, f'{idea}\n\nШкола «{method.school}» не родилась. Твой внутренний критик: '
-                                  f'{last.get("reasons", "")}'
-                                  + (f' Он узнал в ней «{last["renaming_of"]}».' if last.get('renaming_of') else '')
-                                  + f'\n\nШколы, которые ты знаешь:\n\n{choices}\n\nЗамысел остаётся. Выбери из '
-                                  'этих школ ту, чья поэтика ближе всего к нему, и напиши в ней. kind=school, в school — '
-                                  'код школы.', Method, 'method:after-unborn')
-                if method.school not in SCHOOLS:
-                    method = Method(kind='school', school=known[0], reason=method.reason)
-                self.record['method'] = {**method.model_dump(), 'after_unborn': True}
+                unborn = (f'Школа «{method.school}» не родилась. Твой внутренний критик: {last.get("reasons", "")}'
+                          + (f' Он узнал в ней «{last["renaming_of"]}».' if last.get('renaming_of') else ''))
             else:
                 with self.LIFE:
                     life.found_school(a.id, record)
                 SCHOOLS = founding.schools(life)
                 method = Method(kind='school', school=record['id'], reason=method.reason)
                 self.record['method'] = {**method.model_dump(), 'founded': record['name']}
+        elif method.kind == 'invent_school' or method.school not in SCHOOLS:
+            unborn = 'Свою школу ты сейчас не основываешь.'
+        if unborn is not None:
+            # The story is still to be written, in the nearest school known.
+            method = self.ask(system, f'{idea}\n\n{unborn}\n\nШколы, которые ты знаешь:\n\n{choices}\n\n'
+                              'Замысел остаётся. Выбери из этих школ ту, чья поэтика ближе всего к нему, и напиши '
+                              'в ней. kind=school, в school — код школы.', Method, 'method:nearest')
+            if method.school not in SCHOOLS:
+                method = Method(kind='school', school=known[0], reason=method.reason)
+            self.record['method'] = {**method.model_dump(), 'after_unborn': 'school_birth' in self.record,
+                                     'ready_to_found': ready}
         school = SCHOOLS[method.school]
         rng = random.Random(int.from_bytes(hashlib.sha256(self.work_id.encode()).digest()[:8]))
         plan = {**deepcopy(school.EXAMPLE_PLAN), 'seed': rng.randrange(2**31), 'title': ''}
@@ -244,11 +275,11 @@ class WriterNight:
             draft = self.write(system, idea, school, method.school, frame, corrections, n)
             reading = self.ask(ideas.taste_prompt(a.inner_critic) +
                                'Ты перечитываешь свой черновик дважды: как его автор и как читатель этой школы.\n'
-                               + reader + '\n\nДержится ли замысел? Есть ли в тексте живое: человек, вещь, '
-                               'мгновение, событие, — а не тезис? Понятно ли и интересно ли это по меркам этой '
-                               'школы (тёмное допустимо, если школа его требует, но текст должен держать)? Живой ли '
-                               'язык? Не повтор ли это? accept, rewrite или repetition; в corrections — что '
-                               'конкретно переписать.',
+                               + reader + '\n\nНаписано ли это так, как пишет эта школа, — её языком, '
+                               'синтаксисом, временем и голосом, — или это нейтральная проза, к которой школа '
+                               'приложена сверху? Держится ли замысел? Понятно ли и интересно ли это по меркам этой '
+                               'школы (тёмное допустимо, если школа его требует)? Не повтор ли это? accept, rewrite '
+                               'или repetition; в corrections — что конкретно переписать.',
                                f'{idea}\n\nЧерновик:\n\n{plain(draft["text"])}', Reading, f'read:{n}')
             draft['reading'] = reading.model_dump()
             final = draft
@@ -297,15 +328,21 @@ class WriterNight:
     def write(self, system, idea, school, name, frame, corrections, n):
         problems = []
         body = poetics.full(name, school.RULES)
+        masters = (poetics.load(name) or {}).get('exemplars') or []
+        if masters:
+            body += '\nОбразцы школы, которые ты знаешь наизусть: ' + '; '.join(map(str, masters)) + '.'
         for attempt in range(3):
             prompt = (f'{idea}\n\nТы пишешь в поэтике этой школы:\n{body}\n\n'
                       f'Каркас этой работы (его проверяет код): {json.dumps(frame, ensure_ascii=False)}\n'
                       + (f'\nЧто ты решил переписать после прошлого черновика:\n- ' + '\n- '.join(corrections) + '\n'
                          if corrections else '')
                       + (f'\nФорма не удержана: {"; ".join(problems)}\n' if problems else '')
-                      + '\nНапиши произведение целиком, на родном языке. История и живое в ней важнее всего; '
-                        'пиши для читателя, а не для отчёта о замысле. В diary — пара строк в дневник о том, '
-                        'что решилось в этом черновике.')
+                      + '\nНапиши произведение целиком, на родном языке, так, как пишут мастера этой школы: '
+                        'их синтаксисом, их обращением со временем, их голосом и их приёмами. Если это Фолкнер — '
+                        'пиши как Фолкнер, если былина — как сказитель, если готика — так, чтобы было страшно. '
+                        'Нейтральная «хорошая проза» вне школы — провал. Школа главнее твоей руки: твоё — в том, '
+                        'что школа оставляет свободным. Пиши для читателя, а не для отчёта о замысле. В diary — '
+                        'пара строк в дневник о том, что решилось в этом черновике.')
             draft = self.ask(system, prompt, Draft, f'draft:{n}:{attempt}')
             problems = school.check(plain(draft.text), frame, self.artist.language)
             if not problems:

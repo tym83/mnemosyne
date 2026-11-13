@@ -530,12 +530,16 @@ def site(at, out: Path):
         final = next((d for d in record.get('drafts', []) if d['id'] == record.get('final')), None)
         title = ru_inline(at, final['title']) if final and final.get('title') else w['id']
         idea = record.get('statement', {}).get('idea') or w.get('idea')
+        said = (record.get('statement') or {}).get('superobjective')
         body = (f'<h1 class="title">{title}</h1><p class="byline"><a href="artist-{a.id}.html">{esc(at.name(a))}</a></p>'
                 f'<p class="muted">{ART.get(a.art, a.art)} · {LANG_RU.get(a.language, a.language)} · школа '
                 f'{school_link(w.get("school")) or "—"} · {VERDICT.get(w["verdict"], w["verdict"])} · '
                 f'<span title="номер работы">{w["id"]}</span></p>'
                 + ''.join(parts)
-                + (f'<h2 id="idea">Замысел</h2><div class="lead">{ru_block(at, idea)}</div>' if idea else '')
+                + (f'<h2 id="idea">Замысел</h2>'
+                   + (f'<p class="muted">Что автор хочет сказать</p><div class="lead">{ru_block(at, said)}</div>'
+                      if said else '')
+                   + f'<div class="lead">{ru_block(at, idea)}</div>' if idea else '')
                 + process
                 + (f'<h2 id="reviews">Рецензии</h2>{reviews}' if reviews else '')
                 + '<h2 id="sources">Первоисточники</h2><p class="muted">Файлы, из которых собрана эта страница. Носители '

@@ -114,6 +114,7 @@ class WriterNightTests(unittest.TestCase):
             night = WriterNight(life, a.id, Path(tmp)/'w')
             with patch('mnemosyne.artist.statement', return_value=(statement(), [{'interrogation': {'verdict': 'accept'}}])), \
                  patch.object(night.writer, 'ask', side_effect=ask), \
+                 patch('mnemosyne.writing.night.ready_to_found', return_value=True), \
                  patch('mnemosyne.literature.Writer.ask', side_effect=ask):
                 record = night.run()
         key = a.catalogue[-1]['school']
@@ -129,7 +130,7 @@ class WriterNightTests(unittest.TestCase):
         from mnemosyne.music.school_birth import register_all
         register_all(life.schools)
 
-    def test_an_unborn_school_leaves_the_story_to_the_nearest_known_school(self):
+    def unborn_night(self, ready):
         from mnemosyne.writing.founding import Judgement, Poetics
         life, a = writer_life('ru')
 
@@ -153,12 +154,32 @@ class WriterNightTests(unittest.TestCase):
             with patch('mnemosyne.artist.statement', return_value=(statement(), [{'interrogation': {'verdict': 'accept'}}])), \
                  patch.object(night.writer, 'ask', side_effect=ask), \
                  patch('mnemosyne.literature.Writer.ask', side_effect=ask):
-                record = night.run()
+                with patch('mnemosyne.writing.night.ready_to_found', return_value=ready):
+                    record = night.run()
         self.assertEqual(record['status'], 'accepted')
-        self.assertTrue(record['method']['after_unborn'])
+        self.assertEqual(record['method']['after_unborn'], ready)
         self.assertEqual(a.catalogue[-1]['school'], 'haiku')
+        return life
+
+    def test_an_unborn_school_leaves_the_story_to_the_nearest_known_school(self):
+        life = self.unborn_night(True)
         self.assertEqual(life.school_attempts[-1]['status'], 'unborn')
         self.assertEqual(life.schools, {})
+
+    def test_a_creator_not_ready_to_found_writes_in_the_nearest_school(self):
+        life = self.unborn_night(False)
+        self.assertEqual(life.school_attempts, [])
+
+    def test_founding_follows_a_great_event(self):
+        from mnemosyne.writing.night import ready_to_found
+        life, a = writer_life('ru')
+        a.openness = .5
+        self.assertLess(sum(ready_to_found(life, a) for life.night in range(1, 400)), 30)
+        life.night = 50
+        life.event(a, 'illumination')
+        self.assertTrue(ready_to_found(life, a))
+        life.night = 500
+        self.assertEqual(sum(ready_to_found(life, a) for life.night in range(500, 520)) < 5, True)
 
     def test_the_creator_lets_a_good_work_go_though_the_editor_wants_more(self):
         life, a = writer_life('ru')

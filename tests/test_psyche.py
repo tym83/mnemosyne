@@ -37,5 +37,14 @@ class PsycheTests(unittest.TestCase):
         self.assertNotIn('leonia', text)
 
 
+class OriginsTests(unittest.TestCase):
+    def test_every_creator_carries_their_own_life_before_art(self):
+        from types import SimpleNamespace
+        from mnemosyne.psyche import origins
+        lives = {origins(SimpleNamespace(id=f'c{i}')) for i in range(12)}
+        self.assertEqual(len(lives), 12)
+        self.assertEqual(origins(SimpleNamespace(id='c1')), origins(SimpleNamespace(id='c1')))
+
+
 if __name__ == '__main__':
     unittest.main()
