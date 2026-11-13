@@ -178,6 +178,10 @@ class Biography:
     chapters: list[dict] = field(default_factory=list)
 
 
+# Events where the creator's own voice is wanted: a name and portrait, a letter, a diary, an image.
+VOICE = ('birth', 'illumination', 'last_work', 'illness_onset', 'illness_crisis', 'death', 'return')
+
+
 class LifeWords(BaseModel):
     chapter: str
     diary: str
@@ -220,7 +224,8 @@ class Lineage:
         # Immutable snapshot: a later verdict cannot rewrite the facts supplied
         # to the chronicler at this turning point.
         recent = a.catalogue[-3:]
-        chapter = {'event': e['id'], 'night': self.night, 'kind': kind,
+        from .chronicle import inner_at
+        chapter = {'event': e['id'], 'night': self.night, 'date': e['date'], 'kind': kind, 'inner': inner_at(self, a),
                    'facts': json.loads(json.dumps(facts)),
                    'state': {k: getattr(a, k) for k in ('status', 'period', 'health', 'vitality',
                              'novelty', 'recognition', 'school', 'method', 'age')},
@@ -229,6 +234,8 @@ class Lineage:
                    'verdicts': [w['verdict'] for w in recent],
                    'notebook_refs': [n['id'] for n in a.notebook[-4:]],
                    'text': None, 'words': None}
+        from .chronicle import line
+        chapter['text'] = line(self, a, chapter)
         self.biographies[a.id].chapters.append(chapter)
         return e
 
@@ -806,16 +813,19 @@ class Lineage:
             from .literature import Writer
             writer_factory = lambda nb: Writer(nb, role="chronicler", data_class="art")
         chronicler = 'летописец' if self.chronicler == f'{self.cluster}: chronicler of the Lives' else self.chronicler
-        system = (f'Ты {chronicler}. Единый голос жизнеописаний в духе Вазари, не журнал событий. '
-                  'Можно быть пристрастным, ошибаться в толковании, создавать легенду, но не менять факты судьбы. '
-                  'Не упоминай инфраструктуру. Напиши главу; diary — голос творца; letter — только при болезни; '
+        from .chronicle import line
+        system = (f'Ты {chronicler}. Биография творца ведётся строгой хроникой и пишется без тебя; от тебя нужен '
+                  'только голос самого творца там, где он звучит. chapter оставь пустым. '
+                  'Не упоминай инфраструктуру. diary — голос творца; letter — только при болезни; '
                   'last_idea — только для последней работы; name и portrait — при рождении: имя из культуры его родного '
                   'языка, своё для каждого, не повторяй имена других творцов; image — для сна или озарения. '
                   'Остальные поля оставь пустыми. Художественные обстоятельства не являются буквальными объектами произведения.')
         for a in self.artists:
             biography = self.biographies[a.id]
             for chapter in biography.chapters:
-                if chapter['text'] is not None:
+                if chapter['text'] is None:
+                    chapter['text'] = line(self, a, chapter)
+                if chapter.get('words') is not None or chapter['kind'] not in VOICE:
                     continue
                 notes = [n for n in a.notebook if n['id'] in chapter['notebook_refs']]
                 # Who this artist is, so that no two lives are told alike.
@@ -837,7 +847,7 @@ class Lineage:
                 nb = []
                 words = writer_factory(nb).ask(system, json.dumps(context, ensure_ascii=False),
                                                LifeWords, f"life:{a.id}:{chapter['event']}")
-                chapter['text'], chapter['words'] = words.chapter, words.model_dump()
+                chapter['words'] = words.model_dump()
                 self.note(a, 'life_words', event=chapter['event'], words=words.model_dump(), drafts=nb)
                 if chapter['kind'] == 'birth':
                     from .weave.variants import plain

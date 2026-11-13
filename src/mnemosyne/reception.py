@@ -18,6 +18,23 @@ def clip(x):
 
 class ReviewWords(BaseModel):
     text: str
+    score: float | None = None  # the critic's own verdict after reading, 0..1
+
+
+# Critics write about the arts they know; two write about both.
+ARTS = {'laconic': ('literature',), 'polemical': ('music', 'literature'), 'lyrical': ('music',),
+        'scholarly': ('literature',), 'ironic': ('music', 'literature'), 'intimate': ('music',)}
+VOICE = {'laconic': 'лаконичный: коротко, точно, без украшений', 'polemical': 'полемист: спорит, ищет противника',
+         'lyrical': 'лирик: пишет о том, что почувствовал', 'scholarly': 'учёный: традиция, приёмы, источники',
+         'ironic': 'ироник: видит смешное и фальшивое', 'intimate': 'доверительный, как письмо близкому'}
+TASTE = (('утешение и ясность', 'напряжение и неудобство'),
+         ('сложное, пышное, многолюдное', 'простое и разреженное'),
+         ('сдержанность', 'размах и бурю'),
+         ('старые замкнутые формы и память традиции', 'новое, формы без памяти'))
+
+
+def arts_of(critic):
+    return critic.get('arts') or ARTS.get(critic.get('voice'), ('music', 'literature'))
 
 
 class Reception:
@@ -44,10 +61,10 @@ class Reception:
     def register(self, artist, work):
         if work['id'] in self.works:
             return
-        self.works[work['id']] = dict(artist=artist.id, feature=work['feature'], school=work['school'],
+        self.works[work['id']] = dict(artist=artist.id, art=artist.art, feature=work['feature'], school=work['school'],
             private_merit=work['merit'], original_verdict=work['verdict'], night=work['night'],
             birth_climate=deepcopy(work.get('birth_climate', {})), publish_after=work.get('publish_after', work['night']),
-            publicity=work.get('publicity', 'workshop'), released=False, attention=0., total=0, last=0, peak=0, curve=[], review_score=.5)
+            publicity=work.get('publicity', 'workshop'), synthetic=bool(work.get('synthetic')), released=False, attention=0., total=0, last=0, peak=0, curve=[], review_score=.5)
         if work['verdict'] == 'accept' and work.get('publish_after', work['night']) <= work['night']:
             self.release(work['id'], work['night'], 'publication', False)
 
@@ -131,8 +148,20 @@ class Reception:
                 if others:
                     life.influence(a, r.choice(others), 'rediscovery', .6)
         active = [wid for wid,w in self.works.items() if w['released'] and w['attention'] > .002]
-        if active and r.random() < .45:
-            row = self.review(r.choice(active), r.choice(self.critics), night)
+        # A new edition draws the critics of its art over the following weeks; older work, now and then.
+        reviewed = {(v['work'], v['critic']) for v in self.reviews}
+        candidates = []
+        for wid in active:
+            w = self.works[wid]
+            fresh = night - w.get('last_release', w['night']) <= 21
+            for c in self.critics:
+                if w.get('art', 'music') not in arts_of(c) or (wid, c['id']) in reviewed:
+                    continue
+                interest = (.5 + w['attention']) * (.5 + c['reputation']) * (1 + c['schools'].get(w['school'], 0))
+                if r.random() < (.05 if fresh else .002) * interest * (.4 if w.get('synthetic') else 1):
+                    candidates.append((wid, c))
+        for wid, c in candidates[:3]:
+            row = self.review(wid, c, night)
             author = artists[self.works[row['work']]['artist']]
             if author.status != 'dead':
                 if row['score'] < .3:
@@ -183,6 +212,55 @@ class Reception:
                               chart=chart, programme=programme,
                               timestamps_ms=[i*337000 + r.randrange(256) for i in range(len(programme))]))
 
+    def critic_words(self, critic, life):
+        """Who the critic is, in words: voice, taste, schools, mood, and what they wrote before."""
+        values = critic['values']
+        taste = [hi if v >= .5 else lo for v, (hi, lo) in zip(values, TASTE)]
+        loves = [k for k, v in critic['schools'].items() if v > .15]
+        hates = [k for k, v in critic['schools'].items() if v < -.15]
+        lines = [f'Ты критик {critic["name"]}. Голос: {VOICE.get(critic["voice"], critic["voice"])}.',
+                 'Пишешь о ' + ' и '.join({'music': 'музыке', 'literature': 'литературе'}[x] for x in arts_of(critic)) + '.',
+                 'В искусстве ценишь ' + '; '.join(taste) + '.',
+                 'К авторам ты ' + ('щедр' if critic['bias'] > .15 else 'строг' if critic['bias'] < -.15 else 'справедлив') + '.']
+        if loves:
+            lines.append('Тебе близки школы: ' + ', '.join(loves) + '.')
+        if hates:
+            lines.append('Ты не любишь школы: ' + ', '.join(hates) + '.')
+        if critic.get('mood'):
+            from .mood import words
+            lines.append('Твоё нынешнее настроение: ' + words(critic['mood'], False, False))
+        before = [v for v in self.reviews if v['critic'] == critic['id'] and not v.get('words_pending')][-3:]
+        if before:
+            lines.append('Твои прежние рецензии (будь верен себе или скажи, что передумал):\n' + '\n'.join(
+                f'- {v.get("about", "работа")}: {v["score"]:.1f}; {(v.get("text") or "")[:240]}' for v in before))
+        return '\n'.join(lines)
+
+    @staticmethod
+    def work_words(author, work):
+        from .weave.variants import plain
+        name = author.name if author.name != author.id else 'автор'
+        art = {'music': 'музыка', 'literature': 'литература'}.get(author.art, author.art)
+        head = f'Автор: {name}. Искусство: {art}. Школа: {work.get("school")}.'
+        if work.get('title'):
+            head += f' Название: «{work["title"]}».'
+        parts = [head]
+        if work.get('idea'):
+            parts.append('Замысел автора: ' + plain(work['idea'])[:1500])
+        if work.get('text'):
+            parts.append('Текст:\n\n' + work['text'][:12000])
+            if work.get('translation'):
+                parts.append('Перевод на русский:\n\n' + work['translation'][:12000])
+        elif work.get('excerpt'):
+            parts.append('Начало текста:\n\n' + work['excerpt'])
+        if author.art == 'music':
+            if work.get('concept'):
+                parts.append('Замысел формы: ' + plain(work['concept'])[:800])
+            if work.get('analysis'):
+                parts.append('Что видно в партитуре: ' + '; '.join(f'{k}: {v}' for k, v in work['analysis'].items()))
+            if work.get('synthetic'):
+                parts.append('Это малая работа мастерской, эскиз в школе, без записанного замысла.')
+        return '\n\n'.join(parts), (f'«{work["title"]}»' if work.get('title') else f'{name}, {work.get("school")}')
+
     def write_words(self, writer_factory=None, life=None):
         if writer_factory is None:
             from .literature import Writer
@@ -190,20 +268,39 @@ class Reception:
         for review in self.reviews:
             if not review['words_pending']:
                 continue
-            critic = review['lens']
-            # The recorded opinion and the public facts of the work, never hidden merit.
-            context = {'score': review['score'], 'night': review['night'],
-                       'revision': bool(review.get('revision_of'))}
+            critic = next((c for c in self.critics if c['id'] == review['critic']), None) or review['lens']
+            prior = review['score']
+            leaning = ('скорее понравится' if prior > .65 else 'скорее не понравится' if prior < .35 else 'неясно')
+            author = work = None
             if life is not None:
                 author = next((a for a in life.artists if a.id == self.works[review['work']]['artist']), None)
-                work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), {})
-                context.update(author=author and (author.name if author.name != author.id else 'автор'),
-                               art=author and author.art, school=work.get('school'), idea=work.get('idea'),
-                               kind=work.get('kind'))
+                work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), None)
+            if author and work is not None:
+                about, title = self.work_words(author, work)
+                system = self.critic_words(critic, life)
+            else:  # no life at hand: only the public facts of the work
+                about, title = f'Школа: {self.works[review["work"]]["school"]}.', 'работа'
+                system = f'Ты критик {critic["name"]}. Голос: {VOICE.get(critic["voice"], critic["voice"])}.'
             nb = []
-            words = writer_factory(nb).ask('Write a review in this critic voice: ' + str(critic),
-                                           str(context), ReviewWords, 'review:' + review['id'])
-            review.update(text=words.text, words_pending=False, drafts=nb)
+            words = writer_factory(nb).ask(
+                system + '\nТы пишешь рецензию для читателей. Прочитай работу и суди её сам: по её школе и по '
+                'своему вкусу. Говори о том, что в работе действительно есть, цитируй и называй детали; не '
+                'выдумывай того, чего нет. Не упоминай ночи, номера, мастерскую как механизм и технику. '
+                'В score — твоя оценка от 0 до 1 после чтения.',
+                f'{about}\n\nДо чтения ты думал: {leaning}. Прочитав, ты можешь передумать.'
+                + ('\nЭто пересмотр твоего прежнего мнения об этой работе.' if review.get('revision_of') else ''),
+                ReviewWords, 'review:' + review['id'])
+            review.update(text=words.text, words_pending=False, drafts=nb, about=title)
+            if words.score is not None:
+                score = clip(words.score)
+                review.update(prior_score=prior, score=score)
+                self.works[review['work']]['review_score'] = score
+                if author is not None and author.status != 'dead':
+                    # The verdict changed on reading: the author lives with the one that was printed.
+                    if prior < .3 <= score:
+                        author.despair *= .85
+                    elif score < .3 <= prior:
+                        life._wound(author, life.p.despair_review * review['reputation'])
 
     def state(self):
         return deepcopy(dict(version=1, rng=self.rng.getstate(), critics=self.critics, segments=self.segments,

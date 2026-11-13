@@ -234,7 +234,8 @@ class ComposerTests(unittest.TestCase):
             work = life.artists[0].catalogue[-1]
             self.assertFalse(work['synthetic'])
             self.assertEqual(work['idea'], st.idea)
-            self.assertEqual(life.biographies[life.artists[0].id].chapters[-1]['text'], 'Fixture chronicle chapter')
+            # The biography is a strict chronicle line, not the chronicler's prose.
+            self.assertIn('Закончил работу', life.biographies[life.artists[0].id].chapters[-1]['text'])
             objects = read_archive(archive(night.objects))
             restored = Lineage.from_objects(objects, 'test')
             atelier = Atelier('test', Path(tmp)/'again')

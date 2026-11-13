@@ -142,7 +142,7 @@ def inner(life, a) -> str:
     return '\n'.join(lines)
 
 
-def remembered(life, a, works: int = 3, chapters: int = 2) -> str:
+def remembered(life, a, works: int = 3, chapters: int = 6) -> str:
     """The creator's memory of themselves: their last works as they wrote them, their diary, their Lives.
 
     A model has no memory between nights; the continuity of a life is what the
@@ -167,5 +167,5 @@ def remembered(life, a, works: int = 3, chapters: int = 2) -> str:
     if parts:
         out.append('Что ты написал последним (не повторяй, продолжай свой путь):\n' + '\n'.join(f'- {p}' for p in parts))
     if lives:
-        out.append('Как о тебе пишут в Жизнеописаниях:\n' + '\n'.join(f'- {plain(c["text"])[:600]}' for c in lives))
+        out.append('Последнее в твоей биографии:\n' + '\n'.join(f'- {plain(c["text"])[:600]}' for c in lives))
     return '\n\n'.join(out)

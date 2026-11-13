@@ -532,18 +532,14 @@ class Night:
                 'quality': review.quality, 'verdict': review.verdict, 'idea': st.idea,
                 'process': {'composer': deepcopy(self.record)}})
             self.work['halftones'] = shades.model_dump()
+            self.work.update(school=method.school, concept=method.concept,
+                             analysis={k: v for k, v in (final.get('analysis') or {}).items()
+                                       if isinstance(v, (int, float, str)) and len(str(v)) < 80})
             self.life.note(a, 'composer_notebook', opus=self.work_id, notebook=self.work['notebook'])
             if review.matters:
                 event = self.life.event(a, 'composer_work', work=self.work_id, verdict=review.verdict)
+                # The chronicle line is written with the night's other words: a strict record, not a legend.
                 self.record['chronicle_event'] = event['id']
-                chronicler = ('летописец' if self.life.chronicler == f'{self.life.cluster}: chronicler of the Lives'
-                             else self.life.chronicler)
-                chapter = self.ask(f'Ты {chronicler}. Пиши Жизнеописания об искусстве.',
-                    json.dumps({'artist': name, 'idea': st.idea, 'verdict': review.model_dump(),
-                        'previous': [c['text'] for c in self.life.biographies[a.id].chapters[-4:] if c.get('text')]}, ensure_ascii=False),
-                    Chapter, 'lives-chapter')
-                self.life.biographies[a.id].chapters[-1]['text'] = plain(chapter.text)
-                self.record['chapter'] = chapter.text
             self.save()
             if key is not None:
                 self.backup(key)

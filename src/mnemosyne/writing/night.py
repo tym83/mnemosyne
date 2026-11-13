@@ -179,15 +179,12 @@ class WriterNight:
                            status='accepted' if reading.verdict == 'accept' else 'unfinished')
         self.record['translation'] = translator.translate(final['text'], a.language, self.entries,
                                                           backend=self.backend, step='translate:work')
+        work.update(text=plain(final['text']), translation=self.record['translation'])
         (self.root/f'{self.work_id}.txt').write_text(plain(final['text']))
         if self.record['translation']:
             (self.root/f'{self.work_id}.ru.txt').write_text(self.record['translation'])
         if reading.matters:
             life.event(a, 'writer_work', work=work['id'], verdict=reading.verdict)
-            chapter = self.ask('Ты летописец мастерской. Пиши Жизнеописания об искусстве.',
-                               json.dumps({'artist': a.name, 'idea': st.idea, 'school': method.school,
-                                           'verdict': reading.model_dump()}, ensure_ascii=False), Chapter, 'lives-chapter')
-            life.biographies[a.id].chapters[-1]['text'] = chapter.text
         return self.record
 
     @staticmethod
