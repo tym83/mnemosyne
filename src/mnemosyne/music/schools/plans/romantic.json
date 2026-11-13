@@ -1,0 +1,47 @@
+{
+  "title": "romantic",
+  "school": "romantic",
+  "seed": 20261206,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 45.0,
+      "character": "still",
+      "density": 0.45,
+      "register": [
+        28,
+        100
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "flowing",
+      "density": 0.6,
+      "register": [
+        28,
+        100
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "agitated",
+      "density": 0.85,
+      "register": [
+        28,
+        100
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "dissolving",
+      "density": 0.35,
+      "register": [
+        28,
+        100
+      ]
+    }
+  ]
+}

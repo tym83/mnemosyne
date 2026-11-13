@@ -1,0 +1,47 @@
+{
+  "title": "classical",
+  "school": "classical",
+  "seed": 20261205,
+  "duration": 180,
+  "tempo": 96,
+  "ensemble": "piano",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 45.0,
+      "character": "flowing",
+      "density": 0.6,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "luminous",
+      "density": 0.75,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "agitated",
+      "density": 0.85,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "flowing",
+      "density": 0.6,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ]
+}
