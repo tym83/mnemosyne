@@ -38,7 +38,7 @@ SECTION_KEYS = {'role', 'bars', 'meter', 'theme', 'transform', 'shift', 'mode', 
                 'harmonic_rhythm', 'layers', 'schools', 'notes'}
 LAYER_KEYS = {'instruments', 'role', 'material', 'transform', 'pattern', 'dynamic', 'register', 'density',
               'technique', 'bars', 'octave_double', 'time_scale', 'notes'}
-GRID = .125  # onsets of a time-scaled line fall on a 1/32-note grid; the mean ratio is kept exactly
+GRID = .25  # onsets of a time-scaled line fall on a sixteenth grid; the ratio holds over a phrase
 
 
 def finite(x):
@@ -413,9 +413,9 @@ def realize_section(plan, mi, si, start, slots, rng):
                         d = end - x
                     if d <= 1e-9:
                         break
-                    # Breath between melodic notes stays on the notation grid: no 0.95-long notes and their tuplets.
-                    gap = (.25 if d >= 1 else .125 if d >= .5 else 0) if role in ('melody', 'counter') else 0
-                    events.append((x, d - gap, [p], (x - start) / (end - start)))
+                    # Written at full value: breath and phrasing belong to the performer (and the renderer), not to
+                    # shortened notation, which only produced dotted-dotted values and tuplets.
+                    events.append((x, d, [p], (x - start) / (end - start)))
                     x += d
                 if pattern == 'line' and role not in ('melody', 'counter', 'bass'):
                     continue
@@ -464,7 +464,8 @@ def movement(plan, index):
     for si, sec in enumerate(mv['sections']):
         bar_q, _ = meter(sec.get('meter', '4/4'))
         bar_q = float(bar_q)
-        meters.append((start, sec.get('meter', '4/4')))
+        if not meters or meters[-1][1] != sec.get('meter', '4/4'):
+            meters.append((start, sec.get('meter', '4/4')))
         length = bar_q * sec['bars']
         named, merged = {}, {}
         for li, layer, events in realize_section(plan, index, si, start, slots, rng):
