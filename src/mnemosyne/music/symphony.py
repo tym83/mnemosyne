@@ -43,6 +43,9 @@ def finite(value):
 
 
 def validate(plan, *, study=False):
+    if plan.get('version')==2:
+        from . import symphony2
+        return symphony2.validate(plan,study=study)
     from .instrumentarium import audio_ensemble
     players = audio_ensemble(plan.get('orchestra', ORCHESTRA))
     # movement() writes explicitly instrument-bound lines; a reduced orchestra
@@ -145,6 +148,9 @@ def fit(pitch, instrument):
 
 
 def movement(plan, index):
+    if plan.get('version')==2:
+        from . import symphony2
+        return symphony2.movement(plan,index)
     mv=plan['movements'][index];bpm=mv['tempo'];bars=sum(s['bars'] for s in mv['sections'])
     op={'title':f"{plan['title']} — {index+1}. {mv['title']}",'ensemble':plan.get('orchestra',ORCHESTRA),
         'tempo':bpm,'duration':bars*240/bpm,'school':'symphony','audio_profile':'native_sfz'}

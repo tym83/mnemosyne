@@ -188,7 +188,10 @@ def orchestrate(lines, plan):
     for lane in lanes:
         p=lane['player']; part=stream.Part(id=lane['id']);part.partName=lane['id'].replace('_',' ')
         part.insert(0,notation_instrument(p.instrument));part.insert(0,notation_clef(p.instrument))
-        part.insert(0,meter.TimeSignature('4/4'));part.insert(0,tempo.MetronomeMark(number=plan['tempo']))
+        # A plan may change meter between sections; bars are cut by these signatures.
+        for at,signature in plan.get('meters',[(0,'4/4')]):
+            part.insert(float(at),meter.TimeSignature(signature))
+        part.insert(0,tempo.MetronomeMark(number=plan['tempo']))
         for event in sorted(lane['events'],key=lambda e:e['at']):
             at=event['at'];dur=event['duration'];pitches=event['pitches']
             part.insert(at,expressions.TextExpression(event['technique']))

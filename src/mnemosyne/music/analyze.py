@@ -83,7 +83,8 @@ def features(xml: Path) -> dict:
     beats = float(ts[0].beatCount) if ts else 4.0
     seconds = bars * beats * 60 / bpm if bpm else None
     return {
-        "bars": bars, "time_signature": ts0, "bpm": bpm, "seconds": seconds,
+        "bars": bars, "time_signature": ts0,
+        "time_signatures": list(dict.fromkeys(t.ratioString for t in ts)), "bpm": bpm, "seconds": seconds,
         "key": f"{k.tonic.name} {k.mode}", "mode": k.mode, "key_confidence": round(float(k.correlationCoefficient), 3),
         "parts": len(parts), "ranges": ranges,
         "density": dens.round(1).tolist(), "span": span.tolist(),
