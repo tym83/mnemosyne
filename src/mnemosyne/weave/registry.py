@@ -47,7 +47,10 @@ DECODERS = {LEGACY: legacy, FOUNTAIN: fountain_music}
 SCHOOL_NAMES = ('additive', 'aleatoric_counterpoint', 'chance', 'drone',
                 'feldman', 'fibonacci', 'in_c', 'messiaen', 'micropolyphony',
                 'polystylism', 'process', 'scelsi', 'serial', 'sonorism',
-                'spectral', 'stochastic', 'tempo_canon', 'tintinnabuli', 'ustvolskaya')
+                'spectral', 'stochastic', 'tempo_canon', 'tintinnabuli', 'ustvolskaya',
+                # Older traditions; 'romantic' here is the school, not the nocturne identities above.
+                'ancient_greek', 'ars_nova', 'basso_continuo', 'classical', 'fugue',
+                'gregorian', 'organum', 'renaissance_polyphony', 'romantic')
 
 
 def school_fountain(root, key):

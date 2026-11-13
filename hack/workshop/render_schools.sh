@@ -15,7 +15,7 @@ kube exec studio-0 -- nice -n 19 ionice -c 3 env PYTHONPATH=/work/src/src \
   /work/venv/bin/python -m mnemosyne.music.sample_bank /work/samples/vsco-schools
 schools=("$@")
 if [ "${#schools[@]}" -eq 0 ]; then
-  schools=(tintinnabuli stochastic micropolyphony serial feldman process additive in_c spectral sonorism messiaen ustvolskaya chance tempo_canon aleatoric_counterpoint fibonacci polystylism scelsi drone)
+  schools=(tintinnabuli stochastic micropolyphony serial feldman process additive in_c spectral sonorism messiaen ustvolskaya chance tempo_canon aleatoric_counterpoint fibonacci polystylism scelsi drone ancient_greek gregorian organum ars_nova renaissance_polyphony fugue basso_continuo classical romantic)
 fi
 for school in "${schools[@]}"; do
   # Successful works are immutable. Fetch existing renders on a repeated run.
