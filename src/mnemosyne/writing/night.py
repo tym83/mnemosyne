@@ -11,6 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 import random
+import threading
 import re
 from typing import Literal
 
@@ -57,11 +58,63 @@ def features(text):
             min(1., len(tokens) / sentences / 40), min(1., len(lines) / max(1, len(tokens)) * 8)]
 
 
+def library(life, a):
+    """The schools this writer knows: their own, their teachers', what they met around them, what they read.
+
+    Nobody knows every school. The library grows with age, and its order is the
+    writer's own, so no school is first for everyone.
+    """
+    r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:library'.encode()).digest()[:8]))
+    known = [w.get('school') for w in a.catalogue]
+    for t in a.teachers:
+        teacher = next((b for b in life.artists if b.id == t), None)
+        known += [w.get('school') for w in (teacher.catalogue if teacher else [])]
+    tonight = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:{life.night}'.encode()).digest()[:8]))
+    recent = [w.get('school') for b in life.artists if b.id != a.id and b.art == a.art
+              for w in b.catalogue if life.night - w.get('night', 0) <= 120]
+    known += tonight.sample(recent, min(3, len(recent)))
+    reading = sorted(SCHOOLS)
+    r.shuffle(reading)
+    known += reading[:2 + a.age // 60]
+    seen = []
+    for k in known:
+        if k in SCHOOLS and k not in seen:
+            seen.append(k)
+    tonight.shuffle(seen)
+    return seen
+
+
+def tradition(a):
+    """How this writer stands to schools: by temperament, not by an administrator's preference."""
+    if a.openness > .65:
+        return 'Ты ищешь своё и не любишь ходить чужими дорогами; тебе тесно в том, что уже стало привычным.'
+    if a.openness < .35:
+        return 'Ты держишься традиции и школы учителя; новизна ради новизны тебе чужда.'
+    return 'Ты открыт и чужим школам, и своей традиции, без суеты.'
+
+
+def around(life, a):
+    """What the writer's contemporaries have been writing lately: a fashion to follow, ignore or flee."""
+    from collections import Counter
+    recent = Counter(w.get('school') for b in life.artists if b.art == a.art
+                     for w in b.catalogue if not w.get('synthetic') and life.night - w.get('night', 0) <= 120
+                     and w.get('school') in SCHOOLS)
+    total = sum(recent.values())
+    if total < 3:
+        return ''
+    names = {k: (poetics.load(k) or {}).get('name', k) for k in recent}
+    return 'Что сейчас пишут вокруг тебя: ' + ', '.join(
+        f'{names[k]} — {n} из {total}' for k, n in recent.most_common(4)) + '.'
+
+
 def dump(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=1))
 
 
 class WriterNight:
+    # Several writers may work on one night; the shared life is changed by one at a time.
+    LIFE = threading.RLock()
+
     def __init__(self, life, artist_id, root, *, backend=None):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
@@ -129,21 +182,25 @@ class WriterNight:
         self.record.update(statement=st.model_dump(), interrogation=history)
         last = history[-1]['interrogation']
         if not ideas.accepted(last['verdict']):
-            life.set_aside_idea(a.id, st.idea, last.get('reasons', ''))
+            with self.LIFE:
+                life.set_aside_idea(a.id, st.idea, last.get('reasons', ''))
             self.record['status'] = 'idea_rejected'
             return self.record
         a.problem = None
         idea = self.idea_words(st)
-        choices = '\n\n'.join(f'{k} — {poetics.brief(k, m.RULES)}' for k, m in SCHOOLS.items())
-        method = self.ask(system, f'{idea}\n\nШколы, в которых можно работать:\n\n{choices}\n\n'
+        known = library(life, a)
+        choices = '\n\n'.join(f'{k} — {poetics.brief(k, SCHOOLS[k].RULES)}' for k in known)
+        method = self.ask(system, f'{idea}\n\nШколы, которые ты знаешь:\n\n{choices}\n\n{tradition(a)}\n'
+                          f'{around(life, a)}\n\n'
                           'Выбери школу, чья поэтика — картина мира, время, голос, язык — служит этому замыслу, '
                           'а не только её форму. В school напиши её код (слово перед тире). Если ни одна школа '
                           'не держит замысел, выбери invent_school и назови школу, которую хочешь основать: '
                           'её основание — дело отдельной ночи.', Method, 'method')
         self.record['method'] = method.model_dump()
         if method.kind == 'invent_school' or method.school not in SCHOOLS:
-            life.school_attempts.append({'artist': a.id, 'night': life.night, 'status': 'requested',
-                                         'art': 'literature', 'proposal': method.model_dump()})
+            with self.LIFE:
+                life.school_attempts.append({'artist': a.id, 'night': life.night, 'status': 'requested',
+                                             'art': 'literature', 'proposal': method.model_dump()})
             self.record['status'] = 'school_requested'
             return self.record
         school = SCHOOLS[method.school]
@@ -172,7 +229,8 @@ class WriterNight:
                        'verdict': reading.verdict, 'idea': st.idea,
                        'novelty': self.novelty(features(final['text'])),
                        'process': {'school': method.school, 'drafts': len(self.record['drafts'])}}
-        work = life.record_work(a.id, observation)
+        with self.LIFE:
+            work = life.record_work(a.id, observation)
         work.update(school=method.school, title=plain(final['title']), excerpt=plain(final['text'])[:900],
                     diary=plain(final.get('diary') or '')[:400])
         self.record.update(final=final['id'], verdict=reading.model_dump(),
@@ -184,7 +242,8 @@ class WriterNight:
         if self.record['translation']:
             (self.root/f'{self.work_id}.ru.txt').write_text(self.record['translation'])
         if reading.matters:
-            life.event(a, 'writer_work', work=work['id'], verdict=reading.verdict)
+            with self.LIFE:
+                life.event(a, 'writer_work', work=work['id'], verdict=reading.verdict)
         return self.record
 
     @staticmethod

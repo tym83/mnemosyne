@@ -43,6 +43,8 @@ LANGUAGES = [('ru', 1.), ('en', 1.), ('fr', 1.), ('es', 1.), ('pt', .7), ('de', 
 class Parameters:
     # Space is for creators, per art. Silent lives are deliberately unbounded.
     spaces: int = 2
+    # Chance that an empty space is taken on a given night: 1 fills it at once, lower rates let a generation arrive over months.
+    birth_rate: float = 1.
     arts: tuple = ('music', 'literature')
     # One step is one real day. Old-age survival has median near 730 days.
     maturation_min: int = 25
@@ -96,8 +98,10 @@ class Parameters:
     def __post_init__(self):
         if not 1 <= self.maturation_min <= self.maturation_max:
             raise ValueError('maturation bounds must be positive and ordered')
-        if not 1 <= self.spaces <= 3:
-            raise ValueError('spaces must be between 1 and 3')
+        if not 1 <= self.spaces <= 16:
+            raise ValueError('spaces must be between 1 and 16')
+        if not 0 < self.birth_rate <= 1:
+            raise ValueError('birth_rate must be in (0, 1]')
         for key, value in asdict(self).items():
             if isinstance(value, (int, float)) and value < 0:
                 raise ValueError(f'{key} must be nonnegative')
@@ -734,6 +738,8 @@ class Lineage:
         for art in p.arts:
             if len([a for a in self.working() if a.art == art]) >= p.spaces:
                 continue
+            if p.birth_rate < 1 and r.random() >= p.birth_rate:
+                continue
             returning = [a for a in self.artists if a.art == art and a.status == 'silent'
                          and a.return_ready and not a.renounced]
             if returning:
@@ -845,8 +851,14 @@ class Lineage:
                            'previous_chapters': [c['text'] for c in biography.chapters
                                                  if c['text'] is not None][-3:]}
                 nb = []
-                words = writer_factory(nb).ask(system, json.dumps(context, ensure_ascii=False),
-                                               LifeWords, f"life:{a.id}:{chapter['event']}")
+                # The creator's own voice — portrait, diary, letter, image — is in their mother tongue.
+                from .literature import LANGUAGE
+                spoken = LANGUAGE.set(LANGUAGE_NAMES.get(a.language))
+                try:
+                    words = writer_factory(nb).ask(system, json.dumps(context, ensure_ascii=False),
+                                                   LifeWords, f"life:{a.id}:{chapter['event']}")
+                finally:
+                    LANGUAGE.reset(spoken)
                 chapter['words'] = words.model_dump()
                 self.note(a, 'life_words', event=chapter['event'], words=words.model_dump(), drafts=nb)
                 if chapter['kind'] == 'birth':

@@ -14,7 +14,8 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(os.environ.get('MNEMO_ASSETS') or Path(__file__).resolve().parents[3])/'atlas'/'literature'/'poetics'
+ATLAS = Path(os.environ.get('MNEMO_ASSETS') or Path(__file__).resolve().parents[3])/'atlas'
+ROOTS = (ATLAS/'literature'/'poetics', ATLAS/'music'/'poetics')
 
 LABELS = (('worldview', 'Картина мира'), ('reader', 'Читатель'), ('time', 'Время'),
           ('composition', 'Композиция'), ('narrator', 'Повествователь'), ('character', 'Персонаж'),
@@ -25,8 +26,11 @@ LABELS = (('worldview', 'Картина мира'), ('reader', 'Читатель
 
 @lru_cache(maxsize=None)
 def load(school: str) -> dict | None:
-    path = ROOT/f'{school}.yaml'
-    return yaml.safe_load(path.read_text()) if path.exists() else None
+    for root in ROOTS:
+        path = root/f'{school}.yaml'
+        if path.exists():
+            return yaml.safe_load(path.read_text())
+    return None
 
 
 def flat(value) -> str:
@@ -35,6 +39,17 @@ def flat(value) -> str:
     if isinstance(value, list):
         return '; '.join(flat(v) for v in value)
     return str(value).strip()
+
+
+MUSIC_LABELS = {'reader': 'Слушатель', 'narrator': 'Голос и исполнитель', 'character': 'Что здесь вместо героя',
+                'language': 'Музыкальный язык', 'reading': 'Понятно и захватывает — в этой школе это значит'}
+
+
+def labels(school: str):
+    p = load(school) or {}
+    if p.get('art') == 'music':
+        return tuple((k, MUSIC_LABELS.get(k, label)) for k, label in LABELS)
+    return LABELS
 
 
 def manifesto(school: str) -> list[str]:
@@ -59,7 +74,7 @@ def full(school: str, rules: str = '', keys=None) -> str:
     lines = [f'Школа «{p["name"]}».']
     if p.get('manifesto') and (keys is None or 'manifesto' in keys):
         lines.append('Манифест: ' + ' '.join(p['manifesto']))
-    lines += [f'{label}: {flat(p[k])}' for k, label in LABELS if k in wanted and p.get(k)]
+    lines += [f'{label}: {flat(p[k])}' for k, label in labels(school) if k in wanted and p.get(k)]
     if rules and (keys is None or 'form' in keys):
         lines.append(f'Форма, которую проверяет код: {rules}')
     return '\n'.join(lines)

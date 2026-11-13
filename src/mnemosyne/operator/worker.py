@@ -238,6 +238,9 @@ def main():
                               climate=sense(api, request.get('snapshotNamespace') or namespace, base))
         publish(api, namespace, records)
         dump(checkpoint, json.loads((root/'lineage.json').read_text()))
+        if request['mode'] != 'chamber':
+            from mnemosyne.writing.memory import backfill
+            backfill(base, log=lambda *_: None)
         upload(root, storage)
     print(json.dumps({'directory': root.name, **report}))
 

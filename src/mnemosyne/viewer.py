@@ -18,6 +18,10 @@ from .weave.variants import plain
 from .writing import poetics
 
 ART = {'music': 'музыка', 'literature': 'литература'}
+LANG_RU = {'ru': 'русский', 'en': 'английский', 'fr': 'французский', 'es': 'испанский', 'pt': 'португальский',
+           'de': 'немецкий', 'it': 'итальянский', 'pl': 'польский', 'sr': 'сербский', 'el': 'греческий',
+           'ja': 'японский', 'zh': 'китайский', 'fa': 'персидский', 'ar': 'арабский', 'hi': 'хинди',
+           'yo': 'йоруба', 'la': 'латынь', 'sa': 'санскрит'}
 
 
 class Atelier:
@@ -93,7 +97,7 @@ def show_artists(at):
 
 def show_artist(at, aid):
     a = at.artist(aid)
-    print(f'{at.name(a)} ({a.id}) — {ART.get(a.art, a.art)}, язык: {LANGUAGE_NAMES.get(a.language, a.language)}')
+    print(f'{at.name(a)} ({a.id}) — {ART.get(a.art, a.art)}, язык: {LANG_RU.get(a.language, a.language)}')
     print(f'Родился {a.birth[:10]}, статус: {a.status}, школа: {a.school}, учителя: {", ".join(a.teachers) or "нет"}')
     if a.death:
         print(f'Умер {a.death[:10]}')
@@ -160,6 +164,11 @@ table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{b
 .work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
 .variants{color:var(--accent);font-size:.92em}
 .tr .ru{display:none}body.ru .tr .ru{display:revert}body.ru .tr .orig{display:none}
+.toc{font:14px system-ui,sans-serif;border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:0 0 20px}
+.toc ol{list-style:none;padding:0;margin:6px 0 10px}.toc li{margin:3px 0}.toc li.l2{padding-left:14px}
+.toc a{text-decoration:none}.toc #trall{float:none;position:static;width:100%}
+@media (min-width:1240px){.toc{position:fixed;top:24px;left:calc(50% + 450px);width:220px;max-height:calc(100vh - 48px);overflow:auto;margin:0}}
+:target{scroll-margin-top:16px}h1.title{margin-bottom:4px}.byline{font-size:1.1em;margin-top:0}
 #trall{position:sticky;top:8px;float:right;z-index:2;font:14px system-ui,sans-serif;color:var(--bg);background:var(--accent);border:0;border-radius:6px;padding:6px 12px;cursor:pointer}
 details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-ui,sans-serif}
 dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
@@ -180,13 +189,21 @@ if(!document.querySelector('.tr'))document.getElementById('trall').remove()
 </script>'''
 
 
-def page(title, body, scripts=''):
+def page(title, body, scripts='', toc=None):
+    """A page; with toc, a contents list that rides along on the right and holds the translation switch."""
+    button = '<button id="trall" onclick="flipAll()">Перевод на русский</button>'
+    aside = ''
+    if toc:
+        aside = ('<aside class="toc"><b>Содержание</b><ol>' + ''.join(
+            f'<li class="l{level}"><a href="#{anchor}">{label}</a></li>' for anchor, label, level in toc)
+            + f'</ol>{button}</aside>')
+        button = ''
     return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
             f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
             f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
-            f'</nav><button id="trall" onclick="flipAll()">Перевод на русский</button>{body}{FLIP}</body></html>')
+            f'</nav>{button}{aside}{body}{FLIP}</body></html>')
 
 
 def esc(text):
@@ -205,6 +222,9 @@ def marked(text):
     return re.sub(r'\{([^{}]*)\}', lambda m: '<span class="variants">[' + ' | '.join(
         html.escape(o) for o in m.group(1).split('|')) + ']</span>', html.escape(text or '').replace('&#x27;', "'"))
 
+
+GENRE_RU = {'work': 'рецензия', 'creator': 'статья о творце', 'period': 'статья о периоде', 'obituary': 'некролог',
+            'manifesto': 'разбор манифеста', 'school': 'обзор школы'}
 
 CHAPTER = {'birth': 'рождение', 'first_accepted': 'первая принятая работа', 'writer_work': 'работа',
            'death': 'смерть', 'despair': 'отчаяние', 'illness': 'болезнь', 'school_birth': 'рождение школы',
@@ -278,7 +298,7 @@ def school_name(k):
 
 
 def school_link(k):
-    return f'<a href="schools.html#{html.escape(k)}">{html.escape(school_name(k))}</a>' if k else ''
+    return f'<a href="school-{html.escape(k)}.html">{html.escape(school_name(k))}</a>' if k else ''
 
 
 def toggle(original_html, russian_html, block=True):
@@ -333,11 +353,11 @@ def notebook_html(at, record):
     parts = []
     st = record.get('statement') or {}
     if st:
-        parts.append('<h3>Манифест замысла</h3><p class="muted">Прежде чем писать, творец отвечает себе, '
+        parts.append('<h3 id="manifesto">Манифест замысла</h3><p class="muted">Прежде чем писать, творец отвечает себе, '
                      'что и зачем он делает.</p>' + statement_html(at, st))
     rounds = record.get('interrogation') or []
     if rounds:
-        parts.append('<h3>Допрос внутреннего критика</h3><p class="muted">Критик читает замысел и решает: принять '
+        parts.append('<h3 id="critic">Допрос внутреннего критика</h3><p class="muted">Критик читает замысел и решает: принять '
                      'или переписать. Замысел переписывается, пока критик не примет его или не кончатся раунды.</p>')
     for h in rounds:
         iv = h['interrogation']
@@ -352,12 +372,12 @@ def notebook_html(at, record):
                      + lists + '</dl></div>')
     method = record.get('method')
     if method:
-        parts.append('<h3>Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
+        parts.append('<h3 id="method">Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
                                              else 'новая школа «' + esc(method['school']) + '»') + '</h3>'
                      + ru_block(at, method.get('reason')))
     for n, d in enumerate(record.get('drafts') or [], 1):
         reading = d.get('reading') or {}
-        parts.append(f'<h3>Черновик {n}: {ru_inline(at, d.get("title"))}</h3>'
+        parts.append(f'<h3 id="draft-{n}">Черновик {n}: {ru_inline(at, d.get("title"))}</h3>'
                      f'<details><summary>текст черновика с вариантами</summary><pre>{marked(d.get("text"))}</pre></details>'
                      + ('<p class="muted">Дневник автора:</p>' + ru_block(at, d.get('diary')) if d.get('diary') else '')
                      + (f'<p class="muted">Форма не удержана: {html.escape("; ".join(d["form_problems"]))}</p>'
@@ -375,7 +395,7 @@ def site(at, out: Path):
     (out/'scores').mkdir(exist_ok=True)
     life = at.life
     rows = ''.join(f'<tr><td><a href="artist-{a.id}.html">{esc(at.name(a))}</a></td><td>{ART.get(a.art, a.art)}</td>'
-                   f'<td>{LANGUAGE_NAMES.get(a.language, a.language)}</td><td>{a.status}</td><td>{len(a.catalogue)}</td>'
+                   f'<td>{LANG_RU.get(a.language, a.language)}</td><td>{a.status}</td><td>{len(a.catalogue)}</td>'
                    f'<td>{school_link(a.school) if a.school in SCHOOL_RU else esc(a.school or "")}</td></tr>' for a in life.artists)
     (out/'artists.html').write_text(page('Творцы', '<h1>Творцы</h1><table><tr><th>Имя</th><th>Искусство</th>'
                                          '<th>Язык</th><th>Статус</th><th>Работ</th><th>Школа</th></tr>' + rows + '</table>'))
@@ -402,14 +422,25 @@ def site(at, out: Path):
                         f'{VERDICT.get(w["verdict"], w["verdict"])}, школа {school_link(w.get("school")) or "—"}'
                         f'{": " + ru_short(at, w.get("idea"), 160) if w.get("idea") else ""}</li>'
                         for w in a.catalogue if (a, w) in live)
-        chapters = ''.join(f'<h3 class="muted">ночь {c["night"]} · {CHAPTER.get(c["kind"], c["kind"])}</h3>{ru_block(at, c["text"])}'
-                           for c in life.biographies[a.id].chapters if c.get('text'))
+        from .chronicle import line
+        lives = life.biographies[a.id].chapters
+        chapters = '<ol class="chronicle">' + ''.join(
+            f'<li>{html.escape(line(life, a, c))}</li>' for c in lives) + '</ol>' if lives else ''
+        voice = ''.join(
+            ''.join(f'<p class="muted">{c.get("date", "")[:10]} · {label}</p>{ru_block(at, (c.get("words") or {}).get(k))}'
+                    for k, label in (('diary', 'дневник'), ('letter', 'письмо'), ('image', 'образ'))
+                    if (c.get('words') or {}).get(k))
+            for c in lives)
+        about = ''.join(f'<div class="work"><b><a href="critic-{html.escape(v["critic"])}.html">{html.escape(v["lens"]["name"])}</a></b> '
+                        f'<span class="muted">{GENRE_RU.get(v.get("kind"), "")}, оценка {v["score"]:.2f}</span>'
+                        f'{ru_block(at, v.get("text"))}</div>'
+                        for v in life.reception.reviews if v.get('artist') == a.id and v.get('kind') in ('creator', 'period', 'obituary'))
         notes = ''.join(f'<li>ночь {n["night"]} · {NOTE.get(n["kind"], n["kind"])}'
                         + (f': {esc((n.get("idea") or n.get("image") or n.get("name") or "")[:200])}'
                            if (n.get("idea") or n.get("image") or n.get("name")) else '') + '</li>'
                         for n in a.notebook if n['kind'] not in ('draft_decision', 'verification', 'incubation'))
         body = (f'<h1>{esc(at.name(a))}</h1><p class="muted">{ART.get(a.art, a.art)} · '
-                f'{LANGUAGE_NAMES.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {esc(a.school)}'
+                f'{LANG_RU.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {school_link(a.school) if a.school in SCHOOL_RU else "вне школ"}'
                 f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p>{ru_block(at, a.portrait)}'
                 f'<h2>Работы</h2><ul>{works or "<li class=muted>пока синтетические</li>"}</ul>'
                 + '<h2>Замыслы и ночи</h2><p class="muted">Все ночи творца, и удачные, и нет.</p><ul>' + ''.join(
@@ -417,8 +448,11 @@ def site(at, out: Path):
                     f'{STATUS.get(r.get("status"), r.get("status"))}</a>'
                     f'{": " + ru_short(at, (r.get("statement") or {}).get("idea")) if (r.get("statement") or {}).get("idea") else ""}</li>'
                     for r in sorted(at.records(), key=lambda r: r.get('night') or 0) if r.get('artist') == a.id) + '</ul>'
-                + f'<h2>Жизнеописание</h2>{chapters or "<p class=muted>главы ещё не написаны</p>"}'
-                f'<h2>Блокнот</h2><ul class="muted">{notes or "<li>пусто</li>"}</ul>')
+                + f'<h2>Биография</h2><p class="muted">Строгая хроника: что случилось и как в те дни творец '
+                  f'принимал мир.</p>{chapters or "<p class=muted>пока пусто</p>"}'
+                + (f'<h2>Его собственным голосом</h2>{voice}' if voice else '')
+                + (f'<h2>О нём писали</h2>{about}' if about else '')
+                + f'<h2>Блокнот</h2><ul class="muted">{notes or "<li>пусто</li>"}</ul>')
         (out/f'artist-{a.id}.html').write_text(page(at.name(a), body))
     (out/'files').mkdir(exist_ok=True)
     for a, w in live:
@@ -426,12 +460,9 @@ def site(at, out: Path):
         record = at.notebook(w['id']) or {}
         original, ru = at.text(w['id'])
         if original:
-            if ru:
-                parts.append(f'<h2>Текст <span class="muted" style="font-size:.6em">'
-                             f'{LANGUAGE_NAMES.get(a.language, a.language)}</span></h2>'
-                             + toggle(f'<pre>{html.escape(original)}</pre>', f'<pre>{html.escape(ru)}</pre>'))
-            else:
-                parts.append(f'<h2>Текст</h2><pre>{html.escape(original)}</pre>')
+            text = toggle(f'<pre>{html.escape(original)}</pre>', f'<pre>{html.escape(ru)}</pre>') if ru \
+                else f'<pre>{html.escape(original)}</pre>'
+            parts.append(f'<div id="text" class="work">{text}</div>')
         scores = [p for p in at.files(w['id']) if p.suffix == '.musicxml']
         if scores:
             # The composer's clean draft for reading; the woven score carries the backup in its dynamics.
@@ -441,19 +472,18 @@ def site(at, out: Path):
             try:
                 from music21 import converter
                 converter.parse(score).write('midi', fp=midi)
-                parts.append(f'<h2>Сыграть по нотам</h2><midi-player src="scores/{midi.name}" '
+                parts.append(f'<h2 id="play">Сыграть по нотам</h2><midi-player src="scores/{midi.name}" '
                              f'sound-font></midi-player>')
                 scripts += PLAYER
             except Exception as exc:
                 parts.append(f'<p class="muted">MIDI не собран: {html.escape(str(exc))}</p>')
-            parts.append(f'<h2>Партитура</h2><div id="score">загружается…</div><script>(function(){{'
+            parts.append(f'<h2 id="score-head">Партитура</h2><div id="score">загружается…</div><script>(function(){{'
                          f'const view=new opensheetmusicdisplay.OpenSheetMusicDisplay("score",{{drawTitle:false,drawComposer:false,drawCredits:false}});'
                          f'view.load("scores/{w["id"]}.musicxml").then(()=>{{document.getElementById("score")'
                          f'.firstChild.remove?.();view.render()}}).catch(e=>{{document.getElementById("score")'
                          f'.textContent="Ноты не открылись: "+e}})}})()</script>')
             scripts += NOTATION
-        if record:
-            parts.append('<h2>Как работа рождалась</h2>' + notebook_html(at, record))
+        process = ('<h2 id="process">Как работа рождалась</h2>' + notebook_html(at, record)) if record else ''
         reviews = ''.join(f'<p><b><a href="critic-{html.escape(r["critic"])}.html">{html.escape(r["lens"]["name"])}</a></b> <span class="muted">ночь {r["night"]}, '
                           f'оценка {r["score"]:.2f}</span></p>{ru_block(at, r.get("text"))}' for r in at.reviews(w['id']))
         sources = []
@@ -467,32 +497,56 @@ def site(at, out: Path):
         final = next((d for d in record.get('drafts', []) if d['id'] == record.get('final')), None)
         title = ru_inline(at, final['title']) if final and final.get('title') else w['id']
         idea = record.get('statement', {}).get('idea') or w.get('idea')
-        body = (f'<h1>{title}</h1><p class="muted"><a href="artist-{a.id}.html">{esc(at.name(a))}</a> · '
-                f'{ART.get(a.art, a.art)} · школа {school_link(w.get("school")) or "—"} · ночь {w["night"]} · '
-                f'{VERDICT.get(w["verdict"], w["verdict"])} · <span title="номер работы">{w["id"]}</span></p>'
-                + (f'<h2>Замысел</h2><div class="lead">{ru_block(at, idea)}</div>' if idea else '')
+        body = (f'<h1 class="title">{title}</h1><p class="byline"><a href="artist-{a.id}.html">{esc(at.name(a))}</a></p>'
+                f'<p class="muted">{ART.get(a.art, a.art)} · {LANG_RU.get(a.language, a.language)} · школа '
+                f'{school_link(w.get("school")) or "—"} · {VERDICT.get(w["verdict"], w["verdict"])} · '
+                f'<span title="номер работы">{w["id"]}</span></p>'
                 + ''.join(parts)
-                + (f'<h2>Рецензии</h2>{reviews}' if reviews else '')
-                + '<h2>Первоисточники</h2><p class="muted">Файлы, из которых собрана эта страница. Носители '
+                + (f'<h2 id="idea">Замысел</h2><div class="lead">{ru_block(at, idea)}</div>' if idea else '')
+                + process
+                + (f'<h2 id="reviews">Рецензии</h2>{reviews}' if reviews else '')
+                + '<h2 id="sources">Первоисточники</h2><p class="muted">Файлы, из которых собрана эта страница. Носители '
                   'хранят куски зашифрованной резервной копии кластера; как из них поднять кластер — на странице '
                   '<a href="restore.html">Восстановление</a>.</p>'
                 + f'<ul>{"".join(sources) or "<li>нет файлов</li>"}</ul>')
-        (out/f'work-{w["id"]}.html').write_text(page(w['id'], body, scripts))
-    critics = {}
-    for r in life.reception.reviews:
-        critics.setdefault(r['critic'], []).append(r)
-    rows = ''.join(f'<tr><td><a href="critic-{html.escape(c)}.html">{html.escape(rs[0]["lens"]["name"])}</a></td>'
-                   f'<td>{len(rs)}</td><td>{sum(r["score"] for r in rs) / len(rs):.2f}</td></tr>' for c, rs in critics.items())
-    (out/'critics.html').write_text(page('Критики', '<h1>Критики</h1><table><tr><th>Критик</th><th>Рецензий</th>'
-                                         '<th>Средняя оценка</th></tr>' + rows + '</table>'))
-    for c, rs in critics.items():
-        lens = rs[0]['lens']
-        body = (f'<h1>{html.escape(lens["name"])}</h1><p class="muted">{html.escape(str(lens.get("voice", "")))} · '
-                f'репутация {lens["reputation"]:.2f}</p>' + ''.join(
-                    f'<div class="work"><a href="work-{r["work"]}.html">{r["work"]}</a> <span class="muted">ночь {r["night"]}, '
-                    f'оценка {r["score"]:.2f}{", пересмотр" if r.get("revision_of") else ""}</span>{ru_block(at, r.get("text"))}</div>'
-                    for r in rs))
-        (out/f'critic-{c}.html').write_text(page(lens['name'], body))
+        toc = ([('text', 'Текст', 1)] if original else []) + ([('play', 'Сыграть', 1), ('score-head', 'Партитура', 1)] if scores else []) \
+            + ([('idea', 'Замысел', 1)] if idea else []) \
+            + ([('process', 'Как работа рождалась', 1)] if record else []) \
+            + ([('manifesto', 'Манифест замысла', 2)] if record.get('statement') else []) \
+            + ([('critic', 'Внутренний критик', 2)] if record.get('interrogation') else []) \
+            + ([('method', 'Выбор школы', 2)] if record.get('method') else []) \
+            + [(f'draft-{n}', f'Черновик {n}', 2) for n in range(1, len(record.get('drafts') or []) + 1)] \
+            + ([('reviews', 'Рецензии', 1)] if reviews else []) + [('sources', 'Первоисточники', 1)]
+        plain_title = plain(final['title']) if final and final.get('title') else w['id']
+        (out/f'work-{w["id"]}.html').write_text(page(plain_title, body, scripts, toc=toc))
+    from .reception import VOICE, arts_of
+    names = {a.id: at.name(a) for a in life.artists}
+    titles = {w['id']: (w.get('title') or w['id']) for _, w in at.works()}
+
+    def subject(r):
+        kind = r.get('kind', 'work')
+        if kind == 'work':
+            return f'<a href="work-{r["work"]}.html">{esc(titles.get(r["work"], r["work"]))}</a>'
+        if kind in ('manifesto', 'school'):
+            return f'<a href="school-{html.escape(str(r["subject"]))}.html">{html.escape(school_name(r["subject"]) or str(r["subject"]))}</a>'
+        return f'<a href="artist-{r["artist"]}.html">{esc(names.get(r["artist"], ""))}</a>'
+
+    rows = ''
+    for c in life.reception.critics:
+        rs = [r for r in life.reception.reviews if r['critic'] == c['id']]
+        avg = f'{sum(r["score"] for r in rs) / len(rs):.2f}' if rs else '—'
+        rows += (f'<tr><td><a href="critic-{html.escape(c["id"])}.html">{html.escape(c["name"])}</a></td>'
+                 f'<td>{html.escape(VOICE.get(c["voice"], c["voice"]))}</td>'
+                 f'<td>{", ".join(ART.get(x, x) for x in arts_of(c))}</td><td>{len(rs)}</td><td>{avg}</td></tr>')
+        body = (f'<h1>{html.escape(c["name"])}</h1><p class="muted">{html.escape(VOICE.get(c["voice"], c["voice"]))} · '
+                f'пишет о: {", ".join(ART.get(x, x) for x in arts_of(c))} · репутация {c["reputation"]:.2f}</p>' + ''.join(
+                    f'<div class="work"><b>{subject(r)}</b> <span class="muted">{GENRE_RU.get(r.get("kind", "work"))}, '
+                    f'{r.get("date", "")[:10] or ("ночь " + str(r["night"]))}, оценка {r["score"]:.2f}'
+                    f'{", пересмотр" if r.get("revision_of") else ""}</span>{ru_block(at, r.get("text"))}</div>'
+                    for r in reversed(rs)) + ('' if rs else '<p class="muted">пока ничего не написал</p>'))
+        (out/f'critic-{c["id"]}.html').write_text(page(c['name'], body))
+    (out/'critics.html').write_text(page('Критики', '<h1>Критики</h1><table><tr><th>Критик</th><th>Голос</th>'
+                                         '<th>Пишет о</th><th>Текстов</th><th>Средняя оценка</th></tr>' + rows + '</table>'))
     from .music.schools import SCHOOLS as MUSIC
     from .writing.schools import SCHOOLS as LETTERS
     used = {}
@@ -501,7 +555,7 @@ def site(at, out: Path):
     def school_row(k, art, rules):
         name, about = SCHOOL_RU.get(k, (k, ''))
         authors = ', '.join(f'<a href="artist-{x}.html">{esc(at.name(at.artist(x)))}</a>' for x in sorted(used.get(k, ())))
-        link = f'<a href="school-{html.escape(k)}.html">{html.escape(name)}</a>' if poetics.load(k) else html.escape(name)
+        link = f'<a href="school-{html.escape(k)}.html">{html.escape(name)}</a>'
         return (f'<tr id="{html.escape(k)}"><td><b>{link}</b></td><td>{art}</td>'
                 f'<td>{about or ru_inline(at, rules)}</td><td>{authors or "—"}</td></tr>')
     rows = ''.join(school_row(k, 'музыка', (MUSIC[k].__doc__ or '').strip().split('\n\n')[0]) for k in sorted(MUSIC))
@@ -525,12 +579,13 @@ def site(at, out: Path):
                                          + (f'<h1>Заявленные школы</h1><p class="muted">Творец решил, что ни одна школа не '
                                             'держит его замысел, и заявил свою. Её основание — отдельная ночь: устав, '
                                             'манифест, проверка, что она не повторяет существующие.</p>' + asked if asked else '')))
-    for k in LETTERS:
-        p = poetics.load(k)
-        if not p:
-            continue
+    rules = {**{k: (MUSIC[k].__doc__ or '').strip().split('\n\n')[0] for k in MUSIC},
+             **{k: LETTERS[k].RULES for k in LETTERS}}
+    for k in rules:
+        p = poetics.load(k) or {'name': SCHOOL_RU.get(k, (k, ''))[0],
+                                'worldview': SCHOOL_RU.get(k, ('', ''))[1] + ' Подробная поэтика ещё не записана.'}
         sections = ''.join(f'<h2>{label}</h2><p>{html.escape(poetics.flat(p[key]))}</p>'
-                           for key, label in poetics.LABELS if p.get(key))
+                           for key, label in poetics.labels(k) if p.get(key))
         lineage = p.get('lineage') or {}
         roots = ''.join(f'<dt>{t}</dt><dd>{html.escape(poetics.flat(lineage[key]))}</dd>'
                         for key, t in (('predecessors', 'Предшественники'), ('neighbours', 'Соседи'),
@@ -540,7 +595,7 @@ def site(at, out: Path):
         body = (f'<h1>{html.escape(p["name"])}</h1><p class="muted">{html.escape(poetics.flat(p.get("origin", {})))}</p>'
                 + '<h2>Манифест</h2><ol class="lead">' + ''.join(f'<li>{html.escape(m)}</li>' for m in p.get('manifesto', []))
                 + '</ol>' + (f'<h2>Родословная</h2><dl>{roots}</dl>' if roots else '') + sections
-                + f'<h2>Форма</h2><p>{html.escape(LETTERS[k].RULES)}</p>'
+                + f'<h2>Форма, которую проверяет код</h2><p>{html.escape(rules[k])}</p>'
                 + f'<h2>Работы мастерской в этой школе</h2><ul>{works or "<li class=muted>пока нет</li>"}</ul>')
         (out/f'school-{k}.html').write_text(page(p['name'], body))
     restore_page(at, out)

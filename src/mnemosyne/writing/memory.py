@@ -89,10 +89,11 @@ def gather(root: Path) -> list[str]:
     strings([r.get('text') for r in life.get('reception', {}).get('reviews', [])], out)
     strings([s.get('proposal') for s in life.get('school_attempts', [])], out)
     strings(list(life.get('schools', {}).values()), out)
-    for p in sorted((root/'nights').rglob('*.txt')) if (root/'nights').exists() else []:
+    nights = root/'nights' if (root/'nights').is_dir() else root  # a lived history, or a studio volume
+    for p in sorted(nights.rglob('*.txt')):
         if not p.name.endswith('.ru.txt'):
             strings(p.read_text(), out)
-    for p in sorted((root/'nights').rglob('notebook.json')) if (root/'nights').exists() else []:
+    for p in sorted(nights.rglob('notebook.json')):
         record = json.loads(p.read_text())
         strings({k: record.get(k) for k in NOTEBOOK_FIELDS}, out)
     seen, unique = set(), []
