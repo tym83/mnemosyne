@@ -76,6 +76,59 @@ class WriterNightTests(unittest.TestCase):
             self.assertIsInstance(school.check('', frame, 'ru'), list, name)
             self.assertIn(school.KIND, ('poetry', 'prose'))
 
+    def test_a_writer_founds_a_school_and_writes_in_it_the_same_night(self):
+        from mnemosyne.writing import founding, poetics
+        from mnemosyne.writing.founding import Judgement, Poetics
+        life, a = writer_life('it')
+        verdicts = ['rewrite', 'accept']
+        story = ' '.join(['parola'] * 300)
+
+        def ask(system, prompt, schema, step, **kw):
+            if schema is Method:
+                return Method(kind='invent_school', school='Realismo della premura', reason='nessuna scuola regge')
+            if schema is Poetics:
+                fields = {k: 'testo' for k in Poetics.model_fields}
+                return Poetics(**{**fields, 'name': 'Realismo della premura', 'manifesto': ['uno', 'due'],
+                                  'forbidden': ['spiegare'], 'markers': ['oggetti'], 'kind': 'prose',
+                                  'min_words': 200, 'max_words': 800})
+            if schema is Judgement:
+                v = verdicts.pop(0)
+                return Judgement(verdict=v, renaming_of='minimalismo' if v == 'rewrite' else '', reasons='r',
+                                 corrections=['più mondo'] if v == 'rewrite' else [])
+            if schema is Draft:
+                return Draft(title='La sedia', text=story, diary='d')
+            if schema is Reading:
+                return Reading(verdict='accept', reasons='r', corrections=[], matters=True, quality=.7)
+            if schema is translator.Translation:
+                return translator.Translation(text='перевод')
+            raise AssertionError(schema)
+        with tempfile.TemporaryDirectory() as tmp:
+            night = WriterNight(life, a.id, Path(tmp)/'w')
+            with patch('mnemosyne.artist.statement', return_value=(statement(), [{'interrogation': {'verdict': 'accept'}}])), \
+                 patch.object(night.writer, 'ask', side_effect=ask), \
+                 patch('mnemosyne.literature.Writer.ask', side_effect=ask):
+                record = night.run()
+        key = a.catalogue[-1]['school']
+        self.assertEqual(record['status'], 'accepted')
+        self.assertTrue(key.startswith('born-'))
+        self.assertNotIn('leonia', key)
+        self.assertEqual(life.schools[key]['art'], 'literature')
+        self.assertEqual(len(record['school_birth']['attempts']), 2)
+        self.assertIn('school_birth', [e['kind'] for e in life.events])
+        self.assertEqual(poetics.load(key)['name'], 'Realismo della premura')
+        self.assertIn(key, founding.schools(life))
+        # The music side never mistakes a born literature school for a grammar.
+        from mnemosyne.music.school_birth import register_all
+        register_all(life.schools)
+
+    def test_born_school_form_counts_cjk_words(self):
+        from mnemosyne.writing.founding import BornSchool, words
+        self.assertEqual(words('听完一句拒绝'), 3)
+        school = BornSchool('born-x', {'poetics': {'kind': 'prose', 'min_words': 100, 'max_words': 300}})
+        frame = school.skeleton({}, None)
+        self.assertTrue(school.check('слово ' * 10, frame, 'ru'))
+        self.assertEqual(school.check('слово ' * 150, frame, 'ru'), [])
+
 
 class FormTests(unittest.TestCase):
     def test_chastushka_rhyme_and_pavic_references(self):

@@ -68,7 +68,7 @@ def chamber(life, root):
     from mnemosyne.music.schools import SCHOOLS
     plans = Path(__file__).parents[1]/'music/schools/plans'
     sources, records = [], []
-    born = {k: v['plan'] for k, v in life.schools.items() if v.get('status') == 'accepted'}
+    born = {k: v['plan'] for k, v in life.schools.items() if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
     for a in (a for a in life.artists if a.art == 'music'):
         for work in (w for w in a.catalogue if w['night'] == life.night):
             school = choose_school(a, work, [s for s in SCHOOLS if (plans/f'{s}.json').exists() or s in born])

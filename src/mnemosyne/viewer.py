@@ -294,7 +294,9 @@ def file_kind(path):
 
 
 def school_name(k):
-    return SCHOOL_RU.get(k, (k, ''))[0] if k else ''
+    if not k:
+        return ''
+    return SCHOOL_RU[k][0] if k in SCHOOL_RU else (poetics.load(k) or {}).get('name', k)
 
 
 def school_link(k):
@@ -375,6 +377,18 @@ def notebook_html(at, record):
         parts.append('<h3 id="method">Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
                                              else 'новая школа «' + esc(method['school']) + '»') + '</h3>'
                      + ru_block(at, method.get('reason')))
+    birth = record.get('school_birth') or {}
+    for n, h in enumerate(birth.get('attempts') or [], 1):
+        p, j = h['poetics'], h['judgement']
+        parts.append(f'<div class="work"><h3 id="founding-{n}">Основание школы, попытка {n}: '
+                     f'«{ru_inline(at, p.get("name"))}»</h3><ol>' + ''.join(f'<li>{ru_inline(at, m)}</li>'
+                                                                         for m in p.get('manifesto', []))
+                     + f'</ol><dl><dt>Картина мира</dt><dd>{ru_block(at, p.get("worldview"))}</dd>'
+                     f'<dt>Против чего</dt><dd>{ru_block(at, p.get("against"))}</dd>'
+                     f'<dt>Внутренний критик: {VERDICT.get(j.get("verdict"), j.get("verdict"))}</dt>'
+                     f'<dd>{ru_block(at, j.get("reasons"))}'
+                     + (f'<p>Похоже на: {ru_inline(at, j["renaming_of"])}</p>' if j.get('renaming_of') else '')
+                     + '</dd></dl></div>')
     for n, d in enumerate(record.get('drafts') or [], 1):
         reading = d.get('reading') or {}
         parts.append(f'<h3 id="draft-{n}">Черновик {n}: {ru_inline(at, d.get("title"))}</h3>'
@@ -560,16 +574,21 @@ def site(at, out: Path):
                 f'<td>{about or ru_inline(at, rules)}</td><td>{authors or "—"}</td></tr>')
     rows = ''.join(school_row(k, 'музыка', (MUSIC[k].__doc__ or '').strip().split('\n\n')[0]) for k in sorted(MUSIC))
     rows += ''.join(school_row(k, 'литература', LETTERS[k].RULES) for k in sorted(LETTERS))
+    from .writing.founding import adopt
+    born_letters = adopt(life)
+    rows += ''.join(school_row(k, 'литература, рождена здесь', poetics.flat(poetics.load(k).get('worldview', '')))
+                    for k in sorted(born_letters))
     born = ''.join(f'<div class="work" id="{html.escape(k)}"><h2>{html.escape(r["name"])}</h2><p class="muted">основал '
                    f'{html.escape(r.get("author", ""))}, ночь {r.get("night")}</p><h3>Манифест</h3><ul>' + ''.join(
                        f'<li>{ru_inline(at, m)}</li>' for m in r.get('manifesto', {}).get('manifesto', []))
-                   + f'</ul><details><summary>устав школы в коде</summary><pre class="muted">'
-                     f'{html.escape(r.get("source", ""))}</pre></details></div>' for k, r in life.schools.items())
+                   + (f'</ul><p><a href="school-{html.escape(k)}.html">поэтика школы</a></p></div>' if r.get('art') == 'literature' else
+                      f'</ul><details><summary>устав школы в коде</summary><pre class="muted">'
+                      f'{html.escape(r.get("source", ""))}</pre></details></div>') for k, r in life.schools.items())
     asked = ''.join(f'<div class="work"><h2>«{ru_inline(at, s["proposal"]["school"])}»</h2><p class="muted">'
                     f'<a href="artist-{s["artist"]}.html">{esc(at.name(at.artist(s["artist"])))}</a>, ночь {s["night"]}, '
                     f'{ART.get(s.get("art"), s.get("art") or "")} · '
                     f'{ {"requested": "заявлена, ждёт ночи основания", "born": "основана", "unborn": "не родилась"}.get(s["status"], s["status"])}'
-                    f'</p>{ru_block(at, s["proposal"].get("reason"))}</div>' for s in life.school_attempts)
+                    f'</p>{ru_block(at, s["proposal"].get("reason"))}</div>' for s in life.school_attempts if s.get('proposal'))
     (out/'schools.html').write_text(page('Школы', '<h1>Школы</h1><p class="muted">Школы — это формы, в которых творцы '
                                          'работают. Каждая записана кодом: она задаёт каркас работы и проверяет форму, '
                                          'но никогда не пишет слов и не судит о ценности. Админ кластера школы не выбирает.'
@@ -577,23 +596,30 @@ def site(at, out: Path):
                                          + rows + '</table>'
                                          + (f'<h1>Рождённые в мастерской</h1>{born}' if born else '')
                                          + (f'<h1>Заявленные школы</h1><p class="muted">Творец решил, что ни одна школа не '
-                                            'держит его замысел, и заявил свою. Её основание — отдельная ночь: устав, '
-                                            'манифест, проверка, что она не повторяет существующие.</p>' + asked if asked else '')))
+                                            'держит его замысел, и заявил свою.</p>' + asked if asked else '')))
     rules = {**{k: (MUSIC[k].__doc__ or '').strip().split('\n\n')[0] for k in MUSIC},
-             **{k: LETTERS[k].RULES for k in LETTERS}}
+             **{k: LETTERS[k].RULES for k in LETTERS}, **{k: v.RULES for k, v in born_letters.items()}}
     for k in rules:
         p = poetics.load(k) or {'name': SCHOOL_RU.get(k, (k, ''))[0],
                                 'worldview': SCHOOL_RU.get(k, ('', ''))[1] + ' Подробная поэтика ещё не записана.'}
-        sections = ''.join(f'<h2>{label}</h2><p>{html.escape(poetics.flat(p[key]))}</p>'
-                           for key, label in poetics.labels(k) if p.get(key))
+        def said(value):
+            if isinstance(value, list):
+                return '<ul>' + ''.join(f'<li>{ru_inline(at, poetics.flat(v))}</li>' for v in value) + '</ul>'
+            if isinstance(value, dict):
+                return ''.join(said(v) for v in value.values())
+            return ru_block(at, str(value).strip())
+        sections = ''.join(f'<h2>{label}</h2>{said(p[key])}' for key, label in poetics.labels(k) if p.get(key))
         lineage = p.get('lineage') or {}
-        roots = ''.join(f'<dt>{t}</dt><dd>{html.escape(poetics.flat(lineage[key]))}</dd>'
+        roots = ''.join(f'<dt>{t}</dt><dd>{said(lineage[key])}</dd>'
                         for key, t in (('predecessors', 'Предшественники'), ('neighbours', 'Соседи'),
                                        ('against', 'Против чего')) if lineage.get(key))
         works = ''.join(f'<li><a href="work-{w["id"]}.html">{esc(w.get("title") or w["id"])}</a> — '
                         f'{esc(at.name(a))}, ночь {w["night"]}</li>' for a, w in live if w.get('school') == k)
-        body = (f'<h1>{html.escape(p["name"])}</h1><p class="muted">{html.escape(poetics.flat(p.get("origin", {})))}</p>'
-                + '<h2>Манифест</h2><ol class="lead">' + ''.join(f'<li>{html.escape(m)}</li>' for m in p.get('manifesto', []))
+        founded = life.schools.get(k)
+        origin = (f'основал <a href="artist-{founded["author"]}.html">{esc(at.name(at.artist(founded["author"])))}</a>, '
+                  f'ночь {founded["night"]}, {founded["date"][:10]}' if founded else html.escape(poetics.flat(p.get("origin", {}))))
+        body = (f'<h1>{ru_inline(at, p["name"])}</h1><p class="muted">{origin}</p>'
+                + '<h2>Манифест</h2><ol class="lead">' + ''.join(f'<li>{ru_inline(at, m)}</li>' for m in p.get('manifesto', []))
                 + '</ol>' + (f'<h2>Родословная</h2><dl>{roots}</dl>' if roots else '') + sections
                 + f'<h2>Форма, которую проверяет код</h2><p>{html.escape(rules[k])}</p>'
                 + f'<h2>Работы мастерской в этой школе</h2><ul>{works or "<li class=muted>пока нет</li>"}</ul>')

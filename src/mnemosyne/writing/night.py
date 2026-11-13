@@ -20,8 +20,7 @@ from pydantic import BaseModel
 from .. import artist as ideas
 from ..literature import LANGUAGE, Writer
 from ..weave.variants import plain
-from . import poetics, translator
-from .schools import SCHOOLS
+from . import founding, poetics, translator
 
 
 class Method(BaseModel):
@@ -73,9 +72,13 @@ def library(life, a):
     recent = [w.get('school') for b in life.artists if b.id != a.id and b.art == a.art
               for w in b.catalogue if life.night - w.get('night', 0) <= 120]
     known += tonight.sample(recent, min(3, len(recent)))
-    reading = sorted(SCHOOLS)
+    SCHOOLS = founding.schools(life)
+    reading = sorted(k for k in SCHOOLS if not k.startswith('born-'))
     r.shuffle(reading)
-    known += reading[:2 + a.age // 60]
+    known += reading[:3 + a.age // 60]
+    # Schools born here are talked about: a writer hears of one or two of them.
+    born = sorted(k for k in SCHOOLS if k.startswith('born-'))
+    known += tonight.sample(born, min(2, len(born)))
     seen = []
     for k in known:
         if k in SCHOOLS and k not in seen:
@@ -96,6 +99,7 @@ def tradition(a):
 def around(life, a):
     """What the writer's contemporaries have been writing lately: a fashion to follow, ignore or flee."""
     from collections import Counter
+    SCHOOLS = founding.schools(life)
     recent = Counter(w.get('school') for b in life.artists if b.art == a.art
                      for w in b.catalogue if not w.get('synthetic') and life.night - w.get('night', 0) <= 120
                      and w.get('school') in SCHOOLS)
@@ -165,6 +169,7 @@ class WriterNight:
                                     self.entries, backend=self.backend, inner=inner)
             a.name, a.portrait = p.name, plain(p.portrait)
             self.record['portrait'] = p.model_dump()
+        SCHOOLS = founding.schools(life)
         home = next((w['school'] for w in reversed(a.catalogue) if w.get('school') in SCHOOLS), None)
         system = (f'Ты писатель {a.name}. {a.portrait}\nТвои учителя: {", ".join(teachers) or "нет"}. '
                   'Художественные решения принимаешь ты. Не упоминай технику, компьютеры, серверы.')
@@ -194,15 +199,24 @@ class WriterNight:
                           f'{around(life, a)}\n\n'
                           'Выбери школу, чья поэтика — картина мира, время, голос, язык — служит этому замыслу, '
                           'а не только её форму. В school напиши её код (слово перед тире). Если ни одна школа '
-                          'не держит замысел, выбери invent_school и назови школу, которую хочешь основать: '
-                          'её основание — дело отдельной ночи.', Method, 'method')
+                          'не держит замысел, выбери invent_school и в school назови школу, которую хочешь '
+                          'основать: ты напишешь её поэтику и манифест, твой внутренний критик проверит, не '
+                          'повторяет ли она известную, и этой же ночью ты напишешь в ней первую вещь.',
+                          Method, 'method')
         self.record['method'] = method.model_dump()
         if method.kind == 'invent_school' or method.school not in SCHOOLS:
+            self.system = system
+            record, history = founding.found(self, idea, method, SCHOOLS)
+            self.record['school_birth'] = {'proposal': method.model_dump(), 'attempts': history}
             with self.LIFE:
-                life.school_attempts.append({'artist': a.id, 'night': life.night, 'status': 'requested',
-                                             'art': 'literature', 'proposal': method.model_dump()})
-            self.record['status'] = 'school_requested'
-            return self.record
+                if record is None:
+                    life.school_unborn(a.id, method.school, history)
+                    self.record['status'] = 'school_unborn'
+                    return self.record
+                life.found_school(a.id, record)
+            SCHOOLS = founding.schools(life)
+            method = Method(kind='school', school=record['id'], reason=method.reason)
+            self.record['method'] = {**method.model_dump(), 'founded': record['name']}
         school = SCHOOLS[method.school]
         rng = random.Random(int.from_bytes(hashlib.sha256(self.work_id.encode()).digest()[:8]))
         plan = {**deepcopy(school.EXAMPLE_PLAN), 'seed': rng.randrange(2**31), 'title': ''}

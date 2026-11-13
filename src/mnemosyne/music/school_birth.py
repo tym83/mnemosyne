@@ -112,7 +112,7 @@ def register(name: str, source: str, plan: dict | None = None):
 
 def register_all(schools: dict):
     for name, record in schools.items():
-        if record.get('status', 'accepted') == 'accepted':
+        if record.get('status', 'accepted') == 'accepted' and record.get('art', 'music') == 'music':
             register(name, record['source'], record.get('plan'))
 
 

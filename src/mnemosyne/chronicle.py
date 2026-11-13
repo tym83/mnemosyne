@@ -63,6 +63,8 @@ def line(life, a, chapter) -> str:
         if w.get('title'):
             return f'«{w["title"]}»'
         school = w.get('school') or ''
+        if school in life.schools:
+            return f'работа в школе «{life.schools[school]["name"]}»'
         # Fate-engine traditions carry identifiers, never names: they are 'outside the schools'.
         return f'работа в школе {school}' if school and 'tradition' not in school else 'работа вне школ'
     detail = ''

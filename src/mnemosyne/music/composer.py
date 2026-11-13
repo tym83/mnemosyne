@@ -359,7 +359,7 @@ class Night:
                   '(назови её), держится ли её философия, воплощают ли правила манифест, плодотворна ли она. '
                   'Замер отличия от существующих школ приложен. Реши: accept или rewrite.')
         record, history = school_birth.found(manifesto.model_dump(), self.ask, self.system, critic,
-            born_plans={k: v['plan'] for k, v in self.life.schools.items() if v.get('status') == 'accepted'})
+            born_plans={k: v['plan'] for k, v in self.life.schools.items() if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'})
         self.record['school_birth'] = {'manifesto': manifesto.model_dump(), 'attempts': history}
         if record is None:
             self.life.school_unborn(a.id, manifesto.name, history)
@@ -373,7 +373,7 @@ class Night:
 
     def born_sources(self):
         return {k: {'source': v['source'], 'plan': v['plan']} for k, v in self.life.schools.items()
-                if v.get('status') == 'accepted'}
+                if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
 
     def music(self, plan, method, label):
         result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form,
@@ -446,7 +446,7 @@ class Night:
             from ..writing import poetics
             from .instrumentarium import audio_contract
             born = {k: {'name': v['name'], 'author': v['author'], 'manifesto': v['manifesto'].get('manifesto', [])}
-                    for k, v in self.life.schools.items() if v.get('status') == 'accepted'}
+                    for k, v in self.life.schools.items() if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': {k: {**v, 'poetics': poetics.brief(k)} if isinstance(v, dict) else
                                                     f'{v} {poetics.brief(k)}' for k, v in LISTEN.items()},
                 'schools_born_here': born,

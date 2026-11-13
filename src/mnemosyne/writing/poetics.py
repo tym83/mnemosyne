@@ -24,8 +24,16 @@ LABELS = (('worldview', 'Картина мира'), ('reader', 'Читатель
           ('reading', 'Понятно и интересно — в этой школе это значит'))
 
 
-@lru_cache(maxsize=None)
+# Schools born in an atelier: their poetics live in the lineage, registered here by founding.adopt.
+BORN: dict[str, dict] = {}
+
+
 def load(school: str) -> dict | None:
+    return BORN.get(school) or _atlas(school)
+
+
+@lru_cache(maxsize=None)
+def _atlas(school: str) -> dict | None:
     for root in ROOTS:
         path = root/f'{school}.yaml'
         if path.exists():
