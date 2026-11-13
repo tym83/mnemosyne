@@ -90,10 +90,17 @@ def validate(plan, *, study=False):
         raise ValueError('cyclic themes required')
     for name, theme in themes.items():
         ps, ds = theme.get('pitches', []), theme.get('durations', [])
-        if len(ps) < 2 or len(ps) != len(ds) or any(not finite(p) or not 0 <= p <= 127 for p in ps):
-            raise ValueError(f'theme {name}: invalid pitches')
-        if any(not finite(d) or d <= 0 or d * 4 != int(d * 4) for d in ds):
-            raise ValueError(f'theme {name}: durations must be positive multiples of a sixteenth')
+        if not ps:
+            raise ValueError(f'theme {name}: at least one pitch (a single held tone is a theme too)')
+        if len(ps) != len(ds):
+            raise ValueError(f'theme {name}: {len(ps)} pitches but {len(ds)} durations; one duration per pitch')
+        bad = [p for p in ps if not finite(p) or not 0 <= p <= 127]
+        if bad:
+            raise ValueError(f'theme {name}: pitches are MIDI numbers 0–127, got {bad}')
+        bad = [d for d in ds if not finite(d) or d <= 0 or d * 4 != int(d * 4)]
+        if bad:
+            raise ValueError(f'theme {name}: durations are quarters in multiples of 0.25 (a sixteenth), got {bad}; '
+                             'for an irrational tempo ratio write the theme plainly and give the layer time_scale')
         if not theme.get('source'):
             raise ValueError(f'theme {name}: provenance (source) required')
     for name, row in rows.items():
@@ -220,7 +227,7 @@ def transform(ps, ds, operation):
     elif operation == 'diminution':
         ds = [max(.25, d / 2) for d in ds]
     elif operation == 'fragmentation':
-        ps = ps[:max(2, len(ps) // 2)]; ds = ds[:len(ps)]
+        ps = ps[:max(1, min(len(ps), max(2, len(ps) // 2)))]; ds = ds[:len(ps)]
     return ps, ds
 
 

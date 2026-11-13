@@ -64,6 +64,17 @@ class SymphonyV2Tests(unittest.TestCase):
              for e in sorted(p['events'], key=lambda e: e['at']) if sec['start_quarters'] <= e['at'] < sec['end_quarters']]
         self.assertLess(v[0], v[-1])
 
+    def test_a_single_held_tone_is_a_theme(self):
+        plan = g.example()
+        plan['themes']['support'] = {'pitches': [50], 'durations': [4], 'source': {'kind': 'composed'}}
+        plan['movements'][1]['sections'][0]['layers'].append(
+            {'instruments': ['bassoon'], 'role': 'drone', 'material': 'theme:support', 'dynamic': 'pp'})
+        g.validate(plan)
+        g.movement(plan, 1)
+        plan['themes']['support']['durations'] = [1.414]
+        with self.assertRaisesRegex(ValueError, 'time_scale'):
+            g.validate(plan)
+
     def test_tempo_canon_voice_keeps_its_ratio(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][0]
