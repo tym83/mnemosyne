@@ -10,7 +10,11 @@ Each school is a module with:
 The writer fills the frame in their own language, with their own variants;
 the school never writes words and never judges their worth.
 """
-from . import haiku, chastushka, sonnet, bylina, fairy_tale, eluard, pavic, minimalism
+from . import (haiku, chastushka, sonnet, bylina, fairy_tale, eluard, pavic, minimalism, psychological_realism,
+               polyphony, magical_realism, stream_of_consciousness, skaz, platonov, faulkner, epistolary,
+               nouveau_roman, gothic)
 
 SCHOOLS = {m.__name__.rsplit('.', 1)[-1]: m for m in
-           (haiku, chastushka, sonnet, bylina, fairy_tale, eluard, pavic, minimalism)}
+           (haiku, chastushka, sonnet, bylina, fairy_tale, eluard, pavic, minimalism, psychological_realism,
+            polyphony, magical_realism, stream_of_consciousness, skaz, platonov, faulkner, epistolary,
+            nouveau_roman, gothic)}

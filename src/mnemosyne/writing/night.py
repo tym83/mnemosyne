@@ -208,15 +208,26 @@ class WriterNight:
             self.system = system
             record, history = founding.found(self, idea, method, SCHOOLS)
             self.record['school_birth'] = {'proposal': method.model_dump(), 'attempts': history}
-            with self.LIFE:
-                if record is None:
+            if record is None:
+                with self.LIFE:
                     life.school_unborn(a.id, method.school, history)
-                    self.record['status'] = 'school_unborn'
-                    return self.record
-                life.found_school(a.id, record)
-            SCHOOLS = founding.schools(life)
-            method = Method(kind='school', school=record['id'], reason=method.reason)
-            self.record['method'] = {**method.model_dump(), 'founded': record['name']}
+                # The school stays in the notebooks; the story is still to be written, in the nearest school known.
+                last = history[-1]['judgement'] if history else {}
+                method = self.ask(system, f'{idea}\n\nШкола «{method.school}» не родилась. Твой внутренний критик: '
+                                  f'{last.get("reasons", "")}'
+                                  + (f' Он узнал в ней «{last["renaming_of"]}».' if last.get('renaming_of') else '')
+                                  + f'\n\nШколы, которые ты знаешь:\n\n{choices}\n\nЗамысел остаётся. Выбери из '
+                                  'этих школ ту, чья поэтика ближе всего к нему, и напиши в ней. kind=school, в school — '
+                                  'код школы.', Method, 'method:after-unborn')
+                if method.school not in SCHOOLS:
+                    method = Method(kind='school', school=known[0], reason=method.reason)
+                self.record['method'] = {**method.model_dump(), 'after_unborn': True}
+            else:
+                with self.LIFE:
+                    life.found_school(a.id, record)
+                SCHOOLS = founding.schools(life)
+                method = Method(kind='school', school=record['id'], reason=method.reason)
+                self.record['method'] = {**method.model_dump(), 'founded': record['name']}
         school = SCHOOLS[method.school]
         rng = random.Random(int.from_bytes(hashlib.sha256(self.work_id.encode()).digest()[:8]))
         plan = {**deepcopy(school.EXAMPLE_PLAN), 'seed': rng.randrange(2**31), 'title': ''}

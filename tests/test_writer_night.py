@@ -75,6 +75,14 @@ class WriterNightTests(unittest.TestCase):
             frame = school.skeleton(school.EXAMPLE_PLAN, random.Random(3))
             self.assertIsInstance(school.check('', frame, 'ru'), list, name)
             self.assertIn(school.KIND, ('poetry', 'prose'))
+            self.assertTrue(school.RULES and school.EXAMPLE_PLAN['school'] == name, name)
+
+    def test_the_prose_traditions_are_schools_with_names(self):
+        from mnemosyne.viewer import SCHOOL_RU
+        for key in ('psychological_realism', 'polyphony', 'magical_realism', 'stream_of_consciousness', 'skaz',
+                    'platonov', 'faulkner', 'epistolary', 'nouveau_roman', 'gothic'):
+            self.assertEqual(SCHOOLS[key].KIND, 'prose', key)
+            self.assertIn(key, SCHOOL_RU, key)
 
     def test_a_writer_founds_a_school_and_writes_in_it_the_same_night(self):
         from mnemosyne.writing import founding, poetics
@@ -120,6 +128,37 @@ class WriterNightTests(unittest.TestCase):
         # The music side never mistakes a born literature school for a grammar.
         from mnemosyne.music.school_birth import register_all
         register_all(life.schools)
+
+    def test_an_unborn_school_leaves_the_story_to_the_nearest_known_school(self):
+        from mnemosyne.writing.founding import Judgement, Poetics
+        life, a = writer_life('ru')
+
+        def ask(system, prompt, schema, step, **kw):
+            if schema is Method:
+                return Method(kind='invent_school', school='Новая', reason='r') if step == 'method' else \
+                    Method(kind='school', school='haiku', reason='ближе всего')
+            if schema is Poetics:
+                fields = {k: 'текст' for k in Poetics.model_fields}
+                return Poetics(**{**fields, 'manifesto': ['раз'], 'forbidden': [], 'markers': [], 'kind': 'prose',
+                                  'min_words': 100, 'max_words': 500})
+            if schema is Judgement:
+                return Judgement(verdict='rewrite', renaming_of='реализм', reasons='r', corrections=['c'])
+            if schema is Draft:
+                return Draft(title='t', text='\n\n'.join([HAIKU] * 3), diary='d')
+            if schema is Reading:
+                return Reading(verdict='accept', reasons='r', corrections=[], matters=False, quality=.7)
+            raise AssertionError(schema)
+        with tempfile.TemporaryDirectory() as tmp:
+            night = WriterNight(life, a.id, Path(tmp)/'w')
+            with patch('mnemosyne.artist.statement', return_value=(statement(), [{'interrogation': {'verdict': 'accept'}}])), \
+                 patch.object(night.writer, 'ask', side_effect=ask), \
+                 patch('mnemosyne.literature.Writer.ask', side_effect=ask):
+                record = night.run()
+        self.assertEqual(record['status'], 'accepted')
+        self.assertTrue(record['method']['after_unborn'])
+        self.assertEqual(a.catalogue[-1]['school'], 'haiku')
+        self.assertEqual(life.school_attempts[-1]['status'], 'unborn')
+        self.assertEqual(life.schools, {})
 
     def test_born_school_form_counts_cjk_words(self):
         from mnemosyne.writing.founding import BornSchool, words
