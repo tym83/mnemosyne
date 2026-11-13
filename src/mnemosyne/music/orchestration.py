@@ -168,7 +168,8 @@ def orchestrate(lines, plan):
                 # not stack a full section at full level for every divisi lane.
                 gain-=10*math.log10(p.divisi)
                 phrase=spec['phrase_seconds']
-                cap=phrase*plan['tempo']/60 if phrase else e.duration
+                # Bow changes and breaths fall on a sixteenth, never at an unnotatable fraction of a beat.
+                cap=max(.25,math.floor(phrase*plan['tempo']/60*4)/4) if phrase else e.duration
                 at=e.at; remaining=e.duration
                 while remaining>1e-8:
                     dur=min(cap,remaining)

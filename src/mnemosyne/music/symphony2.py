@@ -37,7 +37,7 @@ MOVEMENT_KEYS = {'title', 'character', 'form', 'tempo', 'centre', 'mode', 'schoo
 SECTION_KEYS = {'role', 'bars', 'meter', 'theme', 'transform', 'shift', 'mode', 'progression',
                 'harmonic_rhythm', 'layers', 'schools', 'notes'}
 LAYER_KEYS = {'instruments', 'role', 'material', 'transform', 'pattern', 'dynamic', 'register', 'density',
-              'technique', 'bars', 'octave_double', 'time_scale', 'notes'}
+              'technique', 'bars', 'octave_double', 'time_scale', 'repeat', 'offset', 'rest_between', 'notes'}
 GRID = .25  # onsets of a time-scaled line fall on a sixteenth grid; the ratio holds over a phrase
 
 
@@ -197,6 +197,12 @@ def validate(plan, *, study=False):
                     raise ValueError(f'{lw}: register is [low, high] in MIDI 0–127 with low ≤ high (equal pins one pitch), got {reg}')
                 if not finite(layer.get('density', .5)) or not 0 < layer.get('density', .5) <= 1:
                     raise ValueError(f'{lw}: density in (0, 1]')
+                if type(layer.get('repeat', 1)) is not int or layer.get('repeat', 1) < 0:
+                    raise ValueError(f'{lw}: repeat = how many statements of the line (0 = until its bars end)')
+                for key in ('offset', 'rest_between'):
+                    v = layer.get(key, 0)
+                    if not finite(v) or v < 0 or v * 8 != int(v * 8):
+                        raise ValueError(f'{lw}: {key} in quarters, ≥ 0, multiple of 0.125')
                 scale_t = layer.get('time_scale', 1)
                 if not finite(scale_t) or not .25 <= scale_t <= 4:
                     raise ValueError(f'{lw}: time_scale in [0.25, 4] (duration multiplier: 1.414 = this voice at 1/√2 tempo)')
@@ -241,6 +247,8 @@ def place(pitch, instrument, register=None):
     if spec.get('unpitched'):
         return spec['comfortable'][0]
     lo, hi = register or spec['comfortable']
+    if register and lo <= pitch <= hi and spec['range'][0] <= pitch <= spec['range'][1]:
+        return pitch  # a written pitch inside its register stays where the composer put it
     target = (lo + hi) / 2 if register else pitch
     technique = 'arco' if spec['family'] == 'strings' else 'sustain'
     zones = spec['samples'].get('key_ranges', {}).get(technique, [spec['range']])
@@ -275,12 +283,13 @@ def material_stream(kind, ref, plan, mv, sec, layer, mi, harmony_at):
     shift = sec.get('shift', 0)
     if kind == 'theme':
         theme = plan['themes'][ref]
-        ps = [p - theme['pitches'][0] + mv['centre'] + shift for p in theme['pitches']]
+        # Themes sound at the pitches the composer wrote; only an explicit section shift transposes them.
+        ps = [p + shift for p in theme['pitches']]
         ps, ds = transform(ps, theme['durations'], layer.get('transform', sec.get('transform', 'identity')))
         return ps, ds
     if kind == 'notagen':
         m = plan['notagen_material']
-        return [p - m['pitches'][0] + mv['centre'] + shift for p in m['pitches']], list(m['durations'])
+        return [p + shift for p in m['pitches']], list(m['durations'])
     if kind == 'row':
         row = plan['rows'][ref]
         return [mv['centre'] + shift + (int(x) - int(row[0])) % 12 for x in row], [1] * 12
@@ -341,7 +350,15 @@ def realize_section(plan, mi, si, start, slots, rng):
                 # Laid out continuously across the bars; development is the section's transform.
                 pass
             elif pattern == 'sustain' or pattern == 'tremolo':
-                events.append((a, bar_q, ch if role in ('pad', 'chorale', 'drone') else [ch[0]], t))
+                # Held tones are the layer's own material when it has one (a one-note theme holds that note),
+                # otherwise the chord; a tone is held on while the sounding set stays the same.
+                held = sorted(set(stream_ps)) if stream_ps else ch
+                tones = held if role in ('pad', 'chorale', 'drone') else [held[0]]
+                if events and events[-1][2] == tones and abs(events[-1][0] + events[-1][1] - a) < 1e-9:
+                    events[-1] = (events[-1][0], events[-1][1] + bar_q, tones, events[-1][3])
+                else:
+                    events.append((a + (layer.get('offset', 0) if b == first - 1 else 0),
+                                   bar_q - (layer.get('offset', 0) if b == first - 1 else 0), tones, t))
             elif pattern == 'waltz':
                 if role == 'bass':
                     events.append((beats[0], beat_q, [ch[0]], t))
@@ -405,9 +422,12 @@ def realize_section(plan, mi, si, start, slots, rng):
             if ps is None:  # a line in the harmony: chord tones stepping through the bars
                 ps = [c for b in range(first - 1, last) for c in harmony_at(b)]
                 ds = [bar_q / 3] * len(ps)
-            x, end = start + (first - 1) * bar_q, start + last * bar_q
-            phrase_gap = 0 if density > .7 else beat_q
-            while x < end - 1e-9:
+            x, end = start + (first - 1) * bar_q + layer.get('offset', 0), start + last * bar_q
+            # A line is stated `repeat` times (0: again and again to the end of its bars), then the layer is silent.
+            times = layer.get('repeat', 1) or math.inf
+            done = 0
+            while x < end - 1e-9 and done < times:
+                done += 1
                 for p, d in zip(ps, ds):
                     if x + d > end + 1e-9:
                         d = end - x
@@ -417,9 +437,7 @@ def realize_section(plan, mi, si, start, slots, rng):
                     # shortened notation, which only produced dotted-dotted values and tuplets.
                     events.append((x, d, [p], (x - start) / (end - start)))
                     x += d
-                if pattern == 'line' and role not in ('melody', 'counter', 'bass'):
-                    continue
-                x += phrase_gap
+                x += layer.get('rest_between', 0)
         out.append((li, layer, events))
     return out
 
@@ -478,7 +496,9 @@ def movement(plan, index):
                 lanes = [[] for _ in range(desks)]
                 for at, dur, ps, t in events:
                     vel = velocity(layer.get('dynamic', 'mf'), t)
-                    placed = sorted({place(p, name, layer.get('register')) for p in ps}, reverse=True)
+                    # Desks take chord tones top down; a bass or drone desk takes the lowest first.
+                    placed = sorted({place(p, name, layer.get('register')) for p in ps},
+                                    reverse=layer['role'] not in ('bass', 'drone'))
                     if poly:
                         lanes[0].append(Event(at, dur, tuple(placed[:spec['polyphony']]), vel, layer.get('technique')))
                         continue
@@ -550,7 +570,7 @@ def example():
                    ('cello_section', 10), ('bass_section', 8)]])
     waltz = {'pitches': [67, 71, 74, 72, 71, 69], 'durations': [1, 1, 1, 1.5, .5, 3],
              'source': {'kind': 'composed', 'note': 'the third phrase of a remembered waltz'}}
-    L = lambda inst, role, **k: {'instruments': inst, 'role': role, **k}
+    L = lambda inst, role, **k: {'instruments': inst, 'role': role, **({'repeat': 0} if k.get('material', '').startswith('theme:') else {}), **k}
     first = [
         {'role': 'opening', 'bars': 48, 'meter': '3/4', 'theme': 'waltz', 'progression': [1, 4, 5, 1],
          'harmonic_rhythm': 2, 'layers': [

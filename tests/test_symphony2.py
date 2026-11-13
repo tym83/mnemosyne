@@ -75,6 +75,25 @@ class SymphonyV2Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'time_scale'):
             g.validate(plan)
 
+    def test_written_pitches_once_at_the_offset_and_held_material(self):
+        plan = g.example()
+        plan['themes']['support'] = {'pitches': [50], 'durations': [4], 'source': {'kind': 'composed'}}
+        sec = plan['movements'][1]['sections'][0]
+        sec['layers'] = [
+            {'instruments': ['oboe'], 'role': 'melody', 'material': 'theme:waltz', 'offset': 3, 'bars': [2, 24]},
+            {'instruments': ['cello_section'], 'role': 'drone', 'material': 'theme:support', 'pattern': 'sustain',
+             'register': [50, 50], 'bars': [3, 5]}]
+        _, _, assignment, dev = g.movement(plan, 1)
+        end = dev['sections'][0]['end_quarters']
+        oboe = sorted((e['at'], e['pitches'][0]) for p in assignment['players'] if p['instrument'] == 'oboe'
+                      for e in p['events'] if e['at'] < end)
+        self.assertEqual(oboe[0][0], 4 + 3)
+        self.assertEqual([p for _, p in oboe][:6], plan['themes']['waltz']['pitches'])
+        self.assertEqual(len(oboe), len(plan['themes']['waltz']['pitches']))  # stated once, then silent
+        cello = [e for p in assignment['players'] if p['instrument'] == 'cello_section' for e in p['events']]
+        self.assertEqual({e['pitches'][0] for e in cello}, {50})
+        self.assertEqual(min(e['at'] for e in cello), 8)
+
     def test_tempo_canon_voice_keeps_its_ratio(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][0]

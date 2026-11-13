@@ -136,7 +136,10 @@ def plan_contract(method):
                           'negative degree = an octave lower.',
                           'A layer: instruments (doubling each other), role, material, pattern, dynamic '
                           '(one or [from, to]), register [low, high], density, technique, bars [first, last], '
-                          'time_scale (a line in its own tempo: durations × time_scale, e.g. 1.414 for a √2 tempo canon).',
+                          'time_scale (a line in its own tempo: durations × time_scale, e.g. 1.414 for a √2 tempo canon), '
+                          'repeat (statements of a line, default 1; 0 = until its bars end), offset (entry in quarters '
+                          'after the downbeat of its first bar), rest_between (quarters of silence between statements).',
+                          'Themes sound at the MIDI pitches you write; a section shift transposes them.',
                           'Chords on monophonic instruments are shared among their players; keep players enough.',
                           'layers: [] is a general pause.',
                           'Unknown fields are rejected: what the grammar cannot express goes into "notes" as text.',
