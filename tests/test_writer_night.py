@@ -182,6 +182,19 @@ class WriterNightTests(unittest.TestCase):
         self.assertEqual(record['let_go']['left_undone'], ['ещё'])
         self.assertEqual(a.catalogue[-1]['verdict'], 'accept')
 
+    def test_a_sure_hand_lets_go_below_its_taste_and_a_shaken_one_holds(self):
+        from mnemosyne.writing.night import assurance
+        life, a = writer_life('ru')
+        a.resilience, a.drive, a.recognition, a.despair = 1., 1., 1., 0.
+        sure = assurance(a)
+        a.resilience, a.drive, a.recognition, a.despair = 0., 0., 0., 1.
+        shaken = assurance(a)
+        self.assertGreater(sure, .5)
+        self.assertLess(shaken, -.5)
+        threshold = .6
+        self.assertTrue(.5 >= threshold - .3 * sure)
+        self.assertFalse(.75 >= threshold - .3 * shaken)
+
     def test_born_school_form_counts_cjk_words(self):
         from mnemosyne.writing.founding import BornSchool, words
         self.assertEqual(words('听完一句拒绝'), 3)

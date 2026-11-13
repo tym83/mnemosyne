@@ -410,9 +410,12 @@ def notebook_html(at, record):
                         + ru_block(at, reading.get('reasons')) if reading else ''))
     let_go = record.get('let_go')
     if let_go:
-        parts.append(f'<h3 id="let-go">Отпустил</h3><p>Внутренний критик просил ещё правок, но вещь выше порога '
-                     f'вкуса автора ({let_go["quality"]:.2f} при пороге {let_go["threshold"]:.2f}), и он отдал её. '
-                     'Несделанное:</p><ul>' + ''.join(f'<li>{ru_inline(at, c)}</li>' for c in let_go['left_undone'])
+        why = ('наперекор и критику, и собственному вкусу: уверенность в себе перевесила'
+               if let_go.get('against_taste') else 'вещь выше порога его вкуса')
+        parts.append(f'<h3 id="let-go">Отпустил</h3><p>Внутренний критик просил ещё правок, но автор отдал вещь: '
+                     f'{why} (оценка {let_go["quality"]:.2f}, порог вкуса {let_go["threshold"]:.2f}'
+                     + (f', уверенность {let_go["assurance"]:+.2f}' if 'assurance' in let_go else '')
+                     + '). Несделанное:</p><ul>' + ''.join(f'<li>{ru_inline(at, c)}</li>' for c in let_go['left_undone'])
                      + '</ul>')
     if record.get('apparatus'):
         parts.append('<p class="muted">Аппарат разночтений сохранён: варианты, из которых выбран итоговый текст.</p>')

@@ -111,6 +111,11 @@ def around(life, a):
         f'{names[k]} — {n} из {total}' for k, n in recent.most_common(4)) + '.'
 
 
+def assurance(a) -> float:
+    """How sure of themselves a creator is tonight, about -1..1: steadiness, drive and recognition against despair."""
+    return max(-1., min(1., .5 * a.resilience + .4 * a.drive + .4 * min(1., a.recognition) - .8 * a.despair - .4))
+
+
 def dump(path, value):
     Path(path).write_text(json.dumps(value, ensure_ascii=False, indent=1))
 
@@ -251,13 +256,16 @@ class WriterNight:
                 break
             corrections = reading.corrections
         if reading.verdict == 'rewrite':
-            # An editor always has one more correction; the creator's own threshold decides whether to let it go.
-            severity = a.inner_critic.get('climate', {}).get('severity', 0)
-            if reading.quality >= a.inner_critic['threshold'] + severity:
+            # An editor always has one more correction. The creator decides: by their own taste and by how
+            # sure of themselves they are; a sure hand lets a work go over the critic's head, a shaken one holds it.
+            taste = a.inner_critic['threshold'] + a.inner_critic.get('climate', {}).get('severity', 0)
+            bar = taste - .3 * assurance(a)
+            if reading.quality >= bar:
                 reading = reading.model_copy(update={'verdict': 'accept'})
                 final['released_with'] = corrections
-                self.record['let_go'] = {'threshold': a.inner_critic['threshold'] + severity,
-                                         'quality': reading.quality, 'left_undone': corrections}
+                self.record['let_go'] = {'threshold': taste, 'bar': bar, 'assurance': assurance(a),
+                                         'quality': reading.quality, 'left_undone': corrections,
+                                         'against_taste': reading.quality < taste}
         observation = {'feature': features(final['text']), 'quality': max(0., min(1., reading.quality)),
                        'verdict': reading.verdict, 'idea': st.idea,
                        'novelty': self.novelty(features(final['text'])),
