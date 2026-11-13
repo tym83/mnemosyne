@@ -214,9 +214,32 @@ def orchestrate(lines, plan):
                 n.volume.velocity=event['velocity']
         score.insert(0,part)
     finish(score,total)
+    keyboard_clefs(score,lanes)
     return score, {'version':1,'players':[{'id':l['id'],'instrument':l['player'].instrument,
         'players':l['player'].players//l['player'].divisi + int(l['divisi']<=l['player'].players%l['player'].divisi),'divisi':l['player'].divisi,'pan':l['player'].pan,
         'events':l['events']} for l in lanes], 'decisions':audit}
+
+
+def keyboard_clefs(score, lanes):
+    """A keyboard or harp on one staff reads its low passages in the bass clef: the clef follows each
+    bar's register (with a margin, so it does not flicker) instead of staying treble throughout."""
+    from music21 import clef as clefs
+    for part,lane in zip(score.parts,lanes):
+        spec=lane['player'].spec
+        if spec['polyphony']<=1 or spec['family'] not in ('keyboard','plucked'):
+            continue
+        current='treble' if REGISTRY[lane['player'].instrument]['clefs'][0]!='bass' else 'bass'
+        for i,m in enumerate(part.getElementsByClass('Measure')):
+            pitches=[p.ps for n in m.notes for p in n.pitches]
+            if not pitches:
+                continue
+            mean=sum(pitches)/len(pitches)
+            wanted='bass' if mean<57 else 'treble' if mean>63 else current
+            if wanted!=current or i==0:
+                for old in list(m.getElementsByClass('Clef')):
+                    m.remove(old)
+                m.insert(0,clefs.BassClef() if wanted=='bass' else clefs.TrebleClef())
+                current=wanted
 
 
 def orchestrate_existing(score, settings=None):
