@@ -145,7 +145,7 @@ class Reception:
                 if w.get('art', 'music') not in arts_of(c):
                     continue
                 if w.get('last_release') == night:
-                    chance = min(.95, .12 + .22 * self.interest(c, w, author)) * (.35 if w.get('synthetic') else 1)
+                    chance = min(.95, .12 + .22 * self.interest(c, w, author)) * (.12 if w.get('synthetic') else 1)
                 else:
                     chance = .0015 * self.interest(c, w, author)
                 if r.random() < chance:
