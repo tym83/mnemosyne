@@ -160,6 +160,28 @@ class WriterNightTests(unittest.TestCase):
         self.assertEqual(life.school_attempts[-1]['status'], 'unborn')
         self.assertEqual(life.schools, {})
 
+    def test_the_creator_lets_a_good_work_go_though_the_editor_wants_more(self):
+        life, a = writer_life('ru')
+        a.inner_critic['threshold'] = .5
+
+        def ask(system, prompt, schema, step, **kw):
+            if schema is Method:
+                return Method(kind='school', school='haiku', reason='r')
+            if schema is Draft:
+                return Draft(title='t', text='\n\n'.join([HAIKU] * 3), diary='d')
+            if schema is Reading:
+                return Reading(verdict='rewrite', reasons='r', corrections=['ещё'], matters=False, quality=.85)
+            raise AssertionError(schema)
+        with tempfile.TemporaryDirectory() as tmp:
+            night = WriterNight(life, a.id, Path(tmp)/'w')
+            with patch('mnemosyne.artist.statement', return_value=(statement(), [{'interrogation': {'verdict': 'accept'}}])), \
+                 patch.object(night.writer, 'ask', side_effect=ask), \
+                 patch('mnemosyne.literature.Writer.ask', side_effect=ask):
+                record = night.run()
+        self.assertEqual(record['status'], 'accepted')
+        self.assertEqual(record['let_go']['left_undone'], ['ещё'])
+        self.assertEqual(a.catalogue[-1]['verdict'], 'accept')
+
     def test_born_school_form_counts_cjk_words(self):
         from mnemosyne.writing.founding import BornSchool, words
         self.assertEqual(words('听完一句拒绝'), 3)

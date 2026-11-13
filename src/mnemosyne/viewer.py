@@ -408,6 +408,12 @@ def notebook_html(at, record):
                         if d.get('form_problems') else '')
                      + (f'<p class="muted">Автор перечитал: {VERDICT.get(reading["verdict"], reading["verdict"])}</p>'
                         + ru_block(at, reading.get('reasons')) if reading else ''))
+    let_go = record.get('let_go')
+    if let_go:
+        parts.append(f'<h3 id="let-go">Отпустил</h3><p>Внутренний критик просил ещё правок, но вещь выше порога '
+                     f'вкуса автора ({let_go["quality"]:.2f} при пороге {let_go["threshold"]:.2f}), и он отдал её. '
+                     'Несделанное:</p><ul>' + ''.join(f'<li>{ru_inline(at, c)}</li>' for c in let_go['left_undone'])
+                     + '</ul>')
     if record.get('apparatus'):
         parts.append('<p class="muted">Аппарат разночтений сохранён: варианты, из которых выбран итоговый текст.</p>')
     return ''.join(parts)

@@ -250,6 +250,14 @@ class WriterNight:
             if reading.verdict == 'accept':
                 break
             corrections = reading.corrections
+        if reading.verdict == 'rewrite':
+            # An editor always has one more correction; the creator's own threshold decides whether to let it go.
+            severity = a.inner_critic.get('climate', {}).get('severity', 0)
+            if reading.quality >= a.inner_critic['threshold'] + severity:
+                reading = reading.model_copy(update={'verdict': 'accept'})
+                final['released_with'] = corrections
+                self.record['let_go'] = {'threshold': a.inner_critic['threshold'] + severity,
+                                         'quality': reading.quality, 'left_undone': corrections}
         observation = {'feature': features(final['text']), 'quality': max(0., min(1., reading.quality)),
                        'verdict': reading.verdict, 'idea': st.idea,
                        'novelty': self.novelty(features(final['text'])),
