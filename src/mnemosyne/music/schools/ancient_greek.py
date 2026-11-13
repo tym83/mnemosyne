@@ -29,7 +29,7 @@ def system(genus, base):
     return sorted({base+12*k+d for k in range(-11, 12) for d in degrees})
 
 
-def line(rng, metre, feet):
+def line(metre, feet):
     pattern = [v for _ in range(feet) for v in FEET[metre]]
     pattern[-1] = TRISEME
     return pattern
@@ -62,7 +62,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
         at, j = start, home
         while at < end:
             metre = rng.choice(sorted(FEET))
-            rhythm = line(rng, metre, rng.randrange(3, 6))
+            rhythm = line(metre, rng.randrange(3, 6))
             melody = []
             for k, length in enumerate(rhythm):
                 if k == len(rhythm)-1:
