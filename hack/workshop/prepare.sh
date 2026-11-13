@@ -7,7 +7,7 @@ python -m venv /work/venv
 . /work/venv/bin/activate
 pip install -q --upgrade pip
 pip install -q torch --index-url https://download.pytorch.org/whl/cpu
-pip install -q transformers==4.40.0 abctoolkit==0.0.6 samplings==0.1.7 pyparsing==3.2.1 music21 numpy pillow pyyaml ortools ezdxf huggingface_hub
+pip install -q transformers==4.40.0 abctoolkit==0.0.6 samplings==0.1.7 pyparsing==3.2.1 music21 numpy pillow pyyaml ortools ezdxf huggingface_hub pydantic cryptography zstandard
 [ -d /work/NotaGen ] || git clone -q https://github.com/ElectricAlexis/NotaGen /work/NotaGen
 cd /work/NotaGen/gradio
 # Upstream gives up on a piece after 10 minutes (sized for a GPU) and has a
