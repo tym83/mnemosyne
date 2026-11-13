@@ -23,6 +23,15 @@ class PoeticsTests(unittest.TestCase):
             self.assertIn('Манифест', text)
             self.assertIn(school.RULES, text)
 
+    def test_every_music_school_has_a_poetics(self):
+        from mnemosyne.music.schools import SCHOOLS as MUSIC
+        for name in MUSIC:
+            p = poetics.load(name)
+            self.assertIsNotNone(p, name)
+            self.assertEqual(p['art'], 'music')
+            self.assertGreaterEqual(len(p['manifesto']), 5, name)
+            self.assertIn('Слушатель', poetics.full(name))
+
     def test_a_creator_remembers_their_last_work(self):
         life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
         life.step({})

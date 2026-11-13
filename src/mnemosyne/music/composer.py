@@ -443,10 +443,12 @@ class Night:
             a.problem = None
             self.save()
             from .schools.catalog import LISTEN
+            from ..writing import poetics
             from .instrumentarium import audio_contract
             born = {k: {'name': v['name'], 'author': v['author'], 'manifesto': v['manifesto'].get('manifesto', [])}
                     for k, v in self.life.schools.items() if v.get('status') == 'accepted'}
-            method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': LISTEN,
+            method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': {k: {**v, 'poetics': poetics.brief(k)} if isinstance(v, dict) else
+                                                    f'{v} {poetics.brief(k)}' for k, v in LISTEN.items()},
                 'schools_born_here': born,
                 'task': 'Choose school (a founding school or one born here), NotaGen period style, cross, broken principle, '
                 'or invent_school. For a cross or broken principle choose form=symphony and name the exact development. '
