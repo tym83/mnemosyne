@@ -540,6 +540,11 @@ def movement(plan, index):
           'tempo': bpm, 'duration': start * 60 / bpm, 'school': 'symphony', 'audio_profile': 'native_sfz',
           'meters': meters, 'held_swell': bool(plan.get('held_swell', False))}
     score, assignment = orchestrate(lines, op)
+    from music21 import dynamics, expressions, metadata
+    # The work's title above, the movement's below: music21 otherwise writes one long title twice.
+    score.metadata = metadata.Metadata()
+    score.metadata.title = plan['title']
+    score.metadata.movementName = f"{index+1}. {mv['title']}"
     from music21 import dynamics, expressions
     # Dynamics at changes, technique names at first use: the same notation hygiene as grammar v1.
     for part in score.parts:
