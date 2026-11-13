@@ -418,6 +418,35 @@ def realize_section(plan, mi, si, start, slots, rng):
     return out
 
 
+def merge_chords(events, polyphony):
+    """Overlapping events of one polyphonic player as non-overlapping chords (a held tone is re-struck
+    only where the sounding set changes). More simultaneous tones than the instrument holds go to a
+    second player of the same kind, if the orchestra has one."""
+    if not events:
+        return []
+    cuts = sorted({e.at for e in events} | {e.at + e.duration for e in events})
+    segments = []
+    for a, b in zip(cuts, cuts[1:]):
+        on = [e for e in events if e.at <= a + 1e-9 and e.at + e.duration >= b - 1e-9]
+        if not on:
+            continue
+        pitches = tuple(sorted({p for e in on for p in e.pitches}, reverse=True))
+        vel = max(e.velocity for e in on)
+        tech = next((e.technique for e in on if e.technique), None)
+        fresh = any(abs(e.at - a) < 1e-9 for e in on)
+        if segments and not fresh and segments[-1][2] == pitches and abs(segments[-1][0] + segments[-1][1] - a) < 1e-9:
+            at, dur, ps, v, t = segments[-1]
+            segments[-1] = (at, dur + b - a, ps, v, t)
+        else:
+            segments.append((a, b - a, pitches, vel, tech))
+    chunks = [[], []]
+    for at, dur, ps, v, t in segments:
+        chunks[0].append(Event(at, dur, ps[:polyphony], v, t))
+        if len(ps) > polyphony:
+            chunks[1].append(Event(at, dur, ps[polyphony:2 * polyphony], v, t))
+    return [c for c in chunks if c]
+
+
 def movement(plan, index):
     """Score, orchestration plan, assignment and a development report for one movement."""
     from .symphony import ORCHESTRA  # noqa: F401  (v1 shared constants live there)
@@ -431,7 +460,7 @@ def movement(plan, index):
         bar_q = float(bar_q)
         meters.append((start, sec.get('meter', '4/4')))
         length = bar_q * sec['bars']
-        named = {}
+        named, merged = {}, {}
         for li, layer, events in realize_section(plan, index, si, start, slots, rng):
             role = ROLES[layer['role']]
             for name in layer['instruments']:
@@ -455,6 +484,10 @@ def movement(plan, index):
                         other = next((placed[0] + k for k in (-12, 12) if lo <= placed[0] + k <= hi), None)
                         if other is not None:
                             lanes[1].append(Event(at, dur, (other,), vel, layer.get('technique')))
+                if poly:
+                    merged.setdefault(name, []).extend(lanes[0])
+                    named[name] = named.get(name, 0) + len(lanes[0])
+                    continue
                 for d, evs in enumerate(lanes):
                     if not evs:
                         continue
@@ -463,6 +496,12 @@ def movement(plan, index):
                     lines.append(Line(f'mv{index+1}:s{si+1}:l{li+1}:{name}:{d+1}', role, evs,
                                       (min(ps), max(ps)), .5, None, name))
                 named[name] = named.get(name, 0) + sum(len(evs) for evs in lanes)
+        for name, evs in merged.items():
+            # Two hands, or a harp's two layers: everything one keyboard plays at once becomes its chords.
+            for k, chunk in enumerate(merge_chords(evs, REGISTRY[name]['polyphony'])):
+                ps = [p for e in chunk for p in e.pitches]
+                lines.append(Line(f'mv{index+1}:s{si+1}:{name}:hands{k+1}', 'figuration', tuple(chunk),
+                                  (min(ps), max(ps)), .5, None, name))
         sections.append({'role': sec['role'], 'bars': sec['bars'], 'meter': sec.get('meter', '4/4'),
                          'mode': sec.get('mode', mv.get('mode', 'major')),
                          'progression': sec.get('progression', [1]),

@@ -88,6 +88,13 @@ def validate_plan(plan, method, *, sketch=False):
             raise ValueError('write the symphony in grammar version 2 (see contract): version 1 ignores meter, '
                              'texture and tacet and writes one fixed texture')
         validate(plan, study=sketch)
+        # A dry realization here, not in the studio: an unplayable layer comes back to the composer as a plan error.
+        from .symphony2 import movement
+        for i in range(len(plan['movements'])):
+            try:
+                movement(plan, i)
+            except ValueError as exc:
+                raise ValueError(f'movement {i+1} cannot be played as written: {exc}') from None
         used = {layer['material'].split(':', 1)[1] for mv in plan['movements'] for sec in mv['sections']
                 for layer in sec.get('layers', []) if str(layer.get('material', '')).startswith('school:')}
         if method.kind == 'cross' and (len(set(method.sources)) < 2 or not set(method.sources) <= used):
