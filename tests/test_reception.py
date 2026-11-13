@@ -56,6 +56,20 @@ class ReceptionTests(unittest.TestCase):
         self.assertGreater(a.wealth, 0)
         self.assertEqual(len(a.catalogue), count)
 
+    def test_a_work_written_tonight_draws_several_reviews_on_release(self):
+        counts = []
+        for seed in range(20):
+            life = Lineage('test', datetime(2025, 1, 1), seed=seed)
+            for _ in range(5):
+                life.step({})
+            a = next(x for x in life.working() if x.art == 'literature')
+            w = life._work(a, observation=dict(feature=[.5]*4, novelty=1, quality=.8, verdict='accept'))
+            for _ in range(5):  # the work is registered on the next night; the critics answer within days
+                life.step({})
+            counts.append(sum(r['work'] == w['id'] for r in life.reception.reviews))
+        self.assertGreater(sum(counts) / len(counts), 1.)
+        self.assertGreater(sum(c >= 2 for c in counts), 5)
+
     def test_old_archive_import_preserves_works(self):
         life = Lineage('test', datetime(2025, 1, 1))
         work = life._work(life.artists[0])

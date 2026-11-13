@@ -85,7 +85,8 @@ class Reception:
         event = dict(id=f'edition-{len(self.releases)}', work=wid, artist=w['artist'], night=night,
                      kind=kind, posthumous=posthumous, raw=kind == 'from_notebooks', curve=[], reviews=[])
         self.releases.append(event)
-        w.update(released=True, attention=self.rng.uniform(.15, 1), last_release=night, edition=event['id'])
+        w.update(released=True, attention=self.rng.uniform(.15, 1), last_release=night, edition=event['id'],
+                 burst_seen=False)
         return event
 
     def review(self, wid, critic, night):
@@ -144,12 +145,16 @@ class Reception:
             for c in self.critics:
                 if w.get('art', 'music') not in arts_of(c):
                     continue
-                if w.get('last_release') == night:
-                    chance = min(.95, .12 + .22 * self.interest(c, w, author)) * (.12 if w.get('synthetic') else 1)
+                # A work written tonight is registered on the next night: its release is still news then.
+                if night - w.get('last_release', -99) <= 1 and not w.get('burst_seen'):
+                    chance = min(.95, .3 + .25 * self.interest(c, w, author)) * (.12 if w.get('synthetic') else 1)
                 else:
                     chance = .0015 * self.interest(c, w, author)
                 if r.random() < chance:
                     promise('work', wid, c, w['artist'])
+        for wid in active:
+            if night - self.works[wid].get('last_release', -99) >= 1:
+                self.works[wid]['burst_seen'] = True
         for e in (e for e in life.events if e['night'] == night):
             a = artists.get(e['artist'])
             if a is None:
