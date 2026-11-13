@@ -193,8 +193,8 @@ def validate(plan, *, study=False):
                 if not 1 <= len(dyn) <= 2 or any(d not in DYNAMICS for d in dyn):
                     raise ValueError(f'{lw}: dynamic is one of {list(DYNAMICS)} or [from, to]')
                 reg = layer.get('register')
-                if reg is not None and (len(reg) != 2 or not all(finite(x) for x in reg) or not 0 <= reg[0] < reg[1] <= 127):
-                    raise ValueError(f'{lw}: register [low, high] MIDI')
+                if reg is not None and (len(reg) != 2 or not all(finite(x) for x in reg) or not 0 <= reg[0] <= reg[1] <= 127):
+                    raise ValueError(f'{lw}: register is [low, high] in MIDI 0–127 with low ≤ high (equal pins one pitch), got {reg}')
                 if not finite(layer.get('density', .5)) or not 0 < layer.get('density', .5) <= 1:
                     raise ValueError(f'{lw}: density in (0, 1]')
                 scale_t = layer.get('time_scale', 1)
