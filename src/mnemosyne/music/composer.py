@@ -128,7 +128,8 @@ def plan_contract(method):
                           'progression = scale degrees of the section mode, one chord per harmonic_rhythm bars; '
                           'negative degree = an octave lower.',
                           'A layer: instruments (doubling each other), role, material, pattern, dynamic '
-                          '(one or [from, to]), register [low, high], density, technique, bars [first, last].',
+                          '(one or [from, to]), register [low, high], density, technique, bars [first, last], '
+                          'time_scale (a line in its own tempo: durations × time_scale, e.g. 1.414 for a √2 tempo canon).',
                           'Chords on monophonic instruments are shared among their players; keep players enough.',
                           'layers: [] is a general pause.',
                           'Unknown fields are rejected: what the grammar cannot express goes into "notes" as text.',
@@ -334,6 +335,21 @@ class Night:
         r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:raised'.encode()).digest()[:8]))
         return r.choice(sorted(SCHOOLS))
 
+    def school_key(self, name):
+        """Composers name schools as people do («Темповый канон»); the atelier keeps them by key."""
+        from .schools import SCHOOLS
+        from ..writing import poetics
+        keys = list(SCHOOLS) + list(self.life.schools)
+        if name in keys:
+            return name
+        folded = str(name).strip().casefold()
+        for k in keys:
+            names = {k.casefold(), str((poetics.load(k) or {}).get('name', '')).casefold(),
+                     str(self.life.schools.get(k, {}).get('name', '')).casefold()}
+            if folded in names:
+                return k
+        return name
+
     def school_measure(self, method):
         """How the chosen school reads a draft: its forbidden moves, markers, reading and masters."""
         from ..writing import poetics
@@ -510,6 +526,8 @@ class Night:
                 'invent_school: you then write the manifesto and the grammar of a new school yourself; '
                 'it must pass a trial and your inner critic before you compose in it.'}, ensure_ascii=False),
                 Method, 'method')
+            method = method.model_copy(update={'school': self.school_key(method.school),
+                                               'sources': [self.school_key(x) for x in method.sources]})
             self.record['method'] = method.model_dump()
             if method.kind == 'invent_school':
                 school = self.found_school(st, method)

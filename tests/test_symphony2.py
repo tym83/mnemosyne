@@ -64,6 +64,17 @@ class SymphonyV2Tests(unittest.TestCase):
              for e in sorted(p['events'], key=lambda e: e['at']) if sec['start_quarters'] <= e['at'] < sec['end_quarters']]
         self.assertLess(v[0], v[-1])
 
+    def test_tempo_canon_voice_keeps_its_ratio(self):
+        plan = g.example()
+        sec = plan['movements'][1]['sections'][0]
+        sec['layers'].append({'instruments': ['oboe'], 'role': 'counter', 'material': 'theme:waltz', 'time_scale': 1.414})
+        g.validate(plan)
+        _, _, assignment, dev = g.movement(plan, 1)
+        end = dev['sections'][0]['end_quarters']
+        oboe = sorted(e['at'] for p in assignment['players'] if p['instrument'] == 'oboe' for e in p['events'] if e['at'] < end)
+        cello = sorted(e['at'] for p in assignment['players'] if p['instrument'] == 'cello_section' for e in p['events'] if e['at'] < end)
+        self.assertLess(len(oboe), len(cello))
+
 
 if __name__ == '__main__':
     unittest.main()

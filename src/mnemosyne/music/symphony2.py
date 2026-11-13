@@ -37,7 +37,8 @@ MOVEMENT_KEYS = {'title', 'character', 'form', 'tempo', 'centre', 'mode', 'schoo
 SECTION_KEYS = {'role', 'bars', 'meter', 'theme', 'transform', 'shift', 'mode', 'progression',
                 'harmonic_rhythm', 'layers', 'schools', 'notes'}
 LAYER_KEYS = {'instruments', 'role', 'material', 'transform', 'pattern', 'dynamic', 'register', 'density',
-              'technique', 'bars', 'octave_double', 'notes'}
+              'technique', 'bars', 'octave_double', 'time_scale', 'notes'}
+GRID = .125  # onsets of a time-scaled line fall on a 1/32-note grid; the mean ratio is kept exactly
 
 
 def finite(x):
@@ -189,6 +190,9 @@ def validate(plan, *, study=False):
                     raise ValueError(f'{lw}: register [low, high] MIDI')
                 if not finite(layer.get('density', .5)) or not 0 < layer.get('density', .5) <= 1:
                     raise ValueError(f'{lw}: density in (0, 1]')
+                scale_t = layer.get('time_scale', 1)
+                if not finite(scale_t) or not .25 <= scale_t <= 4:
+                    raise ValueError(f'{lw}: time_scale in [0.25, 4] (duration multiplier: 1.414 = this voice at 1/√2 tempo)')
                 span = layer.get('bars')
                 if span is not None and (len(span) != 2 or not all(type(x) is int for x in span)
                                          or not 1 <= span[0] <= span[1] <= sec['bars']):
@@ -380,6 +384,13 @@ def realize_section(plan, mi, si, start, slots, rng):
                         events.append((a + k * .5, .5, [source[rng.randrange(len(source))]], t))
         if pattern == 'line':
             ps, ds = stream_ps, stream_ds
+            k = layer.get('time_scale', 1)
+            if ps is not None and k != 1:
+                # A voice in its own tempo: exact scaled onsets rounded to the grid, so the ratio holds over a phrase.
+                onsets, x = [], 0.
+                for d in list(ds) * 2:
+                    onsets.append(round(x * k / GRID) * GRID); x += d
+                ds = [max(GRID, b - a) for a, b in zip(onsets, onsets[1:])][:len(ds)]
             if ps is None:  # a line in the harmony: chord tones stepping through the bars
                 ps = [c for b in range(first - 1, last) for c in harmony_at(b)]
                 ds = [bar_q / 3] * len(ps)
