@@ -1,0 +1,47 @@
+{
+  "title": "gregorian",
+  "school": "gregorian",
+  "seed": 20261201,
+  "duration": 180,
+  "tempo": 60,
+  "ensemble": "satb",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 45.0,
+      "character": "still",
+      "density": 0.35,
+      "register": [
+        40,
+        81
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "flowing",
+      "density": 0.6,
+      "register": [
+        40,
+        81
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "luminous",
+      "density": 0.85,
+      "register": [
+        40,
+        81
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "dissolving",
+      "density": 0.3,
+      "register": [
+        40,
+        81
+      ]
+    }
+  ]
+}
