@@ -17,7 +17,7 @@ rest, rhythmic proportion, row order or technique is changed by this channel.
 The remaining authorized freedoms (microtonal contours, bowing, entry order,
 etc.) are not required for the measured target and are not silently rewritten.
 
-`weave.school_audit` measures all nineteen schools after actual XML serialization,
+`weave.school_audit` measures all twenty-eight schools after actual XML serialization,
 checks pitch/duration invariants and tamper rejection, compares woven/unwoven
 histograms and recovers both compact frame series and task-08 fountain series.
 Run the full audit in a studio:
@@ -42,7 +42,7 @@ for a missing solo voice or extended technique.
 
 ## Plan contract
 
-See `plans/*.json` for nineteen complete examples. `duration` and each form section's
+See `plans/*.json` for twenty-eight complete examples. `duration` and each form section's
 `duration` are seconds; `tempo` is quarter notes per minute. Section durations
 sum exactly to the whole. Durations must land on a sixteenth-note grid and each
 section must have at least four quarter notes. There is no hidden rounding.
@@ -193,7 +193,7 @@ across different pieces is not comparable. Every audio file retains planned
 silence and a two-second tail. Technical checks are not listening approval.
 
 Render selected schools with `bash hack/workshop/render_schools.sh feldman
-process ...` (or omit arguments for all 19). Finished work is never overwritten;
+process ...` (or omit arguments for all 28). Finished work is never overwritten;
 all attempts are retained in the pod. Published artifacts transfer through a
 verified staging archive with retries; raw WAVs remain in the pod. After all files arrive:
 
@@ -203,6 +203,51 @@ uv run python -m unittest discover -s tests -p 'test_music*.py'
 ```
 
 The catalog checks every published artifact hash before writing `INDEX.md`.
+
+## Nine older traditions (grammar version 2)
+
+The founding schools are all twentieth-century methods. These nine add older
+techniques with the same plan contract, `FREE_CHANNELS`, poetics in
+`atlas/music/poetics/` and example plans of 180 seconds. They are limited rule
+systems inspired by techniques, not models of the named composers; no surviving
+melody is quoted. Shared helpers: `chant.py` (eight church modes, stepwise
+degree walks, tenor/upper voice roles) and `tonal.py` (keys, numerals including
+applied chords, ensemble roles).
+
+- `ancient_greek`: two disjunct tetrachords in the diatonic, chromatic or
+  enharmonic genus (quarter tones, sounding pitches x.5; still/dissolving
+  sections are enharmonic), an octave species chosen by seed, lines of
+  long/short feet ending on a triseme; heterophonic aulos and lyre parts.
+  Piano plays only the fixed (semitone) notes.
+- `gregorian`: one of eight modes (final, reciting tone, ambitus); psalm-tone
+  recitation, neumatic groups of 1-3 eighths or melismas by section; cantor and
+  choir alternate in unison/octaves over an ison on the final (an Eastern
+  practice borrowed here, documented in the poetics).
+- `organum`: chant tenor in the lowest non-piano part, held 4-8 perfections
+  (discant longs in dense sections); up to three upper voices in rhythmic modes
+  I, II, III or VI, with a unison, fifth or octave above the tenor on every
+  perfection and stepwise passing notes between.
+- `ars_nova`: tenor from a talea (3-5 values and a rest) and a color whose length
+  is not a multiple of it; diminution in agitated sections, an isorhythmic
+  contratenor, hocket in dense sections, double-leading-tone cadences.
+- `renaissance_polyphony`: points of imitation with equal entry distances on
+  the final and the answer interval (least-clash choice), consonance-checked
+  free counterpoint, 7-6 suspension cadences on the final (musica ficta except
+  Phrygian). Parallel perfect intervals are not checked.
+- `fugue`: two-bar subject, real/tonal answer at the fifth, one recurring
+  countersubject, sequential episodes on the subject head, middle entries in
+  related keys, stretto, dominant pedal and a Picardy close.
+- `basso_continuo`: ritornello (tutti, f) and circle-of-fifths episodes (solo,
+  p); the bass moves on every beat, the keyboard realizes chords above it. The
+  plan's section dynamics are replaced by these terraces.
+- `classical`: parallel periods (half cadence, then ii-V7-I) with Alberti or
+  pulsing accompaniment; middle sections in the dominant, a modulating
+  consequent and a retransition on the home V7.
+- `romantic`: long melody with opening leaps and appoggiaturas over wide
+  arpeggios; applied dominants, diminished sevenths, a chromatic-mediant middle
+  key, suspensions, phrase swells and one climax that widens the register.
+
+`tests/test_old_schools.py` checks each signature device on the example plans.
 
 ## Shared instrumentarium and native SFZ rendering
 
@@ -248,7 +293,8 @@ inference. This layer is a feasibility heuristic, not an autonomous artistic
 orchestrator. The school algorithms still own their rhythms and pitch processes;
 the adapter preserves their pitches, dynamics and glissandi before assigning
 playable parts. `orchestrated_plans/` contains separate revised realizations of
-all nineteen studies; the original plans and published works are preserved.
+the nineteen founding studies (the nine older traditions above have none yet);
+the original plans and published works are preserved.
 The narrow Ligeti registers are explicitly permitted by that grammar. Xenakis
 uses wide registral mass and ff/fff, Webern is a 24-second sparse point study,
 and Pärt uses a bell/strings ensemble and stillness. Other profiles follow the
