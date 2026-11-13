@@ -2242,7 +2242,7 @@ instruments:
     - 79
     sounding_minus_written: -12
     clefs:
-    - treble
+    - treble8vb
     music21: Guitar
     gm_program: 24
     section: false

@@ -140,6 +140,11 @@ def plan_contract(method):
                           'repeat (statements of a line, default 1; 0 = until its bars end), offset (entry in quarters '
                           'after the downbeat of its first bar), rest_between (quarters of silence between statements).',
                           'Themes sound at the MIDI pitches you write; a section shift transposes them.',
+                          'A time_scale line is written on a sixteenth grid: each onset is the exact scaled onset '
+                          'rounded to the nearest sixteenth, so the ratio holds over a phrase, not note by note. '
+                          'Judge a canon by its entries and phrase lengths, not by single written values.',
+                          'Notation: guitar on the treble clef an octave lower (8vb); keyboards and harp switch to the '
+                          'bass clef in low bars. Pedal and other playing marks are not written; put them in notes.',
                           'Chords on monophonic instruments are shared among their players; keep players enough.',
                           'layers: [] is a general pause.',
                           'Unknown fields are rejected: what the grammar cannot express goes into "notes" as text.',
