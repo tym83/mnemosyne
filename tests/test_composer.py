@@ -13,22 +13,51 @@ from mnemosyne.state.collect import archive
 
 class ComposerTests(unittest.TestCase):
     def test_unrenderable_orchestras_rejected_before_worker(self):
-        from mnemosyne.music.symphony import test_plan
+        from mnemosyne.music.symphony2 import example as test_plan
         method = self.method().model_copy(update={'form': 'symphony'})
         for orchestra, message in [([{'instrument': 'voice', 'type': 'alto'}], 'Unknown instrument'),
                                    ([{'instrument': 'alto'}], 'unavailable for audio'),
-                                   ([{'instrument': 'flute'}], 'default orchestra slots')]:
+                                   ([{'instrument': 'flute'}], 'from your orchestra')]:
             plan = test_plan()
             plan['orchestra'] = orchestra
             with self.subTest(orchestra=orchestra), self.assertRaisesRegex(ValueError, message):
                 validate_plan(plan, method, sketch=True)
+        old = __import__('mnemosyne.music.symphony', fromlist=['test_plan']).test_plan()
+        with self.assertRaisesRegex(ValueError, 'version 2'):
+            validate_plan(old, method, sketch=True)
         contract = plan_contract(method)
+        self.assertEqual(contract['version'], 2)
         self.assertIn('alto', contract['audio']['unavailable'])
         self.assertNotIn('alto', contract['audio']['instruments'])
 
+    def test_composer_has_own_hand_home_school_and_is_addressed_by_gender(self):
+        from unittest.mock import Mock
+        from mnemosyne.music.composer import PlanText
+        from mnemosyne.music.symphony2 import example
+        from mnemosyne.artist import Statement
+        from mnemosyne.psyche import music_hand, gender
+        life = Lineage('test', datetime(2025, 1, 1))
+        a = life.artists[0]
+        a.portrait = 'Fixture portrait'
+        hands = {music_hand(b) for b in life.artists} | {music_hand(type('A', (), {'id': f'x-{i}'})) for i in range(8)}
+        self.assertGreater(len(hands), 5)
+        st = Statement(**{k: [] if f.annotation == list[str] else 'fixture' for k, f in Statement.model_fields.items()})
+        seen = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            night = Night(life, a.id, Path(tmp)/'work', Mock(spec=['run']))
+            def statement(portrait, art, *args, inner=None, **kw):
+                seen['inner'] = inner
+                return st, [{'interrogation': {'verdict': 'rewrite', 'reasons': 'no'}}]
+            with patch('mnemosyne.artist.statement', side_effect=statement):
+                night.run('quiet')
+            self.assertIn('Твоя школа — ', seen['inner'])
+            self.assertIn('Твоя рука в звуке', night.system)
+            self.assertIn('женщина' if gender(a) == 'female' else 'мужчина', night.system)
+            self.assertTrue(night.home_school())
+
     def test_artist_receives_constraints_and_exhausted_plans_are_retained(self):
         from mnemosyne.music.composer import PlanText
-        from mnemosyne.music.symphony import test_plan
+        from mnemosyne.music.symphony2 import example as test_plan
         from mnemosyne.artist import Statement
         life = Lineage('test', datetime(2025, 1, 1))
         life.artists[0].portrait = 'Fixture portrait'

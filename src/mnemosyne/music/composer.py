@@ -84,9 +84,12 @@ def validate_plan(plan, method, *, sketch=False):
         raise NotImplementedError('school birth requires a reviewed grammar and decoder')
     if method.form == 'symphony':
         from .symphony import validate
+        if plan.get('version') != 2:
+            raise ValueError('write the symphony in grammar version 2 (see contract): version 1 ignores meter, '
+                             'texture and tacet and writes one fixed texture')
         validate(plan, study=sketch)
-        used = {name for mv in plan['movements'] for sec in mv['sections']
-                for name in sec.get('schools', mv.get('schools', []))}
+        used = {layer['material'].split(':', 1)[1] for mv in plan['movements'] for sec in mv['sections']
+                for layer in sec.get('layers', []) if str(layer.get('material', '')).startswith('school:')}
         if method.kind == 'cross' and (len(set(method.sources)) < 2 or not set(method.sources) <= used):
             raise ValueError('a cross must realize at least two declared source schools')
         if method.kind == 'broken_principle' and (not method.principle or not method.transformation):
@@ -112,12 +115,25 @@ def plan_contract(method):
     from .schools import SCHOOLS
     from .instrumentarium import audio_contract
     if method.form == 'symphony':
-        from .symphony import FORMS, TRANSFORMS, ORCHESTRA
-        return {'version': 1, 'forms': FORMS, 'transforms': sorted(TRANSFORMS),
-                'audio': audio_contract(), 'required_orchestra': ORCHESTRA,
-                'orchestra_rule': 'This grammar writes fixed instrument-bound lines; retain at least all required orchestra slots.',
-                'contract': 'symphony.validate: 3–5 movements, 20–45 minutes (sketch study may be shorter)',
-                'example': json.loads((Path(__file__).parent/'plans/symphony-test.json').read_text())}
+        from .symphony import FORMS
+        from . import symphony2 as g
+        return {'version': 2, 'forms': {**FORMS, 'free': 'any section roles you name'},
+                'transforms': sorted(g.TRANSFORMS), 'modes': g.MODES, 'dynamics': list(g.DYNAMICS),
+                'layer_roles': sorted(g.ROLES), 'patterns': sorted(g.PATTERNS), 'techniques': sorted(g.TECHNIQUES),
+                'materials': 'theme:<name> | row:<name> (12 pitch classes) | school:<school> (its reservoir) | '
+                             'notagen (the archived notagen_material) | harmony | scale',
+                'audio': audio_contract(),
+                'rules': ['Only what a layer names sounds: an instrument absent from all layers of a section is silent there.',
+                          'Each section sets its own meter ("3/4", "2/4", "7/8", "6/8", "5/4"…); tempo is per movement.',
+                          'progression = scale degrees of the section mode, one chord per harmonic_rhythm bars; '
+                          'negative degree = an octave lower.',
+                          'A layer: instruments (doubling each other), role, material, pattern, dynamic '
+                          '(one or [from, to]), register [low, high], density, technique, bars [first, last].',
+                          'Chords on monophonic instruments are shared among their players; keep players enough.',
+                          'layers: [] is a general pause.',
+                          'Unknown fields are rejected: what the grammar cannot express goes into "notes" as text.',
+                          '3–5 movements, 20–45 minutes (a sketch study may be shorter and have 1–5 movements).'],
+                'example': g.example()}
     if method.school not in SCHOOLS:
         raise ValueError('unknown school')
     from .schools.plan import SchoolPlan
@@ -302,6 +318,37 @@ class Night:
         atelier.write()
         self.objects = atelier.objects
 
+    def home_school(self):
+        """The school a composer's idea grows in: their own last one, a teacher's, or the one they were raised in."""
+        from .schools import SCHOOLS
+        a = self.artist
+        known = set(SCHOOLS) | {k for k, v in self.life.schools.items()
+                                if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
+        own = next((w.get('school') for w in reversed(a.catalogue) if w.get('school') in known), None)
+        if own or a.school in known:
+            return own or a.school
+        taught = [w.get('school') for t in a.teachers for b in self.life.artists if b.id == t
+                  for w in b.catalogue if w.get('school') in known]
+        if taught:
+            return taught[-1]
+        r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:raised'.encode()).digest()[:8]))
+        return r.choice(sorted(SCHOOLS))
+
+    def school_measure(self, method):
+        """How the chosen school reads a draft: its forbidden moves, markers, reading and masters."""
+        from ..writing import poetics
+        names = [method.school] if method.kind in ('school', 'notagen') else list(dict.fromkeys(method.sources))
+        parts = []
+        for n in names:
+            if poetics.load(n):
+                parts.append(poetics.full(n, keys=['forbidden', 'markers', 'reading']))
+                masters = (poetics.load(n) or {}).get('exemplars') or []
+                if masters:
+                    parts.append('Мастера школы, на которых ты сверяешься: ' + poetics.flat(masters[:4]))
+        if method.kind == 'broken_principle':
+            parts.append(f'Нарушенный принцип: {method.principle}; преобразование: {method.transformation}.')
+        return '\n'.join(parts)
+
     def ask(self, system, prompt, schema, step, **kwargs):
         try:
             return self.writer.ask(system, prompt, schema, step, **kwargs)
@@ -324,8 +371,8 @@ class Night:
                                  if c.get('material')]
                     if plan.get('notagen_material') not in materials:
                         raise ValueError('use one archived candidate material verbatim as notagen_material')
-                    if not any('notagen' in sec.get('schools', mv.get('schools', []))
-                               for mv in plan['movements'] for sec in mv['sections']):
+                    if not any(layer.get('material') == 'notagen'
+                               for mv in plan['movements'] for sec in mv['sections'] for layer in sec.get('layers', [])):
                         raise ValueError('NotaGen material must actually participate in the work')
                 self.entries.append({'step': step, 'plan': plan, 'diary': answer.diary})
                 self.save()
@@ -409,9 +456,19 @@ class Night:
         name = 'творец' if a.name == a.id else a.name
         names = {b.id: ('творец' if b.name == b.id else b.name) for b in self.life.artists}
         teachers = [names.get(t, t) for t in a.teachers]
-        self.system = (f'Ты композитор {name}. {a.portrait}\nУчителя: {teachers}. '
-                       'Художественные решения принимаешь ты. Не упоминай инфраструктуру. '
-                       'Слушай через анализ и изображения партитуры; это не непосредственное прослушивание.')
+        from ..psyche import gender, temper, music_hand
+        sex = 'женщина' if gender(a) == 'female' else 'мужчина'
+        self.voice = f'{temper(a)}\n{music_hand(a)}'
+        def system_for(n):
+            return (f'Ты — {n}, композитор; ты {sex}. {a.portrait}\nУчителя: {teachers}.\n{self.voice}\n'
+                    'Художественные решения принимаешь ты. Не упоминай инфраструктуру. '
+                    'Слушай через анализ и изображения партитуры; это не непосредственное прослушивание.')
+        self.system = system_for(name)
+        home = self.home_school()
+        if home:
+            from ..writing import poetics
+            inner += ('\n\nТвоя школа — ' + poetics.brief(home) +
+                      '\nЗамысел может родиться внутри её поэтики, в споре с ней или вне её.')
         try:
             if not a.portrait or a.portrait == '[portrait awaiting words]':
                 portrait = ideas.self_portrait({'born': a.birth, 'age_days': a.age,
@@ -419,9 +476,7 @@ class Night:
                     self.entries, backend=self.backend, inner=inner)
                 a.name, a.portrait = portrait.name, plain(portrait.portrait)
                 name = a.name
-                self.system = (f'Ты композитор {a.name}. {a.portrait}. Учителя: {teachers}. '
-                               'Не упоминай инфраструктуру. Принимай художественные решения по идее, '
-                               'анализу звучания и изображениям партитуры.')
+                self.system = system_for(a.name)
                 self.record['portrait'] = portrait.model_dump()
                 self.save()
             portrait = ideas.SelfPortrait(name=name, portrait=a.portrait + '\nУчителя: '+', '.join(teachers),
@@ -449,7 +504,7 @@ class Night:
                     for k, v in self.life.schools.items() if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': {k: {**v, 'poetics': poetics.brief(k)} if isinstance(v, dict) else
                                                     f'{v} {poetics.brief(k)}' for k, v in LISTEN.items()},
-                'schools_born_here': born,
+                'schools_born_here': born, 'home_school': self.home_school(),
                 'task': 'Choose school (a founding school or one born here), NotaGen period style, cross, broken principle, '
                 'or invent_school. For a cross or broken principle choose form=symphony and name the exact development. '
                 'invent_school: you then write the manifesto and the grammar of a new school yourself; '
@@ -509,19 +564,32 @@ class Night:
                               images=[self.root/p for p in sketch['images']])
             context['sketch_review'] = review.model_dump()
             final = None
+            measure = self.school_measure(method)
             for i in range(drafts):
                 scale = ('форма и драматургия', 'фактура и голосоведение', 'нюансы и детали')[min(i, 2)]
                 context['correction_scale'] = scale
                 plan = self.plan(method, context, f'draft-plan:{i}')
                 final = self.music(plan, method, f'draft-{i:02d}')
                 review = self.ask(self.system, json.dumps({'context': context, 'draft': art_sketch(final),
-                    'task': f'Проверь идею, метод и звучание по анализу и нотам. Исправления: {scale}. '
+                    'school_measure': measure,
+                    'task': f'Проверь идею, метод и звучание по анализу и нотам, мерой своей школы и её мастеров '
+                            f'(school_measure), а не общим вкусом. Исправления: {scale}. '
                             'accept только если работа завершена. Оцени, нужна ли глава Жизнеописаний.'},
                     ensure_ascii=False), Listening, f'listen:draft:{i}',
                     images=[self.root/p for p in final['images']])
                 context.update(previous_plan=plan, correction=review.model_dump())
                 if review.verdict == 'accept':
                     break
+            if review.verdict == 'rewrite':
+                # Like a writer, a composer lets a work go by their own taste and how sure of themselves they are.
+                from ..writing.night import assurance
+                taste = a.inner_critic.get('threshold', .6) + a.inner_critic.get('climate', {}).get('severity', 0)
+                bar = taste - .3 * assurance(a)
+                if review.quality >= bar:
+                    self.record['let_go'] = {'threshold': taste, 'bar': bar, 'assurance': assurance(a),
+                                             'quality': review.quality, 'left_undone': review.corrections,
+                                             'against_taste': review.quality < taste}
+                    review = review.model_copy(update={'verdict': 'accept'})
             if final is None:
                 raise ValueError('at least one draft required')
             self.record.update(final=final['id'], verdict=review.model_dump(),
