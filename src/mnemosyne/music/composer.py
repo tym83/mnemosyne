@@ -133,6 +133,7 @@ def plan_contract(method):
                 'audio': audio_contract(),
                 'playable_spans': {n: g.playable(n) for n in audio_contract()['instruments']
                                    if not REGISTRY[n].get('unpitched')},
+                'techniques': {n: sorted(g.techniques(n)) for n in audio_contract()['instruments']},
                 'rules': ['Only what a layer names sounds: an instrument absent from all layers of a section is silent there.',
                           'Each section sets its own meter ("3/4", "2/4", "7/8", "6/8", "5/4"…); tempo is per movement.',
                           'progression = scale degrees of the section mode, one chord per harmonic_rhythm bars; '

@@ -173,10 +173,15 @@ def validate(plan, *, study=False):
                 if layer.get('role') not in ROLES:
                     raise ValueError(f'{lw}: role one of {sorted(ROLES)}')
                 unpitched = [n for n in names if REGISTRY[n].get('unpitched')]
-                if unpitched and (layer['role'] != 'percussion' or len(unpitched) != len(names)):
-                    raise ValueError(f'{lw}: unpitched {unpitched} play only in a percussion layer of '
-                                     'unpitched instruments; put pitched percussion (timpani, glockenspiel, '
-                                     'xylophone…) in its own layer')
+                if unpitched and layer['role'] != 'percussion':
+                    raise ValueError(f'{lw}: unpitched {unpitched} need role "percussion" '
+                                     '(pitched instruments may share that layer)')
+                tech = layer.get('technique')
+                if tech:
+                    lacking = [n for n in names if tech not in techniques(n)]
+                    if lacking:
+                        raise ValueError(f'{lw}: technique {tech} has no samples for {lacking}; available: '
+                                         + '; '.join(f'{n}: {sorted(techniques(n))}' for n in lacking))
                 material = layer.get('material', 'harmony')
                 kind, _, ref = str(material).partition(':')
                 if kind == 'theme' and ref not in themes or kind == 'row' and ref not in rows:
@@ -220,8 +225,6 @@ def validate(plan, *, study=False):
                 sounding.update(names)
         heard.append(used)
         seconds += float(quarters) * 60 / mv['tempo']
-    if len(heard) > 1 and not set.intersection(*heard):
-        raise ValueError('one cyclic theme must return in every movement')
     if not sounding:
         raise ValueError('nothing sounds: every section has empty layers')
     if not study and not 1200 <= seconds <= 2700:
@@ -246,6 +249,13 @@ def transform(ps, ds, operation):
     elif operation == 'fragmentation':
         ps = ps[:max(1, min(len(ps), max(2, len(ps) // 2)))]; ds = ds[:len(ps)]
     return ps, ds
+
+
+def techniques(instrument):
+    """Playing techniques with samples for this instrument (sustain/arco is the plain sound)."""
+    spec = REGISTRY[instrument]
+    names = set(spec['samples'].get('patches', {})) | set(spec['samples'].get('key_ranges', {}))
+    return names | {'arco' if spec['family'] == 'strings' else 'sustain'}
 
 
 def playable(instrument):
