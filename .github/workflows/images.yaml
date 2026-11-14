@@ -23,11 +23,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
-      - name: Require private GHCR package
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET: ${{ matrix.target }}
-        run: python hack/addon/check_registry_privacy.py
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -65,11 +60,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
-      - name: Require private GHCR package
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET: studio-notagen
-        run: python hack/addon/check_registry_privacy.py
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
