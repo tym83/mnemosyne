@@ -401,7 +401,8 @@ class Night:
                     + ('Short study of the method.' if sketch else 'Complete work, derived from the sketches.'),
                     'context': context, 'contract': contract}, ensure_ascii=False)
         for attempt in range(3):
-            answer = self.ask(self.system, prompt, PlanText, f'{step}:{attempt}',
+            # A symphony plan with thinking runs past 32k tokens; the endpoint's own limit still caps it.
+            answer = self.ask(self.system, prompt, PlanText, f'{step}:{attempt}', max_tokens=64000,
                               images=[self.root/p for p in context.get('candidate_images', [])])
             try:
                 plan = validate_plan(json.loads(answer.plan_json), method, sketch=sketch)
