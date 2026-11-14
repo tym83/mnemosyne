@@ -124,7 +124,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
     dump(root/'lineage.json', life.state())
     atelier = Atelier(life.cluster, root/'atelier')
     atelier.lineage(life)
-    sources, records, notebooks = [], [], []
+    sources, records, notebooks, failures = [], [], [], []
     if request['mode'] == 'chamber':
         sources, records = chamber(life, root)
     else:
@@ -133,11 +133,15 @@ def run(request, root, key, objects, *, previous=None, climate=None):
             night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
                           sound=request.get('render', True))
             # Inner life is the felt climate the composer derives itself; nothing is supplied.
-            result = night.run('', drafts=request.get('drafts', 3), key=None)
+            # One creator's failure is part of their night, kept in their notebook; the others go on.
+            try:
+                night.run('', drafts=request.get('drafts', 3), key=None)
+            except Exception as exc:
+                night.record.setdefault('error', f'{type(exc).__name__}: {exc}'[:500])
+                night.record['status'] = 'failed'
+                failures.append(artist.id)
             records.extend(o for o in night.objects if o['kind'] != 'Atelier')
             notebooks.append((night.work_id, night.record))
-            if result['status'] == 'failed':
-                raise RuntimeError('composer failed; notebook retained')
             for sk in night.sketches:
                 if 'plan' not in sk:
                     continue
@@ -150,13 +154,19 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         from mnemosyne.writing.night import WriterNight
         for artist in (a for a in life.working() if a.art == 'literature'):
             writer = WriterNight(life, artist.id, root/artist.id, backend=None)
-            result = writer.run()
+            try:
+                writer.run()
+            except Exception as exc:
+                writer.record.setdefault('error', f'{type(exc).__name__}: {exc}'[:500])
+                writer.record['status'] = 'failed'
+                failures.append(artist.id)
             notebooks.append((writer.work_id, writer.record))
-            if result['status'] == 'failed':
-                raise RuntimeError('writer failed; notebook retained')
     if request['mode'] != 'chamber':
-        life.reception.write_words(life=life)
-        life.write_words()
+        try:
+            life.reception.write_words(life=life)
+            life.write_words()
+        except Exception as exc:
+            failures.append(f'words: {type(exc).__name__}: {exc}'[:300])
     from mnemosyne.weave import night as tonight
     extra = []
     entries, publish = tonight.texts(life, notebooks)
@@ -203,6 +213,7 @@ def run(request, root, key, objects, *, previous=None, climate=None):
             record['metadata']['name'] = request['atelier']
     dump(root/'records.json', records)
     dump(root/'complete.json', report)
+    report['failed_creators'] = failures
     return records, report
 
 
