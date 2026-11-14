@@ -15,6 +15,9 @@ from mnemosyne.operator.policy import job_name, window
 @kopf.on.startup()
 def startup(settings, **_):
     settings.posting.enabled = False
+    # One namespace, one known resource: no cluster-wide CRD or namespace scans, so a tenant
+    # install needs no cluster role (found on the first real install: 403 on both lists).
+    settings.scanning.disabled = True
     settings.persistence.progress_storage = kopf.StatusProgressStorage(field='status.kopf.progress')
     settings.persistence.diffbase_storage = kopf.AnnotationsDiffBaseStorage(prefix='mnemosyne.art')
 
