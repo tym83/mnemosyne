@@ -309,9 +309,11 @@ class Writer:
                         "seconds": time.monotonic()-start, **meta, "result": result.model_dump()})
                     return result
                 except Exception as exc:
+                    # The reason, never the prompt: HTTP errors carry no body; answer errors say why they failed.
+                    reason = None if getattr(exc, "status_code", None) else str(exc)[:300]
                     self.notebook.append({"step": step, "endpoint": name, "role": role,
                         "attempt": attempt, "error_type": type(exc).__name__,
-                        "status_code": getattr(exc, "status_code", None),
+                        "status_code": getattr(exc, "status_code", None), "reason": reason,
                         "seconds": time.monotonic()-start})
                     # Outages move immediately to the next configured endpoint.
                     if _transient(exc):

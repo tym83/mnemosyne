@@ -158,6 +158,10 @@ def request(endpoint, system, prompt, schema, max_tokens, images=None):
         answer = choice['message']['content']
     else:
         if result.get('stop_reason') not in (None, 'end_turn'):
-            raise ValueError('incomplete model answer')
+            raise ValueError(f"incomplete model answer: stop_reason={result.get('stop_reason')}, "
+                             f"category={(result.get('stop_details') or {}).get('category')}, "
+                             f"output_tokens={(result.get('usage') or {}).get('output_tokens')}")
         answer = ''.join(b['text'] for b in result['content'] if b['type'] == 'text')
+        if not answer.strip():
+            raise ValueError(f"empty model answer: blocks={[b['type'] for b in result['content']]}")
     return answer, {'engine': endpoint.model, 'usage': result.get('usage', {})}
