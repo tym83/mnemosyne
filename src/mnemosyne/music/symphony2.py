@@ -22,6 +22,13 @@ MODES = {
     'octatonic': [0, 1, 3, 4, 6, 7, 9, 10], 'hijaz': [0, 1, 4, 5, 7, 8, 10], 'chromatic': list(range(12)),
 }
 DYNAMICS = {'ppp': 24, 'pp': 36, 'p': 48, 'mp': 60, 'mf': 72, 'f': 88, 'ff': 104, 'fff': 118}
+def line_role(role, instrument):
+    # Pitched percussion in a percussion layer plays its pitches as figuration.
+    if role == 'percussion' and not REGISTRY[instrument].get('unpitched'):
+        return 'figuration'
+    return ROLES[role]
+
+
 ROLES = {'melody': 'melody', 'counter': 'counter_line', 'bass': 'bass', 'pad': 'harmony_pad',
          'chorale': 'harmony_pad', 'drone': 'harmony_pad', 'ostinato': 'figuration',
          'figuration': 'figuration', 'points': 'counter_line', 'percussion': 'percussion_layer'}
@@ -167,9 +174,9 @@ def validate(plan, *, study=False):
                     raise ValueError(f'{lw}: role one of {sorted(ROLES)}')
                 unpitched = [n for n in names if REGISTRY[n].get('unpitched')]
                 if unpitched and (layer['role'] != 'percussion' or len(unpitched) != len(names)):
-                    raise ValueError(f'{lw}: unpitched {unpitched} play only in a percussion layer, alone')
-                if layer['role'] == 'percussion' and len(unpitched) != len(names):
-                    raise ValueError(f'{lw}: a percussion layer holds unpitched instruments only')
+                    raise ValueError(f'{lw}: unpitched {unpitched} play only in a percussion layer of '
+                                     'unpitched instruments; put pitched percussion (timpani, glockenspiel, '
+                                     'xylophone…) in its own layer')
                 material = layer.get('material', 'harmony')
                 kind, _, ref = str(material).partition(':')
                 if kind == 'theme' and ref not in themes or kind == 'row' and ref not in rows:
@@ -241,6 +248,16 @@ def transform(ps, ds, operation):
     return ps, ds
 
 
+def playable(instrument):
+    """Sounding span an instrument really plays here: its range met by its sampled keys."""
+    spec = REGISTRY[instrument]
+    technique = 'arco' if spec['family'] == 'strings' else 'sustain'
+    zones = spec['samples'].get('key_ranges', {}).get(technique, [spec['range']])
+    lo = max(spec['range'][0], min(a for a, _ in zones))
+    hi = min(spec['range'][1], max(b for _, b in zones))
+    return lo, hi
+
+
 def place(pitch, instrument, register=None):
     """The octave of pitch class `pitch` nearest to the register's centre, playable and sampled."""
     spec = REGISTRY[instrument]
@@ -256,7 +273,9 @@ def place(pitch, instrument, register=None):
                if spec['range'][0] <= pitch + 12 * k <= spec['range'][1]
                and any(a <= round(pitch + 12 * k) <= b for a, b in zones)]
     if not options:
-        raise ValueError(f'{instrument} cannot play pitch class of {pitch}')
+        lo_p, hi_p = playable(instrument)
+        raise ValueError(f'{instrument} plays sounding MIDI {lo_p}–{hi_p} with the available samples; '
+                         f'pitch class of {pitch} has no octave there')
     inside = [p for p in options if lo <= p <= hi] or options
     return min(inside, key=lambda p: abs(p - target))
 
@@ -487,8 +506,8 @@ def movement(plan, index):
         length = bar_q * sec['bars']
         named, merged = {}, {}
         for li, layer, events in realize_section(plan, index, si, start, slots, rng):
-            role = ROLES[layer['role']]
             for name in layer['instruments']:
+                role = line_role(layer['role'], name)
                 spec = REGISTRY[name]
                 poly = spec['polyphony'] > 1
                 # A chord on monophonic players is shared out among them, top to bottom; a keyboard or harp takes it whole.

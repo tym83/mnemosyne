@@ -243,3 +243,10 @@ class ModelTests(unittest.TestCase):
             score = SCHOOLS['tintinnabuli'].compose(plan, plan['seed'])
             self.assertTrue(list(score.recurse().notes))
             self.assertNotIn('torch', sys.modules)
+
+
+class LooseSchemaTests(unittest.TestCase):
+    def test_bounds_are_dropped_for_the_api_only(self):
+        from mnemosyne.models import loose
+        s = {'type': 'object', 'properties': {'q': {'type': 'number', 'minimum': 0, 'maximum': 1}}}
+        self.assertEqual(loose(s), {'type': 'object', 'properties': {'q': {'type': 'number'}}})

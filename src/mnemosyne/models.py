@@ -87,6 +87,20 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
+# Keywords Anthropic structured outputs refuse (400 on a 'quality' bounded 0..1, found on the first real
+# install). The answer is still validated locally against the full schema by pydantic.
+UNSUPPORTED = ('minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
+               'minLength', 'maxLength', 'pattern', 'format', 'maxItems')
+
+
+def loose(schema):
+    if isinstance(schema, dict):
+        return {k: loose(v) for k, v in schema.items() if k not in UNSUPPORTED}
+    if isinstance(schema, list):
+        return [loose(v) for v in schema]
+    return schema
+
+
 def request(endpoint, system, prompt, schema, max_tokens, images=None):
     blocks = []
     for path in images or []:
@@ -123,7 +137,7 @@ def request(endpoint, system, prompt, schema, max_tokens, images=None):
                     {'type': 'image', 'source': {'type': 'base64', 'media_type': mime, 'data': data}}
                     for mime, data in blocks]}]}
         if endpoint.structured == 'json_schema':
-            body['output_config'] = {'format': {'type': 'json_schema', 'schema': schema}}
+            body['output_config'] = {'format': {'type': 'json_schema', 'schema': loose(schema)}}
         elif endpoint.structured == 'json_object':
             body['system'] += '\nReturn JSON matching: ' + json.dumps(schema)
         path = '/messages'

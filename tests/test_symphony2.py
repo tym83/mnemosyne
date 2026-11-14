@@ -94,6 +94,16 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertEqual({e['pitches'][0] for e in cello}, {50})
         self.assertEqual(min(e['at'] for e in cello), 8)
 
+    def test_pitched_percussion_plays_in_a_percussion_layer(self):
+        plan = g.example()
+        plan['orchestra'].append({'instrument': 'tubular_bells', 'count': 1})
+        plan['movements'][0]['sections'][3]['layers'].append(
+            {'instruments': ['tubular_bells'], 'role': 'percussion', 'pattern': 'hits', 'density': .5})
+        g.validate(plan)
+        _, _, assignment, _ = g.movement(plan, 0)
+        self.assertTrue(any(p['events'] for p in assignment['players'] if p['instrument'] == 'tubular_bells'))
+        self.assertEqual(g.playable('glockenspiel'), (79, 84))
+
     def test_tempo_canon_voice_keeps_its_ratio(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][0]
