@@ -146,10 +146,13 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                 if 'plan' not in sk:
                     continue
                 school = 'symphony' if sk.get('form') == 'symphony' else sk['plan']['school']
+                accepted = (night.record.get('verdict') or {}).get('verdict') == 'accept'
                 for i, carrier in enumerate(sk.get('carriers') or [{'score': sk['score']}]):
                     sources.append((f'{sk["id"]}-{i}', night.root/carrier['score'], school,
                                     {'plan': sk['plan'], 'form': sk.get('form', 'school'),
-                                     'movement_index': carrier.get('movement_index')}))
+                                     'movement_index': carrier.get('movement_index'), 'work': sk['id'],
+                                     # Sketches and drafts stay notes; only the accepted work sounds.
+                                     'final': accepted and sk['id'] == night.record.get('final')}))
     if request['mode'] != 'chamber':
         from mnemosyne.writing.night import WriterNight
         for artist in (a for a in life.working() if a.art == 'literature'):
@@ -180,16 +183,37 @@ def run(request, root, key, objects, *, previous=None, climate=None):
     report = weave(objects, sources, root, key, include_secrets=request.get('includeSecrets', False), extra=extra)
     dump(root/'lineage.json', life.state())
     if request.get('render', False) and sources:
-        for source in sources:
-            name, original, _, rendering = source
-            assignment_file = original.parent/'orchestration.json'
-            woven = root/'woven'/(name+'.musicxml')
-            rendering = {**rendering, 'action': 'woven',
-                         'xml': (woven if woven.exists() else original).read_text(),
-                         'assignment': json.loads(assignment_file.read_text()) if assignment_file.exists() else None}
-            LocalStudio().run(rendering, root/'render'/name)
-            if woven.exists():
-                registry.decode(woven, key)
+        works = {}
+        for name, original, _, rendering in sources:
+            if rendering.get('final') is False:
+                continue
+            works.setdefault(rendering.get('work', name), []).append((name, original, rendering))
+
+        def woven_of(name):
+            return root/'woven'/(name+'.musicxml')
+
+        def score_of(name, original):
+            return (woven_of(name) if woven_of(name).exists() else original).read_text()
+
+        for work, items in works.items():
+            first = items[0][2]
+            if first.get('form') == 'symphony':
+                # A symphony sounds as one work: all its movements in one request.
+                items.sort(key=lambda item: item[2].get('movement_index') or 0)
+                job = {'action': 'woven', 'form': 'symphony', 'plan': first['plan'], 'born_schools': {},
+                       'movements': [{'xml': score_of(n, o), 'plan': json.loads((o.parent/'plan.json').read_text()),
+                                      'assignment': json.loads((o.parent/'orchestration.json').read_text())}
+                                     for n, o, _ in items]}
+            else:
+                name, original, rendering = items[0]
+                assignment_file = original.parent/'orchestration.json'
+                job = {**rendering, 'action': 'woven', 'xml': score_of(name, original),
+                       'assignment': json.loads(assignment_file.read_text()) if assignment_file.exists() else None}
+                job.pop('final', None); job.pop('work', None)
+            LocalStudio().run(job, root/'render'/work)
+            for name, _, _ in items:
+                if woven_of(name).exists():
+                    registry.decode(woven_of(name), key)
         report['post_render_decode_verified'] = True
         dump(root/'decode.json', report)
     for record in records:
@@ -200,7 +224,8 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                 name = source[0]
                 if name.startswith(record['metadata']['name']) and (root/'woven'/(name+'.musicxml')).exists():
                     files.append(atelier.store.put(root/'woven'/(name+'.musicxml')))
-                    files.extend(atelier.store.put(p) for p in (root/'render'/name).rglob('*') if p.is_file())
+                    for folder in {root/'render'/name, root/'render'/name.rsplit('-', 1)[0]}:
+                        files.extend(atelier.store.put(p) for p in folder.rglob('*') if p.is_file())
             record['spec']['files'] = files
             record['status'] = {'phase': report['phase'], 'backup': report}
     atelier.objects = []
