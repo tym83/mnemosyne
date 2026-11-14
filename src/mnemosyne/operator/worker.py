@@ -275,8 +275,13 @@ def main():
         publish(api, namespace, records)
         dump(checkpoint, json.loads((root/'lineage.json').read_text()))
         if request['mode'] != 'chamber':
+            # Translations are filled in after the night; a failure there never undoes the night.
             from mnemosyne.writing.memory import backfill
-            backfill(base, log=lambda *_: None)
+            try:
+                backfill(base, log=lambda *_: None)
+            except Exception as exc:
+                report['translation_backfill'] = f'{type(exc).__name__}: {exc}'[:300]
+                dump(root/'translation-backfill-error.json', {'error': report['translation_backfill']})
         upload(root, storage)
     print(json.dumps({'directory': root.name, **report}))
 
