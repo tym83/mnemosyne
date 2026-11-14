@@ -561,7 +561,7 @@ class Night:
             context = {'statement': st.model_dump(), 'method': method.model_dump(), 'halftones': shades.model_dump(),
                        'structural_tendencies': structural,
                        'structure_instruction': 'These sampled tendencies are weighted suggestions, not fixed mappings. '
-                           'Interpret through the idea and chosen method; retain your reasons in the diary.'}
+                           'Interpret through the idea and chosen method; note your musical decisions in the diary.'}
             occasion = next((o for o in self.life.occasions if o['moment'] <= self.life.night), None)
             if occasion:
                 context['occasion'] = {k: occasion[k] for k in ('genre', 'moment')}

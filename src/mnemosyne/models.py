@@ -132,10 +132,14 @@ def request(endpoint, system, prompt, schema, max_tokens, images=None):
         path = '/chat/completions'
     else:
         headers['anthropic-version'] = '2023-06-01'
+        # A safety classifier may decline a harmless request (a composer's diary read as reasoning
+        # extraction on the first real night); the API then reruns it on a fallback model by refusal category.
+        headers['anthropic-beta'] = 'server-side-fallback-2026-07-01'
         body = {'model': endpoint.model, 'max_tokens': limit, 'system': system,
                 'messages': [{'role': 'user', 'content': [{'type': 'text', 'text': prompt}] + [
                     {'type': 'image', 'source': {'type': 'base64', 'media_type': mime, 'data': data}}
                     for mime, data in blocks]}]}
+        body['fallbacks'] = 'default'
         if endpoint.structured == 'json_schema':
             body['output_config'] = {'format': {'type': 'json_schema', 'schema': loose(schema)}}
         elif endpoint.structured == 'json_object':
