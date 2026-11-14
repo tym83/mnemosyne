@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Build the pinned offline SFZ renderer in the studio, never on the laptop.
+# Build the pinned offline SFZ renderer in a studio (default studio-0), never on the laptop.
+# Usage: prepare_instrumentarium.sh [studio-N]
 set -euo pipefail
 kubectl --kubeconfig "$HOME/workshop.txt" --context admin@workshop \
-  -n tenant-scheherazade exec -i studio-0 -- sh -s <<'POD'
+  -n tenant-scheherazade exec -i "${1:-studio-0}" -- sh -s <<'POD'
 set -eu
 if [ -x /work/sfizz-build/library/bin/sfizz_render ]; then
   /work/sfizz-build/library/bin/sfizz_render --help
