@@ -184,7 +184,7 @@ class ModelTests(unittest.TestCase):
                 shade = dict(shade='fixture', why_mine='fixture', how_it_shows='fixture')
                 return dict(thought=shade, embodiment=shade, nuances=[], overall='fixture')
             if title == 'PlanText':
-                return dict(plan_json=json.dumps(plan), diary='fixture')
+                return dict(plan_json=json.dumps(plan), note='fixture')
             if title == 'Listening':
                 return dict(verdict='accept', reasons='mock, not aesthetic evidence', corrections=[], matters=True, quality=.5)
             if title == 'Chapter':

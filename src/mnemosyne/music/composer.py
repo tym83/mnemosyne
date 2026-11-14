@@ -46,7 +46,9 @@ class PlanText(BaseModel):
     # JSON text keeps the Writer's strict outer schema compatible with the
     # different versioned grammars. The parsed document is validated below.
     plan_json: str
-    diary: str
+    # A few sentences to the performer about this version. Not a trace of thinking: a long
+    # "diary of decisions" was declined by the API as reasoning extraction on real nights.
+    note: str
 
 
 class Listening(BaseModel):
@@ -394,6 +396,8 @@ class Night:
         contract = plan_contract(method)
         prompt = json.dumps({'task': 'Write the complete plan as JSON text in plan_json. '
                     'Choose every musical parameter yourself; no cluster facts. '
+                    'Keep any "notes" field to one short sentence. In note write two to four sentences '
+                    'to the performer: what this version is and how it should sound. '
                     + ('Short study of the method.' if sketch else 'Complete work, derived from the sketches.'),
                     'context': context, 'contract': contract}, ensure_ascii=False)
         for attempt in range(3):
@@ -409,7 +413,7 @@ class Night:
                     if not any(layer.get('material') == 'notagen'
                                for mv in plan['movements'] for sec in mv['sections'] for layer in sec.get('layers', [])):
                         raise ValueError('NotaGen material must actually participate in the work')
-                self.entries.append({'step': step, 'plan': plan, 'diary': answer.diary})
+                self.entries.append({'step': step, 'plan': plan, 'diary': answer.note})
                 self.save()
                 return plan
             except (ValueError, TypeError, KeyError) as exc:
@@ -561,7 +565,7 @@ class Night:
             context = {'statement': st.model_dump(), 'method': method.model_dump(), 'halftones': shades.model_dump(),
                        'structural_tendencies': structural,
                        'structure_instruction': 'These sampled tendencies are weighted suggestions, not fixed mappings. '
-                           'Interpret through the idea and chosen method; note your musical decisions in the diary.'}
+                           'Interpret them through the idea and the chosen method.'}
             occasion = next((o for o in self.life.occasions if o['moment'] <= self.life.night), None)
             if occasion:
                 context['occasion'] = {k: occasion[k] for k in ('genre', 'moment')}

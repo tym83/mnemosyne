@@ -75,7 +75,7 @@ class ComposerTests(unittest.TestCase):
                 if schema is Method:
                     return method
                 prompts.append(prompt)
-                return PlanText(plan_json=json.dumps(plan), diary='retained choice')
+                return PlanText(plan_json=json.dumps(plan), note='retained choice')
             with patch('mnemosyne.artist.statement', return_value=(st, [{'interrogation': {'verdict': 'accept'}}])), \
                  patch('mnemosyne.artist.halftones') as shades, \
                  patch.object(night, 'ask', side_effect=ask):
@@ -240,7 +240,7 @@ class ComposerTests(unittest.TestCase):
         def ask(system, prompt, schema, step, **kwargs):
             calls.append((step, kwargs.get('images')))
             if schema is PlanText:
-                return PlanText(plan_json=json.dumps(plan), diary='fixture plan')
+                return PlanText(plan_json=json.dumps(plan), note='fixture plan')
             if schema is Method:
                 return self.method()
             if schema is Chapter:
