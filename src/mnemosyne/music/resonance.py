@@ -10,7 +10,8 @@ from .instrumentarium import REGISTRY, release_profile
 
 def apply(score, plan):
     school = plan.get('school')
-    total = float(plan['duration']) * plan['tempo'] / 60 if 'duration' in plan else float(score.highestTime)
+    from .tempo_map import total_quarters
+    total = float(total_quarters(plan)) if 'duration' in plan else float(score.highestTime)
     # Current tintinnabuli grammar uses a single tonic triad throughout. Form
     # sections change texture, not harmony. Explicit harmony spans can refine it.
     spans = plan.get('pedal_harmonies', [[0, total]])

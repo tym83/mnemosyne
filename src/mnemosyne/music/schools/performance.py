@@ -81,7 +81,9 @@ def sounding_events(part, bpm=None):
 
 
 def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performance=None, sample_vibrato=False,
-               held_swell=False):
+               held_swell=False, tempo_map=None):
+    """`bpm` is the tempo at quarter 0; `tempo_map` ([quarter, bpm, ...] entries, see music.tempo_map) adds
+    the later tempo changes as set-tempo events. Expressive micro-timing converts seconds with `bpm`."""
     tracks = []
     audit = []
     for i, part in enumerate(score.parts):
@@ -101,6 +103,8 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performanc
             events.append((0, 0, bytes([0xB0|channel, cc, value])))
         if i == 0:
             events.append((0, -1, b'\xff\x51\x03'+round(60000000/bpm).to_bytes(3,'big')))
+            for at, value, *_ in (tempo_map or [])[1:]:
+                events.append((round(float(at)*960), -1, b'\xff\x51\x03'+round(60000000/value).to_bytes(3,'big')))
         def bend(semitones):
             value = max(0, min(16383, 8192+round(semitones/12*8192)))
             return bytes([0xE0|channel, value & 127, (value >> 7) & 127])
@@ -148,7 +152,8 @@ def write_midi(score, path, bpm, orchestral=False, *, tail_seconds=0, performanc
             for key in keys:
                 events.append((tick, 2, bytes([0x90|channel, key, strength])))
                 events.append((tick+round(length*960), 0, bytes([0x80|channel, key, 0])))
-        events.append((max(round((float(part.highestTime)+tail_seconds*bpm/60)*960), max(e[0] for e in events)), 9, b'\xff\x2f\x00'))
+        last_bpm = float(tempo_map[-1][1]) if tempo_map else bpm
+        events.append((max(round((float(part.highestTime)+tail_seconds*last_bpm/60)*960), max(e[0] for e in events)), 9, b'\xff\x2f\x00'))
         data, previous = bytearray(), 0
         for tick, priority, msg in sorted(events, key=lambda e:(e[0], e[1])):
             data.extend(vlq(tick-previous)+msg)

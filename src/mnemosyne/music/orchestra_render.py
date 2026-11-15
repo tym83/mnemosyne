@@ -142,7 +142,9 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         copies=player['players']
         for number in range(1,copies+1):
             shutil.copy2(base.with_suffix('.pdf'),base.with_name(base.name+f'-player-{number}').with_suffix('.pdf'))
-    write_midi(score,work/'score.mid',plan['tempo'])
+    from . import tempo_map
+    timeline=plan.get('tempo_map')
+    write_midi(score,work/'score.mid',plan['tempo'],tempo_map=timeline)
     samples=round((plan['duration']+tail)*RATE)
     mix=np.zeros((samples,2),dtype=np.float32)
     hall_send=np.zeros_like(mix)
@@ -153,12 +155,12 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
         for index,((technique,gain),events) in enumerate(sorted(groups.items())):
             base=work/'stems'/f'{player["id"]}-{index}'
             midi=base.with_suffix('.mid');wav=base.with_suffix('.wav')
-            one=stem_score(events,player['instrument'],(plan['duration']+tail)*plan['tempo']/60)
+            one=stem_score(events,player['instrument'],tempo_map.total_quarters(plan)+tail*tempo_map.entries(plan)[-1][1]/60)
             from .resonance import copy_slurs
             copy_slurs(score.parts[player_index], one.parts[0])
             one.parts[0].editorial.sustain_pedal = getattr(score.parts[player_index].editorial, 'sustain_pedal', [])
             write_midi(one,midi,plan['tempo'],performance=plan.get('school','symphony'),sample_vibrato=True,
-                       held_swell=plan.get('held_swell',False))
+                       held_swell=plan.get('held_swell',False),tempo_map=timeline)
             patch=patches[(player['instrument'],technique)]
             normalized=work/patch['playback_file']
             from .live_performance import prepare_patch, seat
@@ -182,7 +184,12 @@ def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compa
             curve = getattr(score.parts[player_index].editorial, 'school_expression', None)
             if curve:
                 at, values = zip(*curve)
-                times = np.arange(len(data)) / RATE * plan['tempo'] / 60
+                if timeline:
+                    # Audio seconds back to score quarters through the movement's tempo map.
+                    knots = np.linspace(0, len(data)/RATE, 4097)
+                    times = np.interp(np.arange(len(data))/RATE, knots, [tempo_map.quarter_at(plan, x) for x in knots])
+                else:
+                    times = np.arange(len(data)) / RATE * plan['tempo'] / 60
                 data = data * np.interp(times, at, values)[:, None]
             pan=player['pan']
             data, seating = seat(data, pan, kind, RATE)

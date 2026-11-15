@@ -121,5 +121,88 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertLess(len(oboe), len(cello))
 
 
+    def test_section_tempo_marks_seconds_and_total(self):
+        from mnemosyne.music import tempo_map
+        plan = g.example()
+        before = g.validate(plan)
+        old = g.movement(plan, 1)[3]
+        mv = plan['movements'][1]  # tempo 50: A 24×4/4, B 20×5/4, C 8×4/4, B 20×5/4, A 24×4/4
+        mv['sections'][1]['tempo'] = 75
+        score, op, assignment, dev = g.movement(plan, 1)
+        b = dev['sections'][1]
+        self.assertEqual(b['tempo'], 75)
+        self.assertAlmostEqual(b['duration_seconds'], 100 * 60 / 75)
+        self.assertAlmostEqual(dev['sections'][2]['start_seconds'], 96 * 60 / 50 + 100 * 60 / 75)
+        self.assertAlmostEqual(dev['seconds'], old['seconds'] - 100 * 60 / 50 + 100 * 60 / 75)
+        self.assertAlmostEqual(op['duration'], dev['seconds'])
+        self.assertAlmostEqual(g.validate(plan, study=True), before - 100 * 60 / 50 + 100 * 60 / 75)
+        self.assertEqual(op['tempo_map'], [[0, 50.0, True], [96, 75.0, True], [196, 50.0, True]])
+        self.assertEqual(op['quarters'], 424)
+        self.assertEqual(tempo_map.total_quarters(op), 424)
+        part = score.parts[0]
+        marks = [(float(m.getOffsetInHierarchy(part)), m.number)
+                 for m in part.recurse().getElementsByClass('MetronomeMark')]
+        self.assertEqual(marks, [(0.0, 50), (96.0, 75), (196.0, 50)])
+        # The score's own timing (music21 reads the marks) agrees with the report.
+        self.assertAlmostEqual(sum((e - a) * 60 / m.number for a, e, m in score.metronomeMarkBoundaries()),
+                               dev['seconds'])
+        # Notes stay where they were in quarters: only the performance clock changed.
+        self.assertEqual([(p['id'], [e['at'] for e in p['events']]) for p in assignment['players']],
+                         [(p['id'], [e['at'] for e in p['events']]) for p in g.movement(g.example(), 1)[2]['players']])
+
+    def test_gradual_tempo_change_steps_each_quarter(self):
+        from mnemosyne.music import tempo_map
+        plan = g.example()
+        sec = plan['movements'][0]['sections'][4]  # dissolution: 24 bars of 3/4 at 66
+        sec['tempo_to'] = 44
+        g.validate(plan)
+        score, op, _, dev = g.movement(plan, 0)
+        last = dev['sections'][4]
+        self.assertEqual(last['tempo_to'], 44)
+        steps = [x for x in op['tempo_map'] if x[0] >= last['start_quarters']]
+        self.assertEqual(len(steps), 71)  # quarters 1..71 change; quarter 0 keeps the movement tempo
+        self.assertEqual(steps[-1], [last['end_quarters'] - 1, 44.0, True])
+        expected = sum(60 / (66 + (44 - 66) * k / 71) for k in range(72))
+        self.assertAlmostEqual(last['duration_seconds'], expected)
+        self.assertAlmostEqual(tempo_map.section_seconds(72, 66, 44), expected)
+        self.assertAlmostEqual(op['duration'], dev['seconds'])
+        self.assertAlmostEqual(sum((e - a) * 60 / m.number for a, e, m in score.metronomeMarkBoundaries()),
+                               dev['seconds'])
+        self.assertIn([last['start_quarters'], 'rit.'], op['tempo_text'])
+        words = [t.content for t in score.parts[0].recurse().getElementsByClass('TextExpression')]
+        self.assertIn('rit.', words)
+        shown = [m.number for m in score.parts[0].recurse().getElementsByClass('MetronomeMark') if not m.numberImplicit]
+        self.assertEqual(shown, [66, 44])
+        plan['movements'][0]['sections'][4]['tempo_to'] = 300
+        with self.assertRaisesRegex(ValueError, 'tempo_to 30–240'):
+            g.validate(plan)
+
+    def test_tempo_map_reaches_the_midi_file(self):
+        import tempfile
+        from pathlib import Path
+        from mnemosyne.music.schools.performance import write_midi
+        plan = g.example()
+        plan['movements'][1]['sections'][1]['tempo'] = 75
+        score, op, _, _ = g.movement(plan, 1)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'m.mid'
+            write_midi(score, path, op['tempo'], tempo_map=op['tempo_map'])
+            data = path.read_bytes()
+        tempi = [int.from_bytes(data[i+3:i+6], 'big') for i in range(len(data)-6) if data[i:i+3] == b'\xff\x51\x03']
+        self.assertEqual(tempi, [round(6e7/50), round(6e7/75), round(6e7/50)])
+        self.assertEqual(tempo_map_seconds(op), op['duration'])
+
+    def test_constant_tempo_movements_are_unchanged(self):
+        _, op, _, dev = g.movement(g.example(), 0)
+        self.assertNotIn('tempo_map', op)
+        self.assertEqual((op['tempo'], op['duration']), (66, dev['seconds']))
+        self.assertNotIn('tempo', dev['sections'][0])
+
+
+def tempo_map_seconds(op):
+    from mnemosyne.music import tempo_map
+    return tempo_map.seconds_at(op, op['quarters'])
+
+
 if __name__ == '__main__':
     unittest.main()

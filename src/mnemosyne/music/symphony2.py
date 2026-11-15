@@ -4,7 +4,9 @@ v1 wrote one fixed texture (4/4, the same root cycle, constant harp figuration) 
 v2 realizes what the composer writes: meter per section, mode and harmonic progression, and layers.
 A layer names its instruments, role, material, accompaniment pattern, dynamic and register. An
 instrument that no layer of a section names is silent there. Unknown plan fields are rejected, so the
-composer always knows what is realized. Tempo is per movement; meter may change per section.
+composer always knows what is realized. Tempo is per movement and a section may set its own (`tempo`),
+or change it gradually across its length (`tempo_to`, one step per quarter note); meter may change per
+section.
 """
 from fractions import Fraction
 import hashlib
@@ -13,6 +15,7 @@ import random
 
 from .instrumentarium import REGISTRY, audio_ensemble
 from .orchestration import Event, Line, orchestrate
+from . import tempo_map
 
 MODES = {
     'major': [0, 2, 4, 5, 7, 9, 11], 'minor': [0, 2, 3, 5, 7, 8, 10], 'harmonic_minor': [0, 2, 3, 5, 7, 8, 11],
@@ -41,7 +44,7 @@ TRANSFORMS = {'identity', 'inversion', 'augmentation', 'diminution', 'retrograde
 PLAN_KEYS = {'version', 'title', 'seed', 'concept', 'method', 'orchestra', 'themes', 'rows', 'movements',
              'school_settings', 'notagen_material', 'held_swell', 'notes'}
 MOVEMENT_KEYS = {'title', 'character', 'form', 'tempo', 'centre', 'mode', 'schools', 'sections', 'notes'}
-SECTION_KEYS = {'role', 'bars', 'meter', 'theme', 'transform', 'shift', 'mode', 'progression',
+SECTION_KEYS = {'role', 'bars', 'meter', 'tempo', 'tempo_to', 'theme', 'transform', 'shift', 'mode', 'progression',
                 'harmonic_rhythm', 'layers', 'schools', 'notes'}
 LAYER_KEYS = {'instruments', 'role', 'material', 'transform', 'pattern', 'dynamic', 'register', 'density',
               'technique', 'bars', 'octave_double', 'time_scale', 'repeat', 'offset', 'rest_between', 'notes'}
@@ -72,6 +75,13 @@ def strict(obj, allowed, where):
     if extra:
         raise ValueError(f'{where}: fields {sorted(extra)} are not realized by grammar v2; '
                          f'allowed: {sorted(allowed)}. Write intent the grammar cannot express in "notes".')
+
+
+def section_tempo(mv, sec):
+    """(tempo, tempo_to or None) of a section; the movement tempo is the default."""
+    start = sec.get('tempo', mv['tempo'])
+    to = sec.get('tempo_to')
+    return start, (None if to is None or to == start else to)
 
 
 def instruments_of(plan):
@@ -145,6 +155,10 @@ def validate(plan, *, study=False):
                 raise ValueError(f'{sw}: whole bars required')
             bar, _ = meter(sec.get('meter', '4/4'))
             quarters += bar * sec['bars']
+            for key in ('tempo', 'tempo_to'):
+                if key in sec and (not finite(sec[key]) or not 30 <= sec[key] <= 240):
+                    raise ValueError(f'{sw}: {key} 30–240 (quarter notes per minute)')
+            seconds += tempo_map.section_seconds(float(bar * sec['bars']), *section_tempo(mv, sec))
             if sec.get('theme') is not None:
                 if sec['theme'] not in themes:
                     raise ValueError(f'{sw}: unknown theme')
@@ -224,7 +238,6 @@ def validate(plan, *, study=False):
                     raise ValueError(f'{lw}: bars [first, last] inside the section (1-based)')
                 sounding.update(names)
         heard.append(used)
-        seconds += float(quarters) * 60 / mv['tempo']
     if not sounding:
         raise ValueError('nothing sounds: every section has empty layers')
     if not study and not 1200 <= seconds <= 2700:
@@ -511,6 +524,25 @@ def movement(plan, index):
     slots = instruments_of(plan)
     rng = random.Random(int.from_bytes(hashlib.sha256(f"{plan['seed']}:{index}".encode()).digest()[:8]))
     lines, sections, meters, start = [], [], [], 0.
+    steps, words = [], []  # the tempo map: (quarter, bpm, shown); rit./accel. words
+    for sec in mv['sections']:
+        length = float(meter(sec.get('meter', '4/4'))[0]) * sec['bars']
+        a, b = section_tempo(mv, sec)
+        for step in tempo_map.section_steps(start, length, a, b):
+            if not steps or steps[-1][1] != step[1]:
+                steps.append(step)
+        if b is not None and len(tempo_map.section_steps(start, length, a, b)) > 1:
+            words.append((start, 'rit.' if b < a else 'accel.'))
+        start += length
+    total = start
+    changing = len(steps) > 1
+    base = bpm if steps[0][1] == bpm else steps[0][1]  # every section may share one tempo of its own
+    timing = {'tempo': base, 'tempo_map': [list(x) for x in steps], 'quarters': total}
+
+    def clock(q):
+        return tempo_map.seconds_at(timing, q) if changing else q * 60 / base
+
+    start = 0.
     for si, sec in enumerate(mv['sections']):
         bar_q, _ = meter(sec.get('meter', '4/4'))
         bar_q = float(bar_q)
@@ -565,12 +597,18 @@ def movement(plan, index):
                          'mode': sec.get('mode', mv.get('mode', 'major')),
                          'progression': sec.get('progression', [1]),
                          'start_quarters': start, 'end_quarters': start + length,
-                         'start_seconds': start * 60 / bpm, 'duration_seconds': length * 60 / bpm,
-                         'sounding': named, 'tacet': sorted(set(slots) - set(named))})
+                         'start_seconds': clock(start), 'duration_seconds': clock(start + length) - clock(start),
+                         'sounding': named, 'tacet': sorted(set(slots) - set(named)),
+                         **({'tempo': section_tempo(mv, sec)[0]} if 'tempo' in sec else {}),
+                         **({'tempo_to': section_tempo(mv, sec)[1]} if section_tempo(mv, sec)[1] is not None else {})})
         start += length
     op = {'title': f"{plan['title']} — {index+1}. {mv['title']}", 'ensemble': plan['orchestra'],
-          'tempo': bpm, 'duration': start * 60 / bpm, 'school': 'symphony', 'audio_profile': 'native_sfz',
+          'tempo': base, 'duration': start * 60 / base, 'school': 'symphony', 'audio_profile': 'native_sfz',
           'meters': meters, 'held_swell': bool(plan.get('held_swell', False))}
+    if changing:
+        # Score time stays in quarters; the renderer and the score's marks follow the map.
+        op.update(duration=clock(total), quarters=total,
+                  tempo_map=[list(x) for x in steps], tempo_text=[list(w) for w in words])
     score, assignment = orchestrate(lines, op)
     from music21 import dynamics, expressions, metadata
     # The work's title above, the movement's below: music21 otherwise writes one long title twice.
@@ -585,6 +623,8 @@ def movement(plan, index):
             if isinstance(item, dynamics.Dynamic):
                 kind, value = 'dynamic', item.value
             elif isinstance(item, expressions.TextExpression):
+                if item.content in ('rit.', 'accel.'):
+                    continue
                 kind, value = 'technique', item.content
             else:
                 continue

@@ -9,6 +9,7 @@ import math
 from music21 import note, stream, metadata, meter, tempo, dynamics, expressions, spanner
 from .instrumentarium import REGISTRY, ensemble, notation_instrument, notation_clef, sample_patch, velocity_limits
 from .schools.common import put, finish
+from . import tempo_map
 
 ROLES = {'melody','bass','harmony_pad','counter_line','figuration','cluster_field','percussion_layer'}
 
@@ -91,7 +92,8 @@ def orchestrate(lines, plan):
             lanes.append({'player':p,'id':p.id+(f'-div{div+1}' if p.divisi>1 else ''),
                           'events':[],'divisi':div+1})
     audit = []
-    total = plan['duration']*plan['tempo']/60
+    marks = tempo_map.entries(plan)
+    total = tempo_map.total_quarters(plan)
     # Allocate low-register lines first: bass desks must not be consumed by
     # material that higher instruments can play. Stable ties preserve plan order.
     for line in sorted(lines,key=lambda line:(line.instrument is None,line.register[0])):
@@ -169,7 +171,7 @@ def orchestrate(lines, plan):
                 gain-=10*math.log10(p.divisi)
                 phrase=spec['phrase_seconds']
                 # Bow changes and breaths fall on a sixteenth, never at an unnotatable fraction of a beat.
-                cap=max(.25,math.floor(phrase*plan['tempo']/60*4)/4) if phrase else e.duration
+                cap=max(.25,math.floor(phrase*tempo_map.bpm_at(plan,e.at)/60*4)/4) if phrase else e.duration
                 at=e.at; remaining=e.duration
                 while remaining>1e-8:
                     dur=min(cap,remaining)
@@ -192,7 +194,15 @@ def orchestrate(lines, plan):
         # A plan may change meter between sections; bars are cut by these signatures.
         for at,signature in plan.get('meters',[(0,'4/4')]):
             part.insert(float(at),meter.TimeSignature(signature))
-        part.insert(0,tempo.MetronomeMark(number=plan['tempo']))
+        # A tempo map sounds every step; a gradual change prints only its first and last step and its word.
+        for at,bpm,shown in marks:
+            number=plan['tempo'] if not plan.get('tempo_map') else int(bpm) if bpm==int(bpm) else bpm
+            mark=tempo.MetronomeMark(number=number)
+            if not shown:
+                mark.numberImplicit=True
+            part.insert(at,mark)
+        for at,word in plan.get('tempo_text',[]):
+            part.insert(float(at),expressions.TextExpression(word))
         for event in sorted(lane['events'],key=lambda e:e['at']):
             at=event['at'];dur=event['duration'];pitches=event['pitches']
             part.insert(at,expressions.TextExpression(event['technique']))

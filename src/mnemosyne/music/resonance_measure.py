@@ -34,12 +34,13 @@ def measure(data, boundaries, final_note, score_end, rate=RATE):
 
 
 def measure_work(root):
-    root=Path(root);plan=json.loads((root/'plan.json').read_text());bpm=plan['tempo']
+    from .tempo_map import seconds_at
+    root=Path(root);plan=json.loads((root/'plan.json').read_text())
     score=converter.parse(root/'score.musicxml').toSoundingPitch()
     times=[];end=0.
     for part in score.parts:
         for at,length,*_ in sounding_events(part):
-            times.extend([at*60/bpm,(at+length)*60/bpm]);end=max(end,(at+length)*60/bpm)
+            times.extend([seconds_at(plan,at),seconds_at(plan,at+length)]);end=max(end,seconds_at(plan,at+length))
     audio=root/('score.flac' if (root/'score.flac').exists() else 'score.mp3')
     raw=subprocess.check_output(['ffmpeg','-v','error','-i',audio,'-ar',str(RATE),'-ac','2','-f','f32le','-'])
     data=np.frombuffer(raw,dtype='<f4').reshape(-1,2)

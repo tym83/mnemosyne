@@ -137,7 +137,7 @@ def plan_contract(method):
                                    if not REGISTRY[n].get('unpitched')},
                 'techniques': {n: sorted(g.techniques(n)) for n in audio_contract()['instruments']},
                 'rules': ['Only what a layer names sounds: an instrument absent from all layers of a section is silent there.',
-                          'Each section sets its own meter ("3/4", "2/4", "7/8", "6/8", "5/4"…); tempo is per movement.',
+                          'Each section sets its own meter ("3/4", "2/4", "7/8", "6/8", "5/4"…).',
                           'progression = scale degrees of the section mode, one chord per harmonic_rhythm bars; '
                           'negative degree = an octave lower.',
                           'A layer: instruments (doubling each other), role, material, pattern, dynamic '
@@ -151,8 +151,11 @@ def plan_contract(method):
                           'Judge a canon by its entries and phrase lengths, not by single written values.',
                           'Fixed-pitch instruments (keyboards incl. accordion, harp, guitar, pitched percussion) '
                           'play no microtones: their pitches round to the semitone. Strings, winds and voices keep them.',
-                          'Tempo is one per movement: ritardando, accelerando and fermatas are not realized; '
-                          'shape time with note values, rests and meter, and put the wish in notes.',
+                          'The movement tempo is the default; a section may set its own tempo (30–240, a sudden '
+                          'change at its first bar) and tempo_to (30–240): a ritardando or accelerando from its '
+                          'tempo to tempo_to across the whole section, played one step per quarter note, written as '
+                          '"rit."/"accel." with the first and last tempo. The next section starts at its own tempo '
+                          '(tempo_to does not carry over). Fermatas and rubato are not realized; put them in notes.',
                           'Notation: guitar on the treble clef an octave lower (8vb); keyboards and harp switch to the '
                           'bass clef in low bars. Pedal and other playing marks are not written; put them in notes.',
                           'Chords on monophonic instruments are shared among their players; keep players enough.',

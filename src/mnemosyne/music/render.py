@@ -210,7 +210,7 @@ def notation_score(score, plan, destination, assignment=None):
     from .resonance import apply
     apply(score, plan)
     engrave(score, destination/'score', destination/'notation.log')
-    write_midi(score, destination/'score.mid', plan['tempo'])
+    write_midi(score, destination/'score.mid', plan['tempo'], tempo_map=plan.get('tempo_map'))
 
 
 def discard_audio_intermediates(work):
