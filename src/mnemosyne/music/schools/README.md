@@ -293,8 +293,11 @@ inference. This layer is a feasibility heuristic, not an autonomous artistic
 orchestrator. The school algorithms still own their rhythms and pitch processes;
 the adapter preserves their pitches, dynamics and glissandi before assigning
 playable parts. `orchestrated_plans/` contains separate revised realizations of
-the nineteen founding studies (the nine older traditions above have none yet);
-the original plans and published works are preserved.
+the nineteen founding studies and of the nine older traditions (choir for
+chant, organum, ars nova and Renaissance polyphony, with the register raised to
+the choir samples; string orchestra for the fugue; strings and harpsichord for
+basso continuo; string quartet for the classical school; symphony orchestra for
+the romantic one); the original plans and published works are preserved.
 The narrow Ligeti registers are explicitly permitted by that grammar. Xenakis
 uses wide registral mass and ff/fff, Webern is a 24-second sparse point study,
 and Pärt uses a bell/strings ensemble and stillness. Other profiles follow the

@@ -267,6 +267,19 @@ class OldSchoolTests(unittest.TestCase):
                     parsed = converter.parse(woven).toSoundingPitch()
                     self.assertEqual(note_events(parsed.stripTies()), note_events(score.stripTies()))
 
+    def test_orchestrated_plans_validate_and_orchestrate(self):
+        from mnemosyne.music.orchestration import orchestrate, school_lines
+        from mnemosyne.music.schools.plan import SchoolPlan
+        folder = Path(SCHOOLS['classical'].__file__).parent/'orchestrated_plans'
+        for name in OLD:
+            with self.subTest(school=name):
+                plan = json.loads((folder/f'{name}.json').read_text())
+                SchoolPlan.model_validate(plan)
+                self.assertEqual((plan['school'], plan['audio_profile']), (name, 'native_sfz'))
+                score = SCHOOLS[name].compose(plan, plan['seed'])
+                _, assignment = orchestrate(school_lines(score, plan), plan)
+                self.assertTrue(any(p['events'] for p in assignment['players']))
+
     def test_every_new_school_has_poetics(self):
         from mnemosyne.writing import poetics
         for name in OLD:

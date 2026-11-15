@@ -1,0 +1,71 @@
+{
+  "title": "basso_continuo",
+  "school": "basso_continuo",
+  "seed": 20261209,
+  "duration": 180,
+  "tempo": 84,
+  "ensemble": "chamber",
+  "study": "Method study; no artistic quality or backup payload claim.",
+  "form": [
+    {
+      "duration": 45.0,
+      "character": "agitated",
+      "density": 0.8,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "flowing",
+      "density": 0.6,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "agitated",
+      "density": 0.85,
+      "register": [
+        36,
+        96
+      ]
+    },
+    {
+      "duration": 45.0,
+      "character": "luminous",
+      "density": 0.7,
+      "register": [
+        36,
+        96
+      ]
+    }
+  ],
+  "audio_profile": "native_sfz",
+  "orchestration": [
+    {
+      "instrument": "violin"
+    },
+    {
+      "instrument": "violin"
+    },
+    {
+      "instrument": "viola"
+    },
+    {
+      "instrument": "cello"
+    },
+    {
+      "instrument": "bass"
+    },
+    {
+      "instrument": "harpsichord"
+    }
+  ],
+  "colour": "dark",
+  "doublings": false,
+  "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
+}
