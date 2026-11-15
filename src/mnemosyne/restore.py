@@ -244,6 +244,18 @@ class Kubectl:
                 raise RuntimeError(f"type definition {obj['metadata']['name']} is not installed in the target; "
                                    'install the platform component that provides it')
             return
+        # Restoring into a new cluster: what already exists there belongs to that cluster — made by
+        # its own control plane (root CA, cluster-info, ...) or its platform's releases. It is kept, not
+        # overwritten by the old cluster's copy; what does not exist yet is restored.
+        _, resource = self.resource(obj['apiVersion'], obj['kind'])
+        from urllib.parse import quote
+        base, _ = self.resource(obj['apiVersion'], obj['kind'])
+        ns = obj['metadata'].get('namespace')
+        path = base + (f'/namespaces/{quote(ns, safe="")}' if resource['namespaced'] and ns else '') + \
+            f"/{resource['name']}/{quote(obj['metadata']['name'], safe='')}"
+        if subprocess.run(self.command + ['get', '--raw', path], capture_output=True, timeout=60).returncode == 0:
+            self.kept = getattr(self, 'kept', []) + [identity(obj)]
+            return
         _, resource = self.resource(obj['apiVersion'], obj['kind'])
         if resource['namespaced'] != bool(obj['metadata'].get('namespace')):
             raise RuntimeError('manifest namespace does not match API scope')
@@ -256,6 +268,21 @@ class Kubectl:
                 raise RuntimeError('CRD did not become Established')
 
 
+BINDING = ('pv.kubernetes.io/bind-completed', 'pv.kubernetes.io/bound-by-controller',
+           'volume.beta.kubernetes.io/storage-provisioner', 'volume.kubernetes.io/storage-provisioner',
+           'volume.kubernetes.io/selected-node')
+
+
+def for_new_cluster(obj):
+    """A claim gets a fresh volume in the new cluster: the old one's volume binding stays behind."""
+    if obj.get('kind') == 'PersistentVolumeClaim' and obj.get('apiVersion') == 'v1':
+        obj.get('spec', {}).pop('volumeName', None)
+        annotations = obj.get('metadata', {}).get('annotations') or {}
+        for key in BINDING:
+            annotations.pop(key, None)
+    return obj
+
+
 def apply_objects(objects, backend, *, attempts=5, delay=2):
     objects, stage = ordered(objects)
     applied = []
@@ -264,7 +291,7 @@ def apply_objects(objects, backend, *, attempts=5, delay=2):
         for attempt in range(attempts):
             remaining = []
             for source in pending:
-                obj = deepcopy(source)
+                obj = for_new_cluster(deepcopy(source))
                 try:
                     for owner in obj['metadata'].get('ownerReferences', []):
                         if secret_resource(owner['kind']):

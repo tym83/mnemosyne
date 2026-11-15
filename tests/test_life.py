@@ -112,3 +112,14 @@ class LifeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RestoreForNewClusterTests(unittest.TestCase):
+    def test_a_claim_gets_a_fresh_volume(self):
+        from mnemosyne.restore import for_new_cluster
+        pvc = {'apiVersion': 'v1', 'kind': 'PersistentVolumeClaim',
+               'metadata': {'name': 'w', 'namespace': 'n', 'annotations': {'pv.kubernetes.io/bind-completed': 'yes'}},
+               'spec': {'volumeName': 'pvc-old', 'resources': {'requests': {'storage': '1Gi'}}}}
+        out = for_new_cluster(pvc)
+        self.assertNotIn('volumeName', out['spec'])
+        self.assertNotIn('pv.kubernetes.io/bind-completed', out['metadata']['annotations'])
