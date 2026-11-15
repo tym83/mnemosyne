@@ -16,6 +16,7 @@ from pathlib import Path
 from .lineage import LANGUAGE_NAMES, Lineage
 from .weave.variants import plain
 from .writing import poetics
+from .writing.memory import composer, hearings
 
 ART = {'music': 'музыка', 'literature': 'литература'}
 LANG_RU = {'ru': 'русский', 'en': 'английский', 'fr': 'французский', 'es': 'испанский', 'pt': 'португальский',
@@ -30,8 +31,10 @@ class Atelier:
         self.life = Lineage.restore(json.loads((self.root/'lineage.json').read_text()))
         # A lived history keeps nights under nights/; a studio volume keeps them beside lineage.json.
         self.home = self.root/'nights' if (self.root/'nights').is_dir() else self.root
+        # A continuous life keeps each creator's sessions under creators/<id>/<stamp>.
         self.nights = sorted(p for p in self.home.iterdir() if p.is_dir() and p.name not in ('ledger', 'cache', 'site')
-                             and ((p/'decode.json').exists() or (p/'request.json').exists() or p.name.isdigit()))
+                             and ((p/'decode.json').exists() or (p/'request.json').exists() or p.name.isdigit()
+                                  or p.name == 'creators'))
         self.year = [json.loads(l) for l in (self.root/'year.jsonl').read_text().splitlines()] \
             if (self.root/'year.jsonl').exists() else []
         from .writing.memory import Memory
@@ -70,6 +73,11 @@ class Atelier:
                     record = json.loads(p.read_text())
                     if record.get('opus'):
                         self._notebooks[record['opus']] = record
+            # A composer's notebook is also kept in the work: it outlasts the files of the session.
+            for _, w in self.works():
+                record = (w.get('process') or {}).get('composer')
+                if isinstance(record, dict) and record.get('opus'):
+                    self._notebooks.setdefault(record['opus'], record)
         return self._notebooks.get(wid)
 
     def records(self):
@@ -392,10 +400,37 @@ def notebook_html(at, record):
                      + (f'<dt>Что сохранить</dt><dd>{ru_block(at, iv.get("keep"))}</dd>' if iv.get('keep') else '')
                      + lists + '</dl></div>')
     method = record.get('method')
+    music = composer(record)
     if method:
         parts.append('<h3 id="method">Выбор школы: ' + (school_link(method['school']) if method.get('kind') == 'school'
                                              else 'новая школа «' + esc(method['school']) + '»') + '</h3>'
                      + ru_block(at, method.get('reason')))
+        if music:
+            parts.append('<dl>' + ''.join(f'<dt>{label}</dt><dd>{ru_block(at, method[k])}</dd>'
+                                          for k, label in (('concept', 'Замысел формы'), ('principle', 'Принцип'),
+                                                           ('transformation', 'Преображение'))
+                                          if method.get(k)) + '</dl>')
+    shades = record.get('halftones') if music else None
+    if shades:
+        rows = [(f'Мысль: {esc(shades["thought"].get("shade"))}', shades['thought']),
+                (f'Рука: {esc(shades["embodiment"].get("shade"))}', shades['embodiment'])] \
+            if isinstance(shades.get('thought'), dict) and isinstance(shades.get('embodiment'), dict) else []
+        rows += [(f'{esc(n.get("emotion"))}: {esc(n.get("shade"))}', n) for n in shades.get('nuances') or []]
+        parts.append('<h3 id="halftones">Полутона</h3><p class="muted">Какой оттенок у каждого чувства — так, '
+                     'как его даёт только этот композитор.</p>' + ru_block(at, shades.get('overall')) + '<dl>'
+                     + ''.join(f'<dt>{head}</dt><dd>{ru_block(at, v.get("why_mine"))}{ru_block(at, v.get("how_it_shows"))}</dd>'
+                               for head, v in rows) + '</dl>')
+    heard = hearings(record) if music else []
+    if heard:
+        parts.append('<h3 id="hearings">Как композитор слушал свои черновики</h3><p class="muted">После каждого эскиза '
+                     'и черновика композитор читает партитуру и анализ и решает: принять или переписать.</p>')
+    for n, h in enumerate(heard, 1):
+        what = 'Эскиз' if h['step'] == 'listen:sketch' else f'Черновик {h["step"].rsplit(":", 1)[-1]}'
+        parts.append(f'<div class="work"><h4 id="hearing-{n}">{what} · {VERDICT.get(h.get("verdict"), h.get("verdict") or "")}'
+                     + (f' · {h["quality"]:.2f}' if isinstance(h.get('quality'), (int, float)) else '') + '</h4>'
+                     + ru_block(at, h.get('reasons'))
+                     + ('<ul>' + ''.join(f'<li>{ru_inline(at, c)}</li>' for c in h.get('corrections') or []) + '</ul>'
+                        if h.get('corrections') else '') + '</div>')
     birth = record.get('school_birth') or {}
     for n, h in enumerate(birth.get('attempts') or [], 1):
         p, j = h['poetics'], h['judgement']
@@ -562,6 +597,7 @@ def site(at, out: Path):
             + ([('critic', 'Внутренний критик', 2)] if record.get('interrogation') else []) \
             + ([('method', 'Выбор школы', 2)] if record.get('method') else []) \
             + [(f'draft-{n}', f'Черновик {n}', 2) for n in range(1, len(record.get('drafts') or []) + 1)] \
+            + ([('hearings', 'Как слушал черновики', 2)] if record.get('entries') and hearings(record) else []) \
             + ([('reviews', 'Рецензии', 1)] if reviews else []) + [('sources', 'Первоисточники', 1)]
         plain_title = plain(final['title']) if final and final.get('title') else w['id']
         (out/f'work-{w["id"]}.html').write_text(page(plain_title, body, scripts, toc=toc))

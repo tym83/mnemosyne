@@ -1,7 +1,9 @@
 """The Translator's memory: Russian renderings of everything in an atelier that is not Russian.
 
 Works, drafts, ideas, diaries, the inner critic's reasons, portraits, Lives
-chapters and reviews are written in the creators' mother tongues. The Translator
+chapters and reviews are written in the creators' mother tongues; so are a
+composer's notebooks: the idea, its interrogation, the method in words, the
+halftones and the composer's own listening to each sketch and draft. The Translator
 walks the atelier after the nights, renders what is foreign and keeps it in
 translations.json at the atelier root, keyed by the text. Nothing in the
 atelier itself changes; the viewer shows the Russian with the original beside it.
@@ -62,6 +64,37 @@ class Memory:
 
 
 NOTEBOOK_FIELDS = ('statement', 'interrogation', 'method', 'drafts', 'verdict', 'portrait', 'plan', 'idea')
+# A composer's method in words; the rest of it (school codes, sources, NotaGen prompt) is not prose.
+COMPOSER_METHOD = ('principle', 'transformation', 'concept', 'reason')
+
+
+def composer(record) -> bool:
+    """A composer's notebook: writers' notebooks say art=literature, composers' keep sketches."""
+    return isinstance(record, dict) and record.get('art') != 'literature' and \
+        ('sketches' in record or record.get('art') == 'music')
+
+
+def hearings(record) -> list[dict]:
+    """The composer's own listening to each sketch and draft, last answer per step, in order."""
+    out = {}
+    for e in record.get('entries') or []:
+        if isinstance(e, dict) and str(e.get('step', '')).startswith('listen:') and isinstance(e.get('result'), dict):
+            out[e['step']] = {'step': e['step'], **e['result']}
+    return list(out.values())
+
+
+def prose(record) -> dict:
+    """The parts of a notebook a reader reads, for the Translator: per art, only words, never plans."""
+    if not composer(record):
+        return {k: record.get(k) for k in NOTEBOOK_FIELDS}
+    method = record.get('method') or {}
+    verdict = record.get('verdict') or {}
+    return {'statement': record.get('statement'), 'interrogation': record.get('interrogation'),
+            'portrait': record.get('portrait'), 'method': {k: method.get(k) for k in COMPOSER_METHOD},
+            'halftones': record.get('halftones'),
+            'hearings': [{k: h.get(k) for k in ('reasons', 'corrections')} for h in hearings(record)],
+            'verdict': {k: verdict.get(k) for k in ('reasons', 'corrections')},
+            'let_go': (record.get('let_go') or {}).get('left_undone')}
 SKIP = {'id', 'kind', 'school', 'verdict', 'opus', 'artist', 'step', 'backend', 'engine', 'status'}
 
 
@@ -84,6 +117,11 @@ def gather(root: Path) -> list[str]:
     life = json.loads((root/'lineage.json').read_text())
     for a in life['artists']:
         strings([a.get('portrait'), [w.get('idea') for w in a.get('catalogue', [])]], out)
+        # A composer's notebook also lives in the work itself: it outlasts the files of the night.
+        for w in a.get('catalogue', []):
+            record = (w.get('process') or {}).get('composer')
+            if isinstance(record, dict):
+                strings(prose(record), out)
     for chapters in life.get('biographies', {}).values():
         strings([c.get('text') for c in chapters.get('chapters', [])], out)
     strings([r.get('text') for r in life.get('reception', {}).get('reviews', [])], out)
@@ -94,8 +132,7 @@ def gather(root: Path) -> list[str]:
         if not p.name.endswith('.ru.txt'):
             strings(p.read_text(), out)
     for p in sorted(nights.rglob('notebook.json')):
-        record = json.loads(p.read_text())
-        strings({k: record.get(k) for k in NOTEBOOK_FIELDS}, out)
+        strings(prose(json.loads(p.read_text())), out)
     seen, unique = set(), []
     for text in out:
         if key(text) not in seen:
