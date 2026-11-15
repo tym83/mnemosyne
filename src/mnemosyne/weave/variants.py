@@ -126,12 +126,12 @@ def decode_many(volume, key):
 # text of the night carries this way: drafts, works, notebooks, reviews, Lives, translations.
 SPACES = (' ', '\u00a0', '\u202f')
 WORD = re.compile(r'(?<=\w) (?=\w)')
-MIN_PROSE = 120
+MIN_PROSE = 40
 
 
 def prose(text):
-    """A text of words that can be typeset: long enough, not JSON or markup of its own."""
-    return (isinstance(text, str) and len(text) >= MIN_PROSE and text.count(' ') >= 12
+    """A text of words that can be typeset: a phrase or longer, not JSON or markup of its own."""
+    return (isinstance(text, str) and len(text) >= MIN_PROSE and text.count(' ') >= 5
             and text.lstrip()[:1] not in ('{', '[') and not any(c in text for c in '{}|'))
 
 

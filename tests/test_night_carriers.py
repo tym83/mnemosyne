@@ -46,10 +46,16 @@ class TextsTests(unittest.TestCase):
         life.biographies[aid].chapters[0]['text'] = 'Он {родился|явился} в {мае|марте}.'
         record = {'entries': [{'result': {'diary': 'Я {шёл|брёл}.'}}]}
         entries, publish = tonight.texts(life, [('w1', record)])
-        self.assertEqual(len(entries), 3)
-        publish({'entries': [{**e, 'text': e['markup'].replace('{', '').split('|')[0] + '.'} for e in entries]})
+        ids = {e['id'] for e in entries}
+        # The author's variants are gathered, and every other unwoven prose text is typeset too.
+        self.assertIn('/notebooks/w1/entries/0/result/diary', ids)
+        self.assertIn(f'/reviews/{review["id"]}', ids)
+        self.assertGreaterEqual(len(entries), 3)
+        from mnemosyne.weave import variants
+        publish({'entries': variants.realize(entries, [0] * len(variants.radices(entries)))})
         self.assertTrue(review['woven'])
         self.assertEqual(review['apparatus'], 'Вещь {тихая|робкая} и {честная|прямая}.')
+        self.assertEqual(review['text'], 'Вещь тихая и честная.')
         self.assertIn('/entries/0/result/diary', record['apparatus'])
         self.assertEqual(tonight.texts(life, [])[0], [])
 

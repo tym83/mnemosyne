@@ -28,6 +28,14 @@ def texts(life, notebooks=()):
                 key = f'/lives/{aid}/{i}'
                 entries.append({'id': key, 'markup': markup})
                 targets[key] = chapter
+    # Schools born tonight: their manifestos and poetics are texts of the night too.
+    for sid, school in sorted(life.schools.items()):
+        if school.get('night') != life.night or school.get('woven'):
+            continue
+        for e in variants.collect({k: school.get(k) for k in ('manifesto', 'poetics', 'reason')}):
+            key = f'/schools/{sid}{e["id"]}'
+            entries.append({'id': key, 'markup': e['markup']})
+            targets[key] = (school, e['id'])
     for work, record in notebooks:
         for e in variants.collect({k: v for k, v in record.items() if k not in ('apparatus', 'backup')}):
             key = f'/notebooks/{work}{e["id"]}'
