@@ -149,6 +149,10 @@ def plan_contract(method):
                           'A time_scale line is written on a sixteenth grid: each onset is the exact scaled onset '
                           'rounded to the nearest sixteenth, so the ratio holds over a phrase, not note by note. '
                           'Judge a canon by its entries and phrase lengths, not by single written values.',
+                          'Fixed-pitch instruments (keyboards incl. accordion, harp, guitar, pitched percussion) '
+                          'play no microtones: their pitches round to the semitone. Strings, winds and voices keep them.',
+                          'Tempo is one per movement: ritardando, accelerando and fermatas are not realized; '
+                          'shape time with note values, rests and meter, and put the wish in notes.',
                           'Notation: guitar on the treble clef an octave lower (8vb); keyboards and harp switch to the '
                           'bass clef in low bars. Pedal and other playing marks are not written; put them in notes.',
                           'Chords on monophonic instruments are shared among their players; keep players enough.',

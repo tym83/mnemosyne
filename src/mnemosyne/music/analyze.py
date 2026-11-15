@@ -75,7 +75,8 @@ def features(xml: Path) -> dict:
     ranges = []
     for p in parts:
         ins = p.getInstrument(returnDefault=True)
-        ps = [n.pitch.midi for n in p.recurse().notes if isinstance(n, note.Note)]
+        # Chords count too: keyboards, harp and accordion play their layers as chords.
+        ps = [x.midi for n in p.recurse().notes for x in n.pitches]
         lo = ins.lowestNote.midi if ins.lowestNote else None
         hi = ins.highestNote.midi if ins.highestNote else None
         out_of = sum(1 for x in ps if (lo and x < lo) or (hi and x > hi))
