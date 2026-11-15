@@ -198,6 +198,17 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertEqual((op['tempo'], op['duration']), (66, dev['seconds']))
         self.assertNotIn('tempo', dev['sections'][0])
 
+    def test_harmony_line_in_thirds_of_a_bar_does_not_read_as_overlap(self):
+        # A harmony line steps in bar/3 values: 8.0 + 4/3 is a float, the next onset 28/3 a Fraction.
+        plan = g.example()
+        plan['movements'][1]['sections'][0]['layers'].append(
+            {'instruments': ['bass_trombone'], 'role': 'bass', 'material': 'harmony', 'pattern': 'line', 'repeat': 0})
+        g.validate(plan)
+        _, _, assignment, _ = g.movement(plan, 1)
+        trombone = sorted(e['at'] for p in assignment['players'] if p['instrument'] == 'bass_trombone' for e in p['events'])
+        self.assertIn(8 + 4/3, [round(x, 9) for x in trombone] and [8 + 4/3] or [])
+        self.assertGreater(len(trombone), 10)
+
 
 def tempo_map_seconds(op):
     from mnemosyne.music import tempo_map

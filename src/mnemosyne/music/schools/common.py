@@ -106,13 +106,16 @@ def put(part, at, length, pitch, articulation=None):
 def finish(score, total):
     # Explicit rests fill every silent interval, including final silence.
     for part in score.parts:
-        cursor = 0
+        cursor = Fraction(0)
         for event in sorted(part.notesAndRests, key=lambda n:n.offset):
-            if event.offset < cursor:
-                raise ValueError('overlapping events in a monophonic part')
-            if event.offset > cursor:
+            # music21 keeps whole offsets as floats and others as Fractions: compare exactly, or
+            # 8.0 + 4/3 (a float) lands past a note at 28/3 and reads as an overlap.
+            offset = Fraction(event.offset)
+            if offset < cursor:
+                raise ValueError(f'overlapping events in a monophonic part {part.id} at {float(offset)}')
+            if offset > cursor:
                 put(part,cursor,event.offset-cursor,None)
-            cursor = event.offset+event.quarterLength
+            cursor = offset+Fraction(event.quarterLength)
         if cursor < total:
             put(part,cursor,total-cursor,None)
     score.makeMeasures(inPlace=True)
