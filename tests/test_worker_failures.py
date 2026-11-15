@@ -69,3 +69,21 @@ class MarginTests(unittest.TestCase):
             self.assertFalse(extra['final'])
             root = ws.prepare(surface.read(path), school)
             self.assertTrue(any(d.get('id', '').startswith(ws.PREFIX) for d in root.iter('direction')))
+
+
+class CrdReferenceTests(unittest.TestCase):
+    def test_a_type_definition_is_kept_by_reference(self):
+        from mnemosyne.operator.kube import crd_reference, SPEC_SHA
+        from mnemosyne.restore import ordered
+        crd = {'apiVersion': 'apiextensions.k8s.io/v1', 'kind': 'CustomResourceDefinition',
+               'metadata': {'name': 'widgets.example.com', 'resourceVersion': '9', 'uid': 'u'},
+               'spec': {'group': 'example.com', 'scope': 'Namespaced',
+                        'names': {'kind': 'Widget', 'plural': 'widgets'},
+                        'versions': [{'name': 'v1', 'served': True, 'storage': True,
+                                      'schema': {'openAPIV3Schema': {'type': 'object', 'x': 'y' * 5000}}}]}}
+        ref = crd_reference(crd)
+        self.assertLess(len(json.dumps(ref)), 800)
+        self.assertEqual(len(ref['metadata']['annotations'][SPEC_SHA]), 64)
+        widget = {'apiVersion': 'example.com/v1', 'kind': 'Widget', 'metadata': {'name': 'w', 'namespace': 'n'}}
+        objects, stage = ordered([widget, ref])
+        self.assertEqual(stage(objects[0]), 0)

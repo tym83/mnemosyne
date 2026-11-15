@@ -236,6 +236,14 @@ class Kubectl:
         return obj['metadata']['uid']
 
     def apply(self, obj):
+        if (obj.get('metadata', {}).get('annotations') or {}).get('mnemosyne.art/reference') == 'crd':
+            # A referenced type definition is not written: the platform installs it. Wait for it to exist.
+            result = subprocess.run(self.command + ['get', 'crd', obj['metadata']['name'], '-o', 'name'],
+                                    capture_output=True, text=True, timeout=60)
+            if result.returncode:
+                raise RuntimeError(f"type definition {obj['metadata']['name']} is not installed in the target; "
+                                   'install the platform component that provides it')
+            return
         _, resource = self.resource(obj['apiVersion'], obj['kind'])
         if resource['namespaced'] != bool(obj['metadata'].get('namespace')):
             raise RuntimeError('manifest namespace does not match API scope')

@@ -52,7 +52,27 @@ def snapshot(api, resources, namespace=None, include_secrets=False):
     # A scoped backup also needs the namespace in a fresh API server.
     if namespace and not any(o['apiVersion'] == 'v1' and o['kind'] == 'Namespace' for o in objects):
         objects.append({'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': namespace}})
-    return objects
+    return [crd_reference(o) if o.get('kind') == 'CustomResourceDefinition' else o for o in objects]
+
+
+REFERENCE = 'mnemosyne.art/reference'
+SPEC_SHA = 'mnemosyne.art/spec-sha256'
+
+
+def crd_reference(obj):
+    """A type definition is kept by reference: the platform that installs it brings its schema back.
+    Name, group, kinds, scope and served versions (enough to order a restore) and the schema's hash."""
+    import hashlib
+    import json
+    spec = obj.get('spec', {})
+    meta = obj.get('metadata', {})
+    digest = hashlib.sha256(json.dumps(spec, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    return {'apiVersion': obj['apiVersion'], 'kind': 'CustomResourceDefinition',
+            'metadata': {'name': meta['name'], 'labels': meta.get('labels') or {},
+                         'annotations': {REFERENCE: 'crd', SPEC_SHA: digest}},
+            'spec': {'group': spec.get('group'), 'names': spec.get('names'), 'scope': spec.get('scope'),
+                     'versions': [{k: v[k] for k in ('name', 'served', 'storage') if k in v}
+                                  for v in spec.get('versions', [])]}}
 
 
 def publish(api, namespace, records):
