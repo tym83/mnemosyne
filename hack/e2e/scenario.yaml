@@ -25,7 +25,7 @@ rules:
   resources: [cronjobs]
   verbs: [get, list, create, update, patch, delete]
 - apiGroups: [networking.k8s.io]
-  resources: [networkpolicies]
+  resources: [networkpolicies, ingresses]
   verbs: [get, list, create, update, patch, delete]
 - apiGroups: [autoscaling]
   resources: [horizontalpodautoscalers]
