@@ -1,0 +1,58 @@
+# The Leonia year lived by a test cluster: a player that applies its operations as real objects.
+# kubectl apply -f this; create the ConfigMap with: kubectl -n scenario create configmap scenario --from-file=leonia.yaml=scenarios/leonia.yaml
+apiVersion: v1
+kind: Namespace
+metadata: {name: scenario}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: player, namespace: scenario}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: scenario-player}
+rules:
+- apiGroups: ['']
+  resources: [namespaces, services, configmaps]
+  verbs: [get, list, create, update, patch, delete]
+- apiGroups: ['']
+  resources: [pods]
+  verbs: [get, list, delete]
+- apiGroups: [apps]
+  resources: [deployments, statefulsets, deployments/scale]
+  verbs: [get, list, create, update, patch, delete]
+- apiGroups: [batch]
+  resources: [cronjobs]
+  verbs: [get, list, create, update, patch, delete]
+- apiGroups: [networking.k8s.io]
+  resources: [networkpolicies]
+  verbs: [get, list, create, update, patch, delete]
+- apiGroups: [autoscaling]
+  resources: [horizontalpodautoscalers]
+  verbs: [get, list, create, update, patch, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata: {name: scenario-player}
+subjects: [{kind: ServiceAccount, name: player, namespace: scenario}]
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: scenario-player}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: player, namespace: scenario}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: player}}
+  template:
+    metadata: {labels: {app: player}}
+    spec:
+      serviceAccountName: player
+      containers:
+      - name: player
+        image: STUDIO_IMAGE
+        command: [python, -m, mnemosyne.scenario.live, /scenario/leonia.yaml, --pace, '24']
+        env: [{name: POD_NAMESPACE, valueFrom: {fieldRef: {fieldPath: metadata.namespace}}}]
+        resources: {requests: {cpu: 50m, memory: 256Mi}, limits: {cpu: 500m, memory: 1Gi}}
+        volumeMounts: [{name: scenario, mountPath: /scenario}]
+      volumes: [{name: scenario, configMap: {name: scenario}}]
