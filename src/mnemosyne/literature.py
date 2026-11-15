@@ -232,6 +232,12 @@ class Writer:
             system = (system or '') + f'\n\nWrite every prose field in {LANGUAGE.get()}: it is your mother tongue.'
         if fields:
             system = (system or '') + VARIANTS_INSTRUCTION.format(fields=', '.join(fields))
+        replay = getattr(self, 'replay', None)
+        if replay and step in replay:
+            # Resuming an interrupted work: a step already answered is not asked or paid for again.
+            result = schema.model_validate(replay.pop(step))
+            self.notebook.append({"step": step, "replayed": True, "result": result.model_dump()})
+            return result
         result = self._ask(system, prompt, schema, step, max_tokens, images)
         return settle(result, fields) if DRAFTING.get() else result
 

@@ -47,6 +47,7 @@ class LifeTests(unittest.TestCase):
         Session.made = []
         with tempfile.TemporaryDirectory() as tmp, \
              patch.object(living, 'rest_seconds', return_value=3600), \
+             patch.object(living, 'start_delay', return_value=0), \
              patch.object(living.Life, 'carry', return_value=None), \
              patch.object(living.Life, 'publish', return_value=None):
             life = living.Life({'atelier': 'a', 'inventory': []}, Path(tmp), X25519PrivateKey.generate(), None, 'ns',
@@ -95,6 +96,18 @@ class LifeTests(unittest.TestCase):
             self.assertEqual(second['kind'], 'keyframe')
             self.assertEqual([p['id'] for p in ledger.pending()], [second['id']])
             self.assertEqual(first['superseded'], second['id'])
+
+    def test_an_interrupted_work_resumes_without_asking_again(self):
+        from mnemosyne.literature import Writer
+        from pydantic import BaseModel
+
+        class Answer(BaseModel):
+            text: str
+        notebook = []
+        writer = Writer(notebook, backend='none')
+        writer.replay = {'idea': {'text': 'море'}}
+        self.assertEqual(writer.ask('s', 'p', Answer, 'idea').text, 'море')
+        self.assertTrue(notebook[-1]['replayed'])
 
 
 if __name__ == '__main__':

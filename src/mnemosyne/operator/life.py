@@ -38,6 +38,11 @@ def rest_seconds(artist, rng):
     return max(600., hours * 3600)
 
 
+def start_delay(artist, rng):
+    """Where in their rest a creator is when the atelier (re)starts."""
+    return rng.uniform(0, rest_seconds(artist, rng))
+
+
 class Life:
     def __init__(self, request, base, key, api, namespace, *, night_factory=None, writer_factory=None):
         self.request, self.base, self.key, self.api, self.namespace = request, base, key, api, namespace
@@ -169,7 +174,11 @@ class Life:
 
     def creator(self, aid):
         """One creator's own life of work: a work, rest, the next work. Stops only with them."""
-        rng = random.Random(aid)
+        rng = random.Random(f'{aid}:{now().isoformat()}')
+        a = self.artist(aid)
+        if not self.unfinished(a):
+            # After a (re)start a creator is somewhere in their own rest, not at a common starting line.
+            self.stop.wait(start_delay(a, rng))
         while not self.stop.is_set():
             a = self.artist(aid)
             if a.status == 'dead':
@@ -185,13 +194,27 @@ class Life:
             self.publish()
             self.stop.wait(rest_seconds(a, rng))
 
+    def unfinished(self, a):
+        """A work the creator was in the middle of when the atelier stopped."""
+        sessions = sorted((self.base/'creators'/a.id).glob('*/notebook.json'))
+        if sessions:
+            record = json.loads(sessions[-1].read_text())
+            if record.get('status') == 'searching' and not record.get('error'):
+                return sessions[-1].parent
+        return None
+
     def work(self, a):
         stamp = f'{now():%Y%m%dT%H%M%S}'
         root = self.base/'creators'/a.id/stamp
         if a.art == 'music':
             from mnemosyne.music.composer import Night
+            resume = self.unfinished(a) if self.night_factory is None else None
+            if resume:
+                root = resume
+                self.say('resuming', a.id, root.name)
             factory = self.night_factory or (lambda life, aid, folder: Night(
-                life, aid, folder, LocalStudio(), backend=None, sound=self.request.get('render', True)))
+                life, aid, folder, LocalStudio(), backend=None, sound=self.request.get('render', True),
+                resume=resume is not None))
             session = factory(self.life, a.id, root)
             self.say('composing', a.id, session.work_id)
             try:

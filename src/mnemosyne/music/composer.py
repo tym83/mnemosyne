@@ -284,7 +284,7 @@ def art_sketch(sketch):
 
 class Night:
     def __init__(self, life, artist_id, root, studio, *, backend=None, sound=True,
-                 cluster_state=None, ledger_root=None):
+                 cluster_state=None, ledger_root=None, resume=False):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
         if self.artist.art != 'music':
@@ -300,7 +300,11 @@ class Night:
         self.cluster_state, self.ledger_root = cluster_state, ledger_root
         from .school_birth import register_all
         register_all(life.schools)
-        self.root.mkdir(parents=True, exist_ok=False)
+        previous = None
+        if resume and (self.root/'notebook.json').exists():
+            previous = json.loads((self.root/'notebook.json').read_text())
+        else:
+            self.root.mkdir(parents=True, exist_ok=False)
         studio_record = {'pod': getattr(studio, 'pod', None), 'remote': getattr(studio, 'remote', None)}
         self.entries, self.sketches = [], []
         self.record = {'version': 1, 'artist': artist_id, 'opus': self.work_id,
@@ -308,6 +312,15 @@ class Night:
                        'studio': studio_record, 'status': 'searching', 'entries': self.entries,
                        'sketches': self.sketches}
         self.writer = Writer(self.entries, backend=backend, data_class="art")
+        if previous:
+            # The work resumes where it stopped: answers already given are replayed, studio results reused.
+            self.work_id = previous.get('opus', self.work_id)
+            self.record.update(opus=self.work_id, resumed=True)
+            replay = {}
+            for e in previous.get('entries', []):
+                if isinstance(e, dict) and e.get('step') and isinstance(e.get('result'), dict):
+                    replay.setdefault(e['step'], e['result'])
+            self.writer.replay = replay
         self.work = None
         self.save()
 
@@ -465,8 +478,14 @@ class Night:
                 if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
 
     def music(self, plan, method, label):
-        result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form,
-                                  'born_schools': self.born_sources()}, label)
+        done = self.root/label/'result'/'result.json'
+        if done.exists() and json.loads((self.root/label/'request.json').read_text()).get('plan') == plan:
+            result = json.loads(done.read_text())   # composed before the interruption
+        else:
+            while (self.root/label).exists():      # an interrupted attempt stays as it was
+                label += '-again'
+            result = self.studio_run({'action': 'compose', 'plan': plan, 'form': method.form,
+                                      'born_schools': self.born_sources()}, label)
         folder = self.root/label/'result'
         files = [str(p.relative_to(self.root)) for p in sorted(folder.rglob('*'))
                  if p.is_file() and '.drafts' not in p.parts]
