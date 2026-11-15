@@ -5,7 +5,7 @@ metadata:
   name: mnemosyne
   annotations:
     kubepkg.dev/description: Mnemosyne portable atelier and retained works
-    kubepkg.dev/home: https://github.com/tym83/scheherazade
+    kubepkg.dev/home: https://github.com/tym83/mnemosyne
 spec:
   version: 0.2.0
   build: 2

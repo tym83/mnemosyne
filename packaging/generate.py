@@ -50,7 +50,7 @@ definition = {
 crds = list(yaml.safe_load_all((ROOT / 'charts/mnemosyne/crds/mnemosyne.yaml').read_text()))
 recipe = {
     'apiVersion': 'kubepkg.dev/v1', 'kind': 'Recipe',
-    'metadata': {'name': 'mnemosyne', 'annotations': {'kubepkg.dev/description': 'Mnemosyne portable atelier and retained works', 'kubepkg.dev/home': 'https://github.com/tym83/scheherazade'}},
+    'metadata': {'name': 'mnemosyne', 'annotations': {'kubepkg.dev/description': 'Mnemosyne portable atelier and retained works', 'kubepkg.dev/home': 'https://github.com/tym83/mnemosyne'}},
     'spec': {'version': yaml.safe_load((ROOT / 'charts/mnemosyne/Chart.yaml').read_text())['version'],
              'build': PACKAGE_BUILD, 'sources': {'core': {'dir': 'charts/mnemosyne'}},
              'charts': {'mnemosyne': {'from': ['core']}},

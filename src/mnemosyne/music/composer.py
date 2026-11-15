@@ -192,9 +192,7 @@ class Studio:
             raise RuntimeError('studio is on an unauthorized node')
         self.call(['exec', self.pod, '--', 'mkdir', '-p', self.remote + '/src'])
         self.call(['cp', str(Path(__file__).resolve().parents[1]),
-                   self.pod + ':' + self.remote + '/src/scheherazade'])
-        self.call(['exec', self.pod, '--', 'ln', '-s', 'scheherazade',
-                   self.remote + '/src/mnemosyne'])
+                   self.pod + ':' + self.remote + '/src/mnemosyne'])
 
     def wait(self, remote, timeout=14400, every=30):
         deadline = time.monotonic() + timeout
