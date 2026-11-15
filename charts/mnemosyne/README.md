@@ -1,7 +1,10 @@
 # Portable atelier add-on
 
-The `addon` section adds a namespaced kopf controller and one studio Job per
-Atelier/night. Existing `work` and `models` values retain their earlier behavior.
+The `addon` section adds a namespaced kopf controller and the atelier's studio:
+with `addon.window.kind: continuous`, one long-running Deployment
+(`mnemo-life-<uid>`) in which the creators live in real time; with a clock or
+idle window, one studio Job per Atelier/night. Existing `work` and `models`
+values retain their earlier behavior.
 The add-on is disabled until real image digests, the atelier key reference and
 the owner's public key
 are supplied. No fabricated digest is shipped.
@@ -22,13 +25,13 @@ qualities; everything else is the atelier's own creative freedom.
    or reads registry credentials.
 2. Prepare `owner.yaml` with `addon.enabled: true`, `addon.key.secretName` (an
    existing Secret holding 32 **raw** X25519 private bytes), `imagePullSecrets`,
-   and commissions: each has `idea`, `method`, and a complete approved school
-   `plan`. Existing `music/schools/plans` are technical method studies, not
-   evidence of artistic quality. `mnemo keys new --output DIR` creates the owner's
+   `addon.window`, and `models` (endpoints and roles; credentials through
+   `addon.env` valueFrom). `mnemo keys new --output DIR` creates the owner's
    key (keep it offline: only it opens snapshots) and the atelier's key (mount it
    as the Secret); set `addon.key.ownerPublic` to the printed hex. The atelier
    seals snapshots it cannot open and authenticates frames with a secret both
-   keys derive; its public key travels in every work.
+   keys derive; its public key travels in every work. There are no artistic
+   inputs: ideas, methods and schools belong to the creators.
 3. Install into a dedicated namespace:
 
    ```sh
@@ -45,7 +48,23 @@ Generated Jobs use the minimum int32 PriorityClass and Never preemption; an
 existing priority class can be explicitly selected instead. The scoped quota
 applies to that class, not unrelated workloads in the namespace.
 
-`addon.window.kind` supports `night`, `weekends`, `idle`, `always`. Night hours
+`addon.window.kind` supports `continuous`, `night`, `weekends`, `idle`, `always`.
+
+`continuous` is the atelier's real life. The controller keeps one Deployment
+(`replicas: 1`, `Recreate`; `0` while `addon.suspend` is true) running
+`python -m mnemosyne.operator.life` with the studio pod template. Each living
+creator works in their own thread: a work from idea to verdict, then rest
+(ten minutes to several hours, from the creator's own temper and strength),
+then the next one; illness, despair, silence and death are the only pauses.
+Fate steps once per calendar day (births and deaths one at a time), the sensor
+reads the inventory every 15 minutes, critics and the chronicler write every
+10 minutes when there is something new, and every new artifact carries the
+pending backup at once. A composition interrupted by a restart is resumed. The clock
+window fields and `deadlineSeconds` do not apply. Continuous life calls the
+configured `models` directly; with no endpoints, every work fails and is
+logged in `life.log`.
+
+The other kinds run nights as Jobs. Night hours
 are interpreted in `timeZone`, including overnight and DST transitions. A Job
 cannot exceed the remaining clock window or `deadlineSeconds`. Idle requires
 no pending pods, no node pressure and CPU below 20% of allocatable on every node.
@@ -57,6 +76,8 @@ a night. There is no automatic retry of a failed night. Use a new night/Atelier
 for an explicitly requested retry; do not delete notebooks.
 
 ## Modes and keys
+
+Modes apply to night Jobs; continuous life uses `models` directly.
 
 - `chamber`: no model calls. Every work the artists' lives bring that night,
   accepted or not, gets a score from a school the artist chooses (their own
@@ -92,7 +113,10 @@ Live Vault/KMS/S3 integrations have not been exercised in this workspace.
 ## Backup boundary and records
 
 The studio reads the **explicit inventory** of GVK/resource names. The defaults
-cover common desired-state resources and every Mnemosyne record. Extend inventory
+cover common desired-state resources. The atelier's own `mnemosyne.art` records
+are the carrier and are excluded from the payload. CustomResourceDefinitions are
+kept by reference (name, group, kinds, scope, served versions, SHA-256 of the
+spec): restore waits for the platform in the target to install them. Extend inventory
 and hence generated read-only RBAC for additional installed APIs. No resource
 wildcards are accepted. Collection failures fail the night instead of silently
 omitting a declared resource. Optional `snapshotNamespace` restricts the collector;
@@ -113,9 +137,10 @@ not PVC volume bytes, databases, cloud resources or control-plane certificates.
 API defaults and cluster-assigned addresses can need migration on another
 cluster. This is not yet a demonstrated full-cluster disaster recovery system.
 
-State is captured before the night; it does not enter the artistic pipeline.
-Fate and commissions run from retained lineage; their resulting records are
-published for the next snapshot. The checkpoint lives on the works PVC; if it is absent, Artist/Biography/Atelier
+State is captured by the sensor (before each night, or every 15 minutes in
+continuous life) into the ledger of keyframes and deltas; it never enters the
+artistic pipeline. Fate runs from retained lineage; its resulting records are
+published as `mnemosyne.art` objects. The checkpoint lives on the works PVC; if it is absent, Artist/Biography/Atelier
 CRs restored into the new cluster provide the lineage checkpoint.
 The namespace's Atelier retains runtime configuration when lineage is patched.
 
@@ -141,10 +166,15 @@ Regenerate schema files with `uv run python hack/addon/schema.py`.
 mnemo works export --source /works --output /safe/works
 # S3 uses normal AWS credentials; --endpoint supports compatible object stores:
 mnemo works export --source s3://my-bucket/mnemosyne --output /safe/works
-# Select ONE snapshot/night; mixing multiple complete snapshots is rejected:
-mnemo restore --works /safe/works/<atelier>/<night>/woven --key /safe/owner.key \
+# Pass the whole exported atelier directory: every score, *.variants.json and
+# *.audience.json is tried; the ledger replays keyframe + deltas (--at ISO picks a moment):
+mnemo restore --works /safe/works/<atelier> --key /safe/owner.key \
   --output /safe/recovered --apply --kubeconfig /safe/new-kubeconfig --context new
 ```
+
+Objects the target already has are kept, claims get fresh volumes, Secrets are
+not in the backup unless explicitly enabled. Re-supply the atelier key, model
+credentials and pull secrets in the new cluster.
 
 An export refuses overwrites and symlinks and writes a SHA-256 file manifest.
 S3 mirrors the PVC after verification and publication; its completion marker is
@@ -183,9 +213,24 @@ The gallery serves the history as a read-only site: creators, works with their
 drafts, scores and translations, the inner critic's rounds, critics, Lives,
 schools with their manifestos, the timeline and how to restore. It mounts the
 volume read-only, has no service account token and no keys, and rebuilds the
-site every `addon.gallery.refreshSeconds`. Expose it with
-`addon.gallery.ingress` or a port-forward to share it. The volume is
-ReadWriteOnce, so with the gallery on, the studio is scheduled on its node.
+site every `addon.gallery.refreshSeconds` (default 900). The Service is
+`<release>-atelier-gallery` (`addon.gallery.service.type`/`port`). To share it,
+set `addon.gallery.ingress.enabled: true` with `host` (required), and optionally
+`className`, `annotations` (for example a cert-manager issuer) and `tls`; or use
+a port-forward. The volume is ReadWriteOnce, so with the gallery on, the studio
+Jobs, the life Deployment and the history Job are scheduled on its node.
+
+## Files on the volume
+
+`/works/<release>-atelier/` holds the atelier: `lineage.json` (checkpoint),
+`life.log`, `ledger/` (cluster states and their sealed frames), `woven/`
+(carriers from critics' and chronicler's texts), `creators/<id>/<time>/` (one
+folder per work: notebook, sketches, drafts, scores, margins and their
+`woven/` carriers) and `process/<sha256>.json`. A record larger than about
+700 KB of JSON (etcd refuses about 1.5 MB) is published with its summary only:
+each work's full process (every answer and plan) moves to
+`process/<sha256>.json` on the volume and the record keeps `file`, `sha256`
+and `bytes`. Model answers are cached in `/works/cache`.
 
 ## Validation and release gates
 
