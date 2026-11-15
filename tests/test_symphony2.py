@@ -104,6 +104,11 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertTrue(any(p['events'] for p in assignment['players'] if p['instrument'] == 'tubular_bells'))
         self.assertEqual(g.playable('glockenspiel'), (79, 84))
 
+    def test_fixed_pitch_instruments_play_no_quarter_tones(self):
+        self.assertEqual(g.place(60.5, 'piano') % 1, 0)
+        self.assertEqual(g.place(60.5, 'harp') % 1, 0)
+        self.assertEqual(g.place(60.5, 'violin_1_section'), 60.5)
+
     def test_tempo_canon_voice_keeps_its_ratio(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][0]

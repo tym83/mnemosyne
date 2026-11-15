@@ -273,6 +273,9 @@ def place(pitch, instrument, register=None):
     spec = REGISTRY[instrument]
     if spec.get('unpitched'):
         return spec['comfortable'][0]
+    if spec['family'] in ('keyboard', 'plucked', 'percussion'):
+        # Fixed-pitch instruments play no quarter tones (and a MIDI chord cannot bend its notes apart).
+        pitch = round(pitch)
     lo, hi = register or spec['comfortable']
     if register and lo <= pitch <= hi and spec['range'][0] <= pitch <= spec['range'][1]:
         return pitch  # a written pitch inside its register stays where the composer put it
