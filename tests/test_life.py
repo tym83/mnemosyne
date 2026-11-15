@@ -81,6 +81,21 @@ class LifeTests(unittest.TestCase):
             self.assertTrue(report['carriers'])
             self.assertTrue(report['frame_decode_verified'])
 
+    def test_a_much_smaller_state_supersedes_an_unfinished_snapshot(self):
+        from mnemosyne.state.ledger import Ledger
+        with tempfile.TemporaryDirectory() as tmp:
+            key = X25519PrivateKey.generate()
+            ledger = Ledger(Path(tmp))
+            big = [{'apiVersion': 'v1', 'kind': 'ConfigMap', 'metadata': {'name': f'c{i}', 'namespace': 'n'},
+                    'data': {'k': f'{i}' + 'x' * 4000}} for i in range(40)]
+            first = ledger.observe(big, '2026-11-15T00:00:00+00:00', key.public_key())
+            small = big[:3]
+            second = ledger.observe(small, '2026-11-15T01:00:00+00:00', key.public_key())
+            self.assertIsNotNone(second)
+            self.assertEqual(second['kind'], 'keyframe')
+            self.assertEqual([p['id'] for p in ledger.pending()], [second['id']])
+            self.assertEqual(first['superseded'], second['id'])
+
 
 if __name__ == '__main__':
     unittest.main()

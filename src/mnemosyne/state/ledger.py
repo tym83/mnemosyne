@@ -120,10 +120,18 @@ class Ledger:
         if sid == self.state_id:
             return None
         if self.pending():
-            # The art carries one piece at a time; the next delta gathers every
-            # change since the last recorded state, so nothing is lost but moments.
-            self.skipped = getattr(self, 'skipped', 0) + 1
-            return None
+            unfinished = [p for p in self.pending() if p['kind'] == 'keyframe']
+            if unfinished and 2 * len(pack(current)) < min(p['bytes'] for p in unfinished):
+                # The cluster's state shrank to less than half of an unfinished snapshot (a smaller
+                # backup scope): start the smaller one now instead of finishing the old for weeks.
+                for p in self.pending():
+                    p['superseded'] = sid
+                self.state, self.state_id, self.deltas = {}, None, 0
+            else:
+                # The art carries one piece at a time; the next delta gathers every
+                # change since the last recorded state, so nothing is lost but moments.
+                self.skipped = getattr(self, 'skipped', 0) + 1
+                return None
         changed = {n: d for n, d in current.items() if self.state.get(n) != hashes[n]}
         removed = sorted(n for n in self.state if n not in current)
         whole = pack(current)
@@ -148,7 +156,7 @@ class Ledger:
         return entry
 
     def pending(self):
-        return [p for p in self.pieces if not p['complete']]
+        return [p for p in self.pieces if not p['complete'] and not p.get('superseded')]
 
     def assign(self, capacities: list[int]) -> list[tuple[dict, int, int] | None]:
         """For each carrier capacity: (piece, first frame index, count) or None.
