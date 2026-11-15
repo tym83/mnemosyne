@@ -63,7 +63,9 @@ class Sensor:
         missing = []
         def get(resource, raw=False):
             if self.fetch is not None:
-                path = resource if raw else f'/{API[resource]}/namespaces/{self.namespace}/{resource.split(".")[0]}'
+                # Without a namespace the sensor feels the whole cluster (read-only).
+                scope = f'/namespaces/{self.namespace}' if self.namespace else ''
+                path = resource if raw else f'/{API[resource]}{scope}/{resource.split(".")[0]}'
                 try:
                     return self.fetch(path)
                 except NotFound:
@@ -87,8 +89,12 @@ class Sensor:
                 missing.append(resource)
                 return None
         objects = {k: get(k) for k in RESOURCES}
-        ns = get('/api/v1/namespaces/'+self.namespace, True)
-        metrics = get('/apis/metrics.k8s.io/v1beta1/namespaces/'+self.namespace+'/pods', True)
+        if self.namespace:
+            ns = get('/api/v1/namespaces/'+self.namespace, True)
+            metrics = get('/apis/metrics.k8s.io/v1beta1/namespaces/'+self.namespace+'/pods', True)
+        else:
+            ns = {'metadata': {'uid': 'cluster'}}
+            metrics = get('/apis/metrics.k8s.io/v1beta1/pods', True)
         def items(k):
             return (objects[k] or {}).get('items', [])
         pods = items('pods')

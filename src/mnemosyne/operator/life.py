@@ -121,7 +121,8 @@ class Life:
             try:
                 objects = snapshot(self.api, self.request['inventory'], self.request.get('snapshotNamespace'),
                                    self.request.get('includeSecrets', False))
-                mood = sense(self.api, self.request.get('snapshotNamespace') or self.namespace, self.base)
+                # The life of the whole cluster reaches the creators, unless the owner scoped it to one namespace.
+                mood = sense(self.api, self.request.get('snapshotNamespace') or None, self.base)
                 with self.lock:
                     self.mood = mood
                     ledger = Ledger(self.base/'ledger')

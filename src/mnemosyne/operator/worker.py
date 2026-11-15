@@ -293,7 +293,7 @@ def sense(api, namespace, base):
     from mnemosyne.sensor import Sensor, incluster
     path = base/'sensor-private.json'
     history = json.loads(path.read_text()) if path.exists() else []
-    history = (history + [Sensor(namespace, fetch=incluster(api)).read(history[-1] if history else None)])[-90:]
+    history = (history + [Sensor(namespace or None, fetch=incluster(api)).read(history[-1] if history else None)])[-90:]
     dump(path, history)
     return mood(history)
 

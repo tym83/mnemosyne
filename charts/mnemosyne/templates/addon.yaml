@@ -95,6 +95,16 @@ rules:
   resources: [{{ .resource | quote }}]
   verbs: [get, list, watch]
 {{- end }}
+# The sensor feels the life of the cluster (read-only): pods, events, jobs, quotas and metrics.
+- apiGroups: ['']
+  resources: [pods, events, endpoints, resourcequotas]
+  verbs: [get, list]
+- apiGroups: [batch]
+  resources: [jobs, cronjobs]
+  verbs: [get, list]
+- apiGroups: [metrics.k8s.io]
+  resources: [pods]
+  verbs: [get, list]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: {{ ternary "RoleBinding" "ClusterRoleBinding" $tenant }}
