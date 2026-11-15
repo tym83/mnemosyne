@@ -70,10 +70,8 @@ def summary(life, night, extra):
 
 def works_tonight(artist, night, every, seed):
     """Whether a creator sits down to work tonight: their own rhythm, moved by fertility and drive."""
-    import hashlib
-    import random
-    r = random.Random(int.from_bytes(hashlib.sha256(f'{seed}:{night}:{artist.id}'.encode()).digest()[:8]))
-    return r.random() < (1 / max(1., every)) * max(.3, 1 + artist.fertility) * (.5 + artist.drive)
+    from mnemosyne.rhythm import works_today
+    return works_today(artist, night, seed, every)
 
 
 def main():

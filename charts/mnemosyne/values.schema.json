@@ -202,7 +202,8 @@
                 "night",
                 "weekends",
                 "idle",
-                "always"
+                "always",
+                "continuous"
               ]
             },
             "timeZone": {

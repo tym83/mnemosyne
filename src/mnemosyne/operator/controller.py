@@ -83,6 +83,38 @@ def reconcile(body, patch, **_):
             patch.status['phase'] = 'Suspended'
             return
         policy = spec.get('window', {})
+        if policy.get('kind') == 'continuous':
+            # Life without pause: each finished day of the atelier's life is followed by the next.
+            if active:
+                patch.status['phase'] = 'Running'
+                return
+            step = int((body.get('status') or {}).get('step', 0))
+            name = job_name(body['metadata']['uid'], f'step-{step}')
+            existing = next((j for j in jobs if j.metadata.name == name), None)
+            if existing:
+                done = existing.status.completion_time or (existing.status.conditions or [None])[-1]
+                finished = getattr(done, 'last_transition_time', done)
+                # A failed day is recorded and life goes on, after a pause so a broken day does not spin.
+                if existing.status.failed and finished and \
+                        (datetime.now(timezone.utc) - finished).total_seconds() < 600:
+                    patch.status['phase'] = 'Failed'
+                    return
+                patch.status['step'] = step + 1
+                patch.status['phase'] = 'JobSucceeded' if existing.status.succeeded else 'Failed'
+                return
+            day = f"{datetime.now(timezone.utc):%Y-%m-%d}-s{step:05d}"
+            job = make_job(body, runtime, day, spec.get('deadlineSeconds', 21600))
+            job['metadata']['name'] = name
+            job['spec']['template']['metadata']['labels']['mnemosyne.art/job'] = name
+            job['spec']['ttlSecondsAfterFinished'] = 86400
+            try:
+                batch.create_namespaced_job(namespace, job)
+            except ApiException as exc:
+                if exc.status != 409:
+                    raise
+            patch.status.update(phase='Running', lastJob=name, step=step,
+                                observedGeneration=body['metadata']['generation'])
+            return
         idle = idle_cluster(api) if policy.get('kind') == 'idle' else False
         allowed = window(policy, datetime.now(timezone.utc), idle=idle)
         if active:

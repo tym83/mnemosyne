@@ -10,7 +10,7 @@ RUNTIME = {'type': 'object', 'required': ['mode', 'inventory'], 'properties': {
     'snapshotNamespace': STRING,
     'includeSecrets': {'type': 'boolean', 'default': False},
     'window': {'type': 'object', 'properties': {
-        'kind': {'type': 'string', 'enum': ['night', 'weekends', 'idle', 'always']},
+        'kind': {'type': 'string', 'enum': ['night', 'weekends', 'idle', 'always', 'continuous']},
         'timeZone': STRING,
         'startHour': {'type': 'integer', 'minimum': 0, 'maximum': 23},
         'endHour': {'type': 'integer', 'minimum': 0, 'maximum': 23}}},

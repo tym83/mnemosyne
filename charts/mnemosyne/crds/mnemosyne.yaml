@@ -66,6 +66,7 @@ spec:
                         - weekends
                         - idle
                         - always
+                        - continuous
                       timeZone: *id001
                       startHour:
                         type: integer

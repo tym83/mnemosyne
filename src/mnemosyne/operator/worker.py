@@ -92,7 +92,7 @@ def chamber(life, root):
     return sources, records
 
 
-MARGINS = 30  # margin sketches per composer per night
+MARGINS = 4  # margin sketches per composer per day of life
 
 
 def margins(life, root, per_creator=MARGINS):
@@ -165,7 +165,8 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         sources, records = chamber(life, root)
     else:
         from mnemosyne.music.composer import Night
-        for artist in (a for a in life.working() if a.art == 'music'):
+        from mnemosyne.rhythm import works_today
+        for artist in (a for a in life.working() if a.art == 'music' and works_today(a, life.night, request.get('seed', 0))):
             night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
                           sound=request.get('render', True))
             # Inner life is the felt climate the composer derives itself; nothing is supplied.
@@ -191,7 +192,8 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                                      'final': accepted and sk['id'] == night.record.get('final')}))
     if request['mode'] != 'chamber':
         from mnemosyne.writing.night import WriterNight
-        for artist in (a for a in life.working() if a.art == 'literature'):
+        from mnemosyne.rhythm import works_today
+        for artist in (a for a in life.working() if a.art == 'literature' and works_today(a, life.night, request.get('seed', 0))):
             writer = WriterNight(life, artist.id, root/artist.id, backend=None)
             try:
                 writer.run()
