@@ -53,3 +53,19 @@ class WorkerFailureTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MarginTests(unittest.TestCase):
+    def test_every_composer_writes_margins_that_carry(self):
+        from datetime import datetime
+        from mnemosyne.lineage import Lineage
+        from mnemosyne.weave import schools as ws, surface
+        life = Lineage('t', datetime(2025, 1, 1))
+        with tempfile.TemporaryDirectory() as tmp:
+            sources = worker.margins(life, Path(tmp), per_creator=2)
+            composers = [a for a in life.working() if a.art == 'music']
+            self.assertEqual(len(sources), 2 * len(composers))
+            name, path, school, extra = sources[0]
+            self.assertFalse(extra['final'])
+            root = ws.prepare(surface.read(path), school)
+            self.assertTrue(any(d.get('id', '').startswith(ws.PREFIX) for d in root.iter('direction')))

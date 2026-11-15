@@ -3,6 +3,7 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
+import random
 import os
 from pathlib import Path
 import uuid
@@ -91,6 +92,41 @@ def chamber(life, root):
     return sources, records
 
 
+MARGINS = 30  # margin sketches per composer per night
+
+
+def margins(life, root, per_creator=MARGINS):
+    """The margins of every composer's notebook (avantext, §57.4): short phrases written by the
+    rules of their home school, with no model, every night, whether or not tonight's work came off.
+    They stay notes, never sound, and carry the backup in their performance dynamics."""
+    from mnemosyne.music.schools import SCHOOLS
+    plans = Path(__file__).parents[1]/'music/schools/plans'
+    born = {k: v['plan'] for k, v in life.schools.items()
+            if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
+    known = [s for s in SCHOOLS if (plans/f'{s}.json').exists() or s in born]
+    sources, written = [], {}
+    for a in (a for a in life.working() if a.art == 'music'):
+        home = a.school if a.school in known else next(
+            (w.get('school') for w in reversed(a.catalogue) if w.get('school') in known), None)
+        if home is None:
+            r = random.Random(int.from_bytes(hashlib.sha256(f'{a.id}:raised'.encode()).digest()[:8], 'big'))
+            home = r.choice(sorted(known))
+        folder = root/a.id/'margins'
+        folder.mkdir(parents=True, exist_ok=True)
+        for i in range(per_creator):
+            plan = deepcopy(born[home]) if home in born else json.loads((plans/f'{home}.json').read_text())
+            plan['school'] = home
+            plan['seed'] = int.from_bytes(hashlib.sha256(f'{a.id}:{life.night}:margin:{i}'.encode()).digest()[:4], 'big')
+            plan['title'] = f'{a.name} — поля тетради, ночь {life.night}, {i+1}'
+            path = folder/f'margin-{i:02d}.musicxml'
+            SCHOOLS[home].compose(plan, plan['seed']).write('musicxml', fp=path)
+            sources.append((f'{a.id}-n{life.night:05d}-margin-{i:02d}', path, home,
+                            {'plan': plan, 'form': 'school', 'final': False}))
+        written[a.id] = {'school': home, 'count': per_creator}
+    dump(root/'margins.json', written)
+    return sources
+
+
 def upload(root, storage):
     if not storage.get('bucket'):
         return
@@ -164,6 +200,11 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                 writer.record['status'] = 'failed'
                 failures.append(artist.id)
             notebooks.append((writer.work_id, writer.record))
+    if request['mode'] != 'chamber':
+        try:
+            sources.extend(margins(life, root, request.get('margins', MARGINS)))
+        except Exception as exc:
+            failures.append(f'margins: {type(exc).__name__}: {exc}'[:300])
     if request['mode'] != 'chamber':
         try:
             life.reception.write_words(life=life)
