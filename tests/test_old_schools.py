@@ -110,6 +110,35 @@ class OldSchoolTests(unittest.TestCase):
                 got = [l for _, l, _ in part[start:start+len(rhythm)]]
                 self.assertEqual(got[:-1], rhythm[:-1])  # the last head note may run on
 
+    def test_renaissance_has_no_parallel_fifths_or_octaves(self):
+        from mnemosyne.music.schools.renaissance_polyphony import parallel, parallels
+        self.assertTrue(parallel(60, 62, 53, 55))      # fifths moving up together
+        self.assertTrue(parallel(60, 59, 48, 47))      # octaves moving down together
+        self.assertFalse(parallel(60, 62, 53, 52))     # contrary motion
+        self.assertFalse(parallel(60, 60, 53, 55))     # oblique motion
+        score, plan = compose('renaissance_polyphony')
+        lines = score.editorial.lines
+        n = len(lines)
+        for line_events, finals in zip(score.editorial.line_events, score.editorial.line_finals):
+            self.assertEqual(parallels(line_events, finals, n), [])
+
+        def sounding(part_events, t):
+            return next((ps[0] for a, l, ps in part_events if a <= t < a+l), None)
+
+        line_of = {i: k for k, group in enumerate(lines) for i in group}
+        checked = 0
+        for x in range(len(score.parts)):
+            for y in range(x+1, len(score.parts)):
+                if line_of[x] == line_of[y]:
+                    continue  # doublings of one line in octaves are not two voices
+                ex, ey = events(score.parts[x]), events(score.parts[y])
+                times = sorted({a for a, _, _ in ex+ey} | {a+l for a, l, _ in ex+ey})
+                verticals = [(t, sounding(ex, t), sounding(ey, t)) for t in times]
+                for (_, x0, y0), (t, x1, y1) in zip(verticals, verticals[1:]):
+                    self.assertFalse(parallel(x0, x1, y0, y1), (t, x, y))
+                    checked += 1
+        self.assertGreater(checked, 100)
+
     def test_fugue_answers_at_the_fifth_and_overlaps_in_stretto(self):
         score, plan = compose('fugue')
         subject, answer = score.editorial.subject, score.editorial.answer

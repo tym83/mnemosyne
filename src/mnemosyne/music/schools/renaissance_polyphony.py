@@ -100,6 +100,79 @@ def clashes(events, finals, n):
     return count
 
 
+PERFECT = {0, 7}  # unison/octave and fifth, as pitch-class intervals
+
+
+def at_time(events, t):
+    """Degree sounding from `t` on (None for a rest or silence)."""
+    found = None
+    for a, l, d in events:
+        if a <= t < a+l:
+            found = d
+    return found
+
+
+def before(events, t):
+    """Degree sounding just before `t` (None for a rest or silence)."""
+    found = None
+    for a, l, d in events:
+        if a < t <= a+l:
+            found = d
+    return found
+
+
+def parallel(x0, x1, y0, y1):
+    """Both voices move the same way into the same perfect interval they left."""
+    if None in (x0, x1, y0, y1):
+        return False
+    mx, my = x1-x0, y1-y0
+    if mx == 0 or my == 0 or (mx > 0) != (my > 0):
+        return False
+    first, second = abs(x0-y0) % 12, abs(x1-y1) % 12
+    return first == second and first in PERFECT
+
+
+def pitches(line, degrees, finals):
+    return [None if d is None else degree_pitch(finals[line][0], d) for d in degrees]
+
+
+def parallels(events, finals, n):
+    """Consecutive verticals in similar motion forming the same perfect interval, over all voice pairs."""
+    found = []
+    for x in range(n):
+        for y in range(x+1, n):
+            onsets = sorted({a for a, _, _ in events[x]} | {a for a, _, _ in events[y]})
+            verticals = [(t, *pitches(x, [at_time(events[x], t)], finals), *pitches(y, [at_time(events[y], t)], finals))
+                         for t in onsets]
+            for (t0, x0, y0), (t1, x1, y1) in zip(verticals, verticals[1:]):
+                if parallel(x0, x1, y0, y1):
+                    found.append((t1, x, y))
+    return found
+
+
+def makes_parallel(line, d, at, value, events, finals, n, cadence_at, cadence):
+    """Would `d` on [at, at+value) move in parallel fifths or octaves with any other line?"""
+    p = degree_pitch(finals[line][0], d)
+    x0 = before(events[line], at)
+    x0 = None if x0 is None else degree_pitch(finals[line][0], x0)
+    moves = [(at, x0, p)]
+    if at+value == cadence_at:
+        moves.append((cadence_at, p, degree_pitch(finals[line][0], cadence[line])))
+    for other in range(n):
+        if other == line:
+            continue
+        for t, a, b in moves:
+            if t == cadence_at and at+value == cadence_at:
+                y1 = cadence[other]
+            else:
+                y1 = at_time(events[other], t)
+            y0 = before(events[other], t)
+            y0, y1 = pitches(other, [y0, y1], finals)
+            if parallel(a, b, y0, y1):
+                return True
+    return False
+
+
 def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
     score, rng, sections, total = setup(plan, seed, 'renaissance_polyphony', choices=choices)
     mode = MODES[rng.randrange(8)]
@@ -109,6 +182,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
     roles = ['cantizans'] + ['altizans']*(n-3) + (['tenorizans', 'bassizans'] if n >= 3 else ['tenorizans'] if n == 2 else [])
     raise_leading = mode['final'] != 4  # Phrygian cadences keep the whole step below
     points = []
+    line_events, line_finals = [], []  # per point: the lines in degrees and their finals
     for start, end, sec in sections:
         finals = []
         for group in lines:
@@ -140,11 +214,16 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
             order = list(range(n)) if rng.random() < .5 else list(range(n))[::-1]
             candidates = [(g, answer) for g in gaps for answer in (4, -3, 0)]
             rng.shuffle(candidates)
-            # The composer tries entry distances and answer intervals; the fewest clashes wins.
-            gap, answer = min(candidates, key=lambda c: clashes(exposition(theme, order, c[0], c[1], finals, a, room)[0], finals, n))
+            # The composer tries entry distances and answer intervals: no parallel fifths or
+            # octaves between the entries first, then the fewest clashes.
+            def cost(c):
+                trial = exposition(theme, order, c[0], c[1], finals, a, room)[0]
+                return len(parallels(trial, finals, n)), clashes(trial, finals, n)
+            gap, answer = min(candidates, key=cost)
             events, entries = exposition(theme, order, gap, answer, finals, a, room)
             points.append({'entries': entries, 'subject': head(theme, gap), 'gap': gap})
             cadence_at = b-CADENCE
+            cadence = [FORMULAS[roles[line]][0][0] for line in range(n)]
             # Free counterpoint after each entry: steps first, consonant with every known line.
             for line in order:
                 fin, lo, hi = finals[line]
@@ -162,6 +241,8 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
                     for s in steps:
                         d = previous+s
                         if not lo <= d <= hi:
+                            continue
+                        if makes_parallel(line, d, at, value, events, finals, n, cadence_at, cadence):
                             continue
                         pitch = degree_pitch(fin, d)
                         ok = True
@@ -186,6 +267,8 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
                 for degree, value in formula:
                     events[line].append((at, value, degree))
                     at += value
+            line_events.append(events)
+            line_finals.append(finals)
             for line, group in enumerate(lines):
                 role = roles[line]
                 for i in group:
@@ -207,6 +290,8 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
     score.editorial.mode = mode
     score.editorial.points = points
     score.editorial.lines = lines
+    score.editorial.line_events = line_events
+    score.editorial.line_finals = line_finals
     return finish(score, total)
 
 
