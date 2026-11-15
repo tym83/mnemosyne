@@ -29,6 +29,13 @@ GENRE = {
     'manifesto': 'Ты разбираешь манифест новой школы: что она обещает, с чем спорит, есть ли в ней будущее.',
     'school': 'Ты пишешь обзор школы: кто в ней работает, что она даёт сегодня, не выдохлась ли она.',
 }
+# A literary work is read as text: by its school's poetics, its genre, its language.
+LITERARY = ('Ты пишешь литературно-критическую рецензию на вышедшую вещь. Прочитай текст целиком, как читатель '
+            'её школы: суди её мерой поэтики этой школы — картина мира, время, композиция, повествователь, язык, '
+            'приёмы, запреты, по чему школа узнаётся — и своим вкусом. Назови жанр и скажи, держит ли вещь его '
+            'законы. Разбирай слово: синтаксис, ритм, интонацию, голос рассказчика, образы, композицию; цитируй '
+            'строки текста (из оригинала, а если он не по-русски — с переводом). Написано ли это языком школы, или '
+            'школа приложена к нейтральной прозе сверху? Не пересказывай сюжет вместо разбора.')
 
 # Critics write about the arts they know; two write about both.
 ARTS = {'laconic': ('literature',), 'polemical': ('music', 'literature'), 'lyrical': ('music',),
@@ -355,6 +362,45 @@ class Reception:
                 parts.append('Это малая работа мастерской, эскиз в школе, без записанного замысла.')
         return '\n\n'.join(parts), (f'«{work["title"]}»' if work.get('title') else f'{name}, {work.get("school")}')
 
+    @staticmethod
+    def literary_words(author, work, life=None):
+        """What a literary critic reads: the text itself, its language, its genre and its school's poetics."""
+        from .lineage import LANGUAGE_NAMES
+        from .weave.variants import plain
+        from .writing import poetics
+        from .writing.schools import SCHOOLS
+        born = {}
+        if life is not None:
+            from .writing.founding import adopt
+            born = adopt(life)
+        key = work.get('school')
+        school = SCHOOLS.get(key) or born.get(key)
+        p = poetics.load(key) or {}
+        name = author.name if author.name != author.id else 'автор'
+        language = LANGUAGE_NAMES.get(author.language, author.language)
+        kind = getattr(school, 'KIND', None) or p.get('kind')
+        head = (f'Автор: {name}. Искусство: литература. Язык оригинала: {language}. '
+                f'Школа: «{p.get("name", key)}» ({key}).')
+        if kind:
+            head += ' Род: ' + {'poetry': 'стихи', 'prose': 'проза'}.get(kind, kind) + '.'
+        if p.get('genres'):
+            head += ' Жанры школы: ' + poetics.flat(p['genres']) + '.'
+        if work.get('title'):
+            head += f' Название: «{work["title"]}».'
+        parts = [head, 'Поэтика школы, мерой которой ты читаешь:\n' + poetics.full(key, getattr(school, 'RULES', ''))]
+        if work.get('idea'):
+            parts.append('Замысел автора (из его блокнота): ' + plain(work['idea'])[:1500])
+        text = work.get('text') or work.get('excerpt')
+        if text:
+            parts.append(('Текст' if work.get('text') else 'Начало текста') + f' (оригинал, {language}):\n\n'
+                         + plain(text)[:12000])
+        if work.get('translation'):
+            parts.append('Перевод на русский, сделанный Переводчиком (для понимания; судишь ты оригинал):\n\n'
+                         + plain(work['translation'])[:12000])
+        if work.get('diary'):
+            parts.append('Дневник автора об этой вещи: ' + plain(work['diary'])[:400])
+        return '\n\n'.join(parts), (f'«{work["title"]}»' if work.get('title') else f'{name}, {p.get("name", key)}')
+
     def essay_words(self, review, life):
         """What a critic reads before an essay: the creator's works and fortunes, a school, a manifesto."""
         from .weave.variants import plain
@@ -396,16 +442,22 @@ class Reception:
             prior = review['score']
             leaning = ('скорее понравится' if prior > .65 else 'скорее не понравится' if prior < .35 else 'неясно')
             author = work = None
-            if life is not None:
-                author = next((a for a in life.artists if a.id == self.works[review['work']]['artist']), None)
-                work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), None)
             kind = review.get('kind', 'work')
+            genre = GENRE.get(kind, GENRE['work'])
+            if life is not None and review.get('work') in self.works:
+                owner = self.works[review['work']]['artist']
+                author = next((a for a in life.artists if a.id == owner), None)
+                work = next((w for w in (author.catalogue if author else []) if w['id'] == review['work']), None)
             if kind != 'work' and life is not None:
                 about, title = self.essay_words(review, life)
                 system = self.critic_words(critic, life)
                 author = next((a for a in life.artists if a.id == review.get('artist')), None)
             elif author and work is not None:
-                about, title = self.work_words(author, work)
+                if author.art == 'literature':
+                    about, title = self.literary_words(author, work, life)
+                    genre = LITERARY
+                else:
+                    about, title = self.work_words(author, work)
                 system = self.critic_words(critic, life)
             else:  # no life at hand: only the public facts of the work
                 about = (f'Школа: {self.works[review["work"]]["school"]}.' if review.get('work')
@@ -414,7 +466,7 @@ class Reception:
                 system = f'Ты критик {critic["name"]}. Голос: {VOICE.get(critic["voice"], critic["voice"])}.'
             nb = []
             words = writer_factory(nb).ask(
-                system + '\n' + GENRE.get(kind, GENRE['work']) + ' Говори о том, что действительно есть, цитируй и '
+                system + '\n' + genre + ' Говори о том, что действительно есть, цитируй и '
                 'называй детали; не выдумывай того, чего нет. Не упоминай ночи, номера, мастерскую как механизм и '
                 'технику. В score — твоя оценка от 0 до 1 после чтения.',
                 f'{about}\n\nДо чтения ты думал: {leaning}. Прочитав, ты можешь передумать.'
