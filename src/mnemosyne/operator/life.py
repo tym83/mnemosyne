@@ -245,7 +245,14 @@ class Life:
             try:
                 session.run()
             finally:
-                self.carry((), [(session.work_id, session.record)], root/'woven')
+                from mnemosyne.writing.margins import page, writer_texts
+                margin = {'margins': page(writer_texts(a, session.record), f'{a.id}:{root.name}')}
+                notebooks = [(session.work_id, session.record)]
+                if margin['margins']:
+                    notebooks.append((f'{session.work_id}-margins', margin))
+                self.carry((), notebooks, root/'woven')
+                if margin['margins']:
+                    dump(root/'margins.json', margin)
                 self.say('wrote', a.id, session.record.get('status'))
 
     def run(self):

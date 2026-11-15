@@ -146,3 +146,25 @@ class BudgetTests(unittest.TestCase):
             e = Endpoint(backend='anthropic', base_url='https://x/v1', model='m', price_in=4, price_out=20)
             spend(e, {'input_tokens': 1_000_000, 'output_tokens': 100_000})
             self.assertAlmostEqual(spent_this_month(f'{tmp}/s.jsonl'), 6.0)
+
+
+class WriterMarginTests(unittest.TestCase):
+    def test_a_writers_margin_is_their_own_words_and_carries(self):
+        import os
+        from mnemosyne.writing.margins import page
+        from mnemosyne.weave import variants
+        texts = ['Было то или не было, а коли не было, так будет: сказка ни у времени, ни у попа дозволения '
+                 'не спрашивает. В большом городе была слобода жестянщиков, кастрюли и лейки, светильники и '
+                 'воронки, переплётчик сшивал книги, которых никто не читал, коваль пел фаду скверно, воробьи '
+                 'перебирались на другую крышу, жестянщик Мануэл, три сына, бабушка Роза лущила фасоль у очага.']
+        markup = page(texts, 'w:1')
+        entries = [{'id': '/m', 'markup': markup}]
+        size = variants.capacity(entries)
+        self.assertGreater(size, 150)
+        words = set(w.lower() for t in texts for w in __import__('re').findall(r'\w{3,}', t))
+        options = {o for _, opts in variants.places(markup)[0] for o in opts}
+        self.assertTrue(options <= words)
+        frames = [os.urandom(192) for _ in range((size - variants.OVERHEAD - 8) // 192)]
+        key = X25519PrivateKey.generate()
+        volume = variants.encode_many(entries, frames, key)
+        self.assertEqual(variants.decode_many(volume, key), frames)
