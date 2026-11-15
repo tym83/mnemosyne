@@ -39,6 +39,8 @@ class Atelier:
             if (self.root/'year.jsonl').exists() else []
         from .writing.memory import Memory
         self.memory = Memory(self.root)
+        from . import lexicon
+        self.lexicon = lexicon.load(self.root)
 
     def ru(self, text):
         """The Russian of a text: itself when it is Russian, the Translator's rendering, or None."""
@@ -210,7 +212,7 @@ def page(title, body, scripts='', toc=None):
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
             f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
             f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
-            f'<a href="schools.html">Школы</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
+            f'<a href="schools.html">Школы</a><a href="lexicon.html">Словарь</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
             f'</nav>{button}{aside}{body}{FLIP}</body></html>')
 
 
@@ -693,6 +695,7 @@ def site(at, out: Path):
                 + f'<h2>Работы мастерской в этой школе</h2><ul>{works or "<li class=muted>пока нет</li>"}</ul>')
         (out/f'school-{k}.html').write_text(page(p['name'], body))
     restore_page(at, out)
+    lexicon_pages(at, out, {w['id'] for _, w in live})
     names = {a.id: at.name(a) for a in life.artists}
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
                    f'{esc(names.get(e["artist"], e["artist"]))}</a></td><td>{e["kind"]}</td></tr>' for e in life.events)
@@ -704,6 +707,99 @@ def site(at, out: Path):
             f'{len(life.reception.reviews)}, событий: {len(life.events)}.</p>')
     (out/'index.html').write_text(page(f'Мастерская {life.cluster}', body))
     return out
+
+
+def lex_page(eid):
+    return 'lex-' + eid.replace(':', '-') + '.html'
+
+
+def source_href(sid, meta, works):
+    kind, rest = sid.split(':', 1)
+    if kind == 'work':
+        return f'work-{rest}.html'
+    if kind == 'notebook':
+        return f'work-{rest}.html' if rest in works else f'night-{rest}.html'
+    if kind == 'review':
+        return f'critic-{meta.get("critic")}.html'
+    if kind == 'lives':
+        return f'artist-{meta.get("artist")}.html'
+    if kind == 'school':
+        return f'school-{rest}.html'
+    return '#'
+
+
+def lexicon_pages(at, out, works):
+    """The Lexicon: an index by kind and a page per entry, names linked, sources cited, old editions kept."""
+    from .lexicon import CITE, IN, OUT, TOPICS, TYPES, Index
+    entries = {k: e for k, e in at.lexicon.get('entries', {}).items() if not e.get('gone') and e.get('paragraphs')}
+    registry = at.lexicon.get('sources', {})
+    index = Index.of_entries(entries)
+
+    def linked(text, me):
+        parts, pos = [], 0
+        for s, e, eid in index.link(text):
+            if eid == me or eid not in entries:
+                continue
+            parts.append(html.escape(text[pos:s]) + f'<a href="{lex_page(eid)}">{html.escape(text[s:e])}</a>')
+            pos = e
+        return ''.join(parts) + html.escape(text[pos:])
+
+    def href(sid):
+        return html.escape(source_href(sid, registry.get(sid, {}), works))
+
+    def title(sid):
+        return html.escape(registry.get(sid, {}).get('title', sid))
+
+    def prose(p, me):
+        numbers = {sid: n for n, sid in enumerate(p.get('sources', []), 1)}
+        parts, pos = [], 0
+        for m in CITE.finditer(p['text']):
+            sid = m.group(1)
+            parts.append(linked(p['text'][pos:m.start()], me) +
+                         f'<sup><a href="{href(sid)}" title="{title(sid)}">[{numbers.get(sid, sid)}]</a></sup>')
+            pos = m.end()
+        parts.append(linked(p['text'][pos:], me))
+        cited = ''.join(f'<li><a href="{href(sid)}">{title(sid)}</a> <span class="muted">{html.escape(sid)}</span></li>'
+                        for sid in p.get('sources', []))
+        return f'<p>{"".join(parts)}</p><ol class="muted">{cited}</ol>'
+
+    groups = {}
+    for eid, e in entries.items():
+        groups.setdefault(e['type'], []).append((e['name'].casefold(), eid))
+    body = ['<h1>Словарь мастерской</h1><p class="muted">Статьи о творцах, работах, школах, критиках, о местах, вещах '
+            'и лицах из работ и о событиях жизни мастерской. Каждая статья ссылается на первоисточники; абзац '
+            'переписывается, только когда изменились его источники, и прежние издания статьи остаются.</p>']
+    for kind in TYPES:
+        if groups.get(kind):
+            body.append(f'<h2>{html.escape(TYPES[kind].capitalize())}</h2><ul>' + ''.join(
+                f'<li><a href="{lex_page(eid)}">{esc(entries[eid]["name"])}</a>'
+                f'<span class="muted"> · издание {entries[eid]["edition"]}</span></li>' for _, eid in sorted(groups[kind]))
+                + '</ul>')
+    if not entries:
+        body.append('<p class="muted">Словарь ещё не написан.</p>')
+    (out/'lexicon.html').write_text(page('Словарь', ''.join(body)))
+    for eid, e in entries.items():
+        links = {}
+        for r in e.get('relations', []):
+            mine = r['from'] == eid
+            other = r['to'] if mine else r['from']
+            if other in entries:
+                links.setdefault((OUT if mine else IN).get(r['type'], r['type']), set()).add(other)
+        related = ''.join(f'<dt>{html.escape(label)}</dt><dd>' + ', '.join(
+            f'<a href="{lex_page(x)}">{esc(entries[x]["name"])}</a>' for x in sorted(xs, key=lambda x: entries[x]['name']))
+            + '</dd>' for label, xs in sorted(links.items()))
+        old = ''.join(f'<details><summary>издание {ed["edition"]}{", " + ed["date"][:10] if ed.get("date") else ""}'
+                      f'</summary>' + ''.join(f'<h4>{TOPICS.get(p["topic"], p["topic"])}</h4>{prose(p, eid)}'
+                                              for p in ed['paragraphs']) + '</details>'
+                      for ed in reversed(e.get('editions', [])))
+        gloss = e.get('facts', {}).get('gloss')
+        text = (f'<h1>{esc(e["name"])}</h1><p class="muted">{html.escape(TYPES.get(e["type"], e["type"]))} · '
+                f'издание {e["edition"]}{", " + e["revised"][:10] if e.get("revised") else ""}</p>'
+                + (f'<p class="lead">{esc(gloss)}</p>' if gloss else '')
+                + ''.join(f'<h2>{TOPICS.get(p["topic"], p["topic"])}</h2>{prose(p, eid)}' for p in e['paragraphs'])
+                + (f'<h2>Связи</h2><dl>{related}</dl>' if related else '')
+                + (f'<h2>Прежние издания</h2>{old}' if old else ''))
+        (out/lex_page(eid)).write_text(page(e['name'], text))
 
 
 def restore_page(at, out):
