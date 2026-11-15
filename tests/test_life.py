@@ -207,6 +207,29 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(stored['spec']['process'], {'sha256': 'abc', 'bytes': 3})
         self.assertEqual(stored['metadata']['resourceVersion'], '7')
 
+    def test_keys_the_atelier_does_not_publish_stay_with_their_owner(self):
+        from kubernetes.client.exceptions import ApiException
+        from mnemosyne.operator import kube
+        stored = {'kind': 'Atelier', 'metadata': {'name': 'a'},
+                  'spec': {'runtime': {'window': {'kind': 'continuous'}}, 'lineage': {'old': 1}}}
+
+        class Custom:
+            def create_namespaced_custom_object(self, *a):
+                raise ApiException(status=409)
+
+            def get_namespaced_custom_object(self, *a):
+                return json.loads(json.dumps(stored))
+
+            def replace_namespaced_custom_object(self, *a):
+                stored.clear()
+                stored.update(a[-1])
+
+        body = {'apiVersion': 'mnemosyne.art/v1alpha1', 'kind': 'Atelier', 'metadata': {'name': 'a'},
+                'spec': {'lineage': {'new': 2}}}
+        with patch('kubernetes.client.CustomObjectsApi', return_value=Custom()):
+            kube.publish(None, 'mnemosyne', [body])
+        self.assertEqual(stored['spec'], {'runtime': {'window': {'kind': 'continuous'}}, 'lineage': {'new': 2}})
+
 
 class GistTests(unittest.TestCase):
     def test_a_former_work_is_named_by_its_title_and_first_sentence(self):

@@ -127,10 +127,11 @@ def publish(api, namespace, records, store=None):
         except ApiException as exc:
             if exc.status != 409:
                 raise
-            # A merge patch keeps keys the new spec no longer has (a process moved to the volume would
-            # stay inline beside its reference), so the spec is replaced whole.
+            # A merge patch keeps nested keys the new value no longer has (a process moved to the volume
+            # would stay inline beside its reference), so every key the atelier publishes is replaced whole.
+            # Keys it does not publish stay: an Atelier's runtime belongs to its owner.
             live = custom.get_namespaced_custom_object(*args, name)
-            live['spec'] = body['spec']
+            live['spec'] = {**live.get('spec', {}), **body['spec']}
             custom.replace_namespaced_custom_object(*args, name, live)
         if status:
             custom.patch_namespaced_custom_object_status(*args, name, {'status': status})
