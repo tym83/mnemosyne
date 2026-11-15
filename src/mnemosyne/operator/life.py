@@ -159,6 +159,19 @@ class Life:
                 self.save()
             except Exception as exc:
                 self.say('words failed', type(exc).__name__, exc)
+            # The translator renders what was written in other tongues; the Lexicon follows what changed.
+            try:
+                from mnemosyne.writing.memory import backfill
+                backfill(self.base, log=lambda *_: None)
+            except Exception as exc:
+                self.say('translation failed', type(exc).__name__, str(exc)[:200])
+            try:
+                from mnemosyne.lexicon import update
+                with self.lock:   # the Lexicon reads a still copy of the life; creators go on meanwhile
+                    still = Lineage.restore(json.loads(json.dumps(self.life.state())))
+                update(still, self.base, limit=40)
+            except Exception as exc:
+                self.say('lexicon failed', type(exc).__name__, str(exc)[:200])
             self.stop.wait(WORDS_EVERY)
 
     # -- the creators --------------------------------------------------------------------------
