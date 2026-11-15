@@ -158,8 +158,10 @@ def plan_contract(method):
                           '(tempo_to does not carry over). Fermatas and rubato are not realized; put them in notes.',
                           'Notation: guitar on the treble clef an octave lower (8vb); keyboards and harp switch to the '
                           'bass clef in low bars. Pedal and other playing marks are not written; put them in notes.',
-                          'Chords on monophonic instruments are shared among their players, top down (a bass or drone '
-                          'bottom up); tones beyond the players are left out. Layers that name the same instrument '
+                          'Each wind, brass or string desk sounds one tone. A chord an instrument can hold is doubled by '
+                          'every instrument of its layer; a wider chord is spread over all the layer\'s desks (top down, '
+                          'a bass or drone bottom up), then over players of the same family silent in that section; only '
+                          'what nobody can hold is left out. Layers that name the same instrument '
                           'share its players: a note that finds every player busy cuts the note sounding on its desk, '
                           'or is left out if all start together. A keyboard or harp holds its polyphony; with one '
                           'player, a wider chord keeps its outer tones. The development report lists every such '
