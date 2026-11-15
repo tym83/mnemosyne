@@ -106,3 +106,27 @@ class NightTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TypesetTests(unittest.TestCase):
+    def test_prose_carries_in_its_word_spaces_and_reads_back(self):
+        import os
+        from mnemosyne.weave import variants as v
+        text = ('Было то или не было, а коли не было, так будет: сказка ни у времени, ни у попа '
+                'дозволения не спрашивает. Садитесь же, подвигайтесь к огню: стоя я не сказываю, '
+                'а на холоде не помню. В большом городе была слобода жестянщиков. ') * 80
+        entries = [{'id': '/a', 'markup': v.typeset(text)}]
+        self.assertEqual(v.plain(entries[0]['markup']), text)
+        size = v.capacity(entries)
+        frames = [os.urandom(192) for _ in range((size - v.OVERHEAD - 8) // 192)]
+        self.assertGreater(len(frames), 0)
+        key = X25519PrivateKey.generate()
+        volume = v.encode_many(entries, frames, key)
+        reading = volume['entries'][0]['text']
+        self.assertEqual(reading.replace(' ', ' ').replace(' ', ' '), text)
+        self.assertEqual(v.decode_many(volume, key), frames)
+
+    def test_json_and_short_strings_are_not_typeset(self):
+        from mnemosyne.weave import variants as v
+        self.assertEqual(v.collect({'plan': '{"a": "b c d e f g h i j k l m n o p q r s t u v w x y z"}',
+                                    'step': 'draft-plan:0'}), [])

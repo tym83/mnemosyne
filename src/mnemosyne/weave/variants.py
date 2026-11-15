@@ -121,6 +121,36 @@ def decode_many(volume, key):
     return [body[i:i+size] for i in range(8, end, size)]
 
 
+# Typographic places: a space between two words is set as an ordinary space, a no-break space or
+# a narrow no-break space. A reader sees the same words; the setting carries the data. Every prose
+# text of the night carries this way: drafts, works, notebooks, reviews, Lives, translations.
+SPACES = (' ', '\u00a0', '\u202f')
+WORD = re.compile(r'(?<=\w) (?=\w)')
+MIN_PROSE = 120
+
+
+def prose(text):
+    """A text of words that can be typeset: long enough, not JSON or markup of its own."""
+    return (isinstance(text, str) and len(text) >= MIN_PROSE and text.count(' ') >= 12
+            and text.lstrip()[:1] not in ('{', '[') and not any(c in text for c in '{}|'))
+
+
+def typeset(text):
+    """Markup whose places are the word spaces of a prose text (each option carries its next word)."""
+    if not prose(text) or places(text)[0]:
+        return text
+    out, cursor = [], 0
+    spans = [m.start() for m in WORD.finditer(text)]
+    for i, at in enumerate(spans):
+        end = spans[i + 1] if i + 1 < len(spans) else len(text)
+        word = re.match(r'\w+', text[at + 1:end]).group(0)
+        out.append(text[cursor:at])
+        out.append('{' + '|'.join(sp + word for sp in SPACES) + '}')
+        cursor = at + 1 + len(word)
+    out.append(text[cursor:])
+    return ''.join(out)
+
+
 def collect(record, prefix=''):
     """Every string in a notebook record that carries a variant place, with its path."""
     found = []
@@ -132,4 +162,6 @@ def collect(record, prefix=''):
             found += collect(v, f'{prefix}/{i}')
     elif isinstance(record, str) and places(record)[0]:
         found.append({'id': prefix, 'markup': record})
+    elif prose(record):
+        found.append({'id': prefix, 'markup': typeset(record)})
     return found

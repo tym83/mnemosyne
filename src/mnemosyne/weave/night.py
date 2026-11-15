@@ -12,18 +12,21 @@ from . import audience, variants
 def texts(life, notebooks=()):
     """One volume of tonight's unwoven drafts: (entries, publish)."""
     entries, targets = [], {}
+    # Every prose text not yet woven carries: its author's variants if it has them, its typesetting always.
     for review in life.reception.reviews:
         text = review.get('text')
-        if isinstance(text, str) and not review.get('woven') and variants.places(text)[0]:
+        markup = variants.typeset(text) if isinstance(text, str) else None
+        if markup and not review.get('woven') and variants.places(markup)[0]:
             key = f'/reviews/{review["id"]}'
-            entries.append({'id': key, 'markup': text})
+            entries.append({'id': key, 'markup': markup})
             targets[key] = review
     for aid, biography in sorted(life.biographies.items()):
         for i, chapter in enumerate(biography.chapters):
             text = chapter.get('text')
-            if isinstance(text, str) and not chapter.get('woven') and variants.places(text)[0]:
+            markup = variants.typeset(text) if isinstance(text, str) else None
+            if markup and not chapter.get('woven') and variants.places(markup)[0]:
                 key = f'/lives/{aid}/{i}'
-                entries.append({'id': key, 'markup': text})
+                entries.append({'id': key, 'markup': markup})
                 targets[key] = chapter
     for work, record in notebooks:
         for e in variants.collect({k: v for k, v in record.items() if k not in ('apparatus', 'backup')}):
