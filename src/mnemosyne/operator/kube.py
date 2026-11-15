@@ -127,7 +127,11 @@ def publish(api, namespace, records, store=None):
         except ApiException as exc:
             if exc.status != 409:
                 raise
-            custom.patch_namespaced_custom_object(*args, name, {'spec': body['spec']})
+            # A merge patch keeps keys the new spec no longer has (a process moved to the volume would
+            # stay inline beside its reference), so the spec is replaced whole.
+            live = custom.get_namespaced_custom_object(*args, name)
+            live['spec'] = body['spec']
+            custom.replace_namespaced_custom_object(*args, name, live)
         if status:
             custom.patch_namespaced_custom_object_status(*args, name, {'status': status})
 

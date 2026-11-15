@@ -1,6 +1,7 @@
 """The continuous life of the atelier: no nights, one process per creator, arrivals one by one."""
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import json
 import tempfile
 import threading
 import time
@@ -178,3 +179,30 @@ class WriterMarginTests(unittest.TestCase):
         key = X25519PrivateKey.generate()
         volume = variants.encode_many(entries, frames, key)
         self.assertEqual(variants.decode_many(volume, key), frames)
+
+
+class PublishTests(unittest.TestCase):
+    def test_an_existing_object_loses_keys_its_new_spec_no_longer_has(self):
+        from kubernetes.client.exceptions import ApiException
+        from mnemosyne.operator import kube
+        stored = {'apiVersion': 'mnemosyne.art/v1alpha1', 'kind': 'Notebook',
+                  'metadata': {'name': 'n', 'resourceVersion': '7'},
+                  'spec': {'opus': 'w', 'process': {'composer': {'entries': ['x'] * 10}}}}
+
+        class Custom:
+            def create_namespaced_custom_object(self, *a):
+                raise ApiException(status=409)
+
+            def get_namespaced_custom_object(self, *a):
+                return json.loads(json.dumps(stored))
+
+            def replace_namespaced_custom_object(self, *a):
+                stored.clear()
+                stored.update(a[-1])
+
+        body = {'apiVersion': 'mnemosyne.art/v1alpha1', 'kind': 'Notebook', 'metadata': {'name': 'n'},
+                'spec': {'opus': 'w', 'process': {'sha256': 'abc', 'bytes': 3}}}
+        with patch('kubernetes.client.CustomObjectsApi', return_value=Custom()):
+            kube.publish(None, 'mnemosyne', [body])
+        self.assertEqual(stored['spec']['process'], {'sha256': 'abc', 'bytes': 3})
+        self.assertEqual(stored['metadata']['resourceVersion'], '7')
