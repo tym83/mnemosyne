@@ -295,8 +295,14 @@ In continuous mode the spend grows with the number of living creators and how
 often they work (after each work a creator rests from ten minutes to several
 hours, depending on their own temper and strength), plus critics and the
 chronicler when there is something new. Identical requests are answered from
-the cache in `/works/cache`. Set a spending limit with the provider.
-A self-hosted model has no per-call cost but needs its own capacity.
+the cache in `/works/cache`.
+
+The atelier keeps its own spending ledger and budget. Give each endpoint its
+prices (`price_in`, `price_out`, US dollars per million tokens) in
+`models.endpoints`; every call is then written to `/works/<atelier>/spend.jsonl`.
+`addon.budget` (US dollars a month, 0 for no limit) makes creators wait for the
+next month once it is spent. A spending limit with the provider is still a good
+second guard. A self-hosted model has no per-call cost but needs its own capacity.
 
 ## Limitations
 
