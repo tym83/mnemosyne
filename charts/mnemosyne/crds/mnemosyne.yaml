@@ -41,6 +41,10 @@ spec:
                   render:
                     type: boolean
                     default: true
+                  budget:
+                    type: number
+                    minimum: 0
+                    default: 0
                   suspend:
                     type: boolean
                     default: false

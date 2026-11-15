@@ -18,7 +18,7 @@
 {{- if $a.key.secretName }}
 {{- $keyVolume = dict "secret" (dict "secretName" $a.key.secretName "defaultMode" 288 "items" (list (dict "key" $a.key.secretKey "path" "atelier.key"))) }}
 {{- end }}
-{{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets }}
+{{- $runtime := dict "mode" $a.mode "render" $a.render "suspend" $a.suspend "window" $a.window "deadlineSeconds" $a.deadlineSeconds "inventory" $a.inventory "includeSecrets" $a.includeSecrets "budget" ($a.budget | default 0) }}
 {{- if $a.snapshotNamespace }}{{ $_ := set $runtime "snapshotNamespace" $a.snapshotNamespace }}{{ end }}
 {{- $env := concat (list (dict "name" "MNEMO_NAMESPACE" "value" .Release.Namespace) (dict "name" "MNEMO_STORAGE" "value" "/runtime/storage.json") (dict "name" "MNEMO_KEY_FILE" "value" $a.key.path) (dict "name" "MNEMOSYNE_MODELS" "value" "/config/models.yaml") (dict "name" "WRITER_CACHE" "value" "/works/cache")) $a.env }}
 {{- $mounts := concat (list (dict "name" "works" "mountPath" "/works") (dict "name" "runtime" "mountPath" "/runtime" "readOnly" true) (dict "name" "models" "mountPath" "/config" "readOnly" true) (dict "name" "key" "mountPath" "/key" "readOnly" true) (dict "name" "tmp" "mountPath" "/tmp")) $a.volumeMounts }}

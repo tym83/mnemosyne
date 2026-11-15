@@ -187,6 +187,9 @@
         "gpuResource": {
           "type": "string"
         },
+        "budget": {
+          "type": "integer"
+        },
         "render": {
           "type": "boolean"
         },

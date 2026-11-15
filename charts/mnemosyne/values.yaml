@@ -54,6 +54,7 @@ addon:
   imagePullSecrets: []
   mode: chamber
   gpuResource: '' # e.g. the extended resource advertised by the installed device plugin
+  budget: 0 # US dollars per month for the model API (0: no limit); needs prices in models.endpoints (price_in/price_out per million tokens)
   render: true # audio of accepted works; false keeps scores, drafts and notebooks only (the backup never needs sound)
   suspend: false
   window: {kind: night, timeZone: Etc/UTC, startHour: 1, endHour: 6}

@@ -136,3 +136,13 @@ class LightenTests(unittest.TestCase):
             self.assertLess(len(json.dumps(light)), LIMIT)
             ref = light['spec']['process']
             self.assertEqual(json.loads((Path(tmp)/ref['file']).read_text()), body['spec']['process'])
+
+
+class BudgetTests(unittest.TestCase):
+    def test_spending_is_recorded_and_summed_for_the_month(self):
+        import os
+        from mnemosyne.models import Endpoint, spend, spent_this_month
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, MNEMO_SPEND_LOG=f'{tmp}/s.jsonl'):
+            e = Endpoint(backend='anthropic', base_url='https://x/v1', model='m', price_in=4, price_out=20)
+            spend(e, {'input_tokens': 1_000_000, 'output_tokens': 100_000})
+            self.assertAlmostEqual(spent_this_month(f'{tmp}/s.jsonl'), 6.0)

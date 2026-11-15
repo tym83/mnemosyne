@@ -29,6 +29,9 @@ class Endpoint(BaseModel):
     structured: Literal['json_schema', 'json_object', 'prompt'] = 'json_schema'
     timeout: float = Field(default=300, gt=0)
     max_tokens: int = Field(default=8192, gt=0)
+    # Dollars per million tokens, for the atelier's spending ledger and budget (optional).
+    price_in: float = Field(default=0, ge=0)
+    price_out: float = Field(default=0, ge=0)
     attempts: int = Field(default=3, ge=1, le=10)
 
     @model_validator(mode='after')
@@ -146,15 +149,29 @@ def request(endpoint, system, prompt, schema, max_tokens, images=None):
             body['system'] += '\nReturn JSON matching: ' + json.dumps(schema)
         path = '/messages'
     req = Request(endpoint.base_url.rstrip('/') + path, json.dumps(body).encode(), headers)
-    try:
-        with build_opener(NoRedirect()).open(req, timeout=endpoint.timeout) as response:
-            result = json.load(response)
-    except HTTPError as exc:
-        # Provider errors may echo the key or private prompt. Never retain bodies.
-        exc.close()
-        error = RuntimeError(f'model HTTP {exc.code}')
-        error.status_code = exc.code
-        raise error from None
+    import time
+    from urllib.error import URLError
+    # A network outage or an overloaded provider is waited out (up to about a quarter of an hour),
+    # not turned into a failed work.
+    # Only a living atelier waits out outages; elsewhere (development, tests) the caller's own retries decide.
+    waits = (0, 15, 30, 60, 120, 240, 420) if os.environ.get('KUBERNETES_SERVICE_HOST') else (0,)
+    for wait in waits:
+        time.sleep(wait)
+        try:
+            with build_opener(NoRedirect()).open(req, timeout=endpoint.timeout) as response:
+                result = json.load(response)
+            break
+        except HTTPError as exc:
+            # Provider errors may echo the key or private prompt. Never retain bodies.
+            exc.close()
+            if exc.code in (429, 500, 502, 503, 504, 529) and wait != waits[-1]:
+                continue
+            error = RuntimeError(f'model HTTP {exc.code}')
+            error.status_code = exc.code
+            raise error from None
+        except (URLError, ConnectionError, TimeoutError):
+            if wait == waits[-1]:
+                raise
     if endpoint.backend == 'openai':
         choice = result['choices'][0]
         if choice.get('finish_reason') not in (None, 'stop'):
@@ -168,4 +185,34 @@ def request(endpoint, system, prompt, schema, max_tokens, images=None):
         answer = ''.join(b['text'] for b in result['content'] if b['type'] == 'text')
         if not answer.strip():
             raise ValueError(f"empty model answer: blocks={[b['type'] for b in result['content']]}")
-    return answer, {'engine': endpoint.model, 'usage': result.get('usage', {})}
+    usage = result.get('usage', {})
+    spend(endpoint, usage)
+    return answer, {'engine': endpoint.model, 'usage': usage}
+
+
+def spend(endpoint, usage):
+    """Append what a call cost to the atelier's spending ledger (MNEMO_SPEND_LOG), if prices are known."""
+    path = os.environ.get('MNEMO_SPEND_LOG')
+    if not path or not (endpoint.price_in or endpoint.price_out):
+        return
+    from datetime import datetime, timezone
+    tokens_in = usage.get('input_tokens', usage.get('prompt_tokens', 0)) or 0
+    tokens_out = usage.get('output_tokens', usage.get('completion_tokens', 0)) or 0
+    usd = (tokens_in * endpoint.price_in + tokens_out * endpoint.price_out) / 1e6
+    with open(path, 'a') as out:
+        out.write(json.dumps({'at': datetime.now(timezone.utc).isoformat(), 'model': endpoint.model,
+                              'in': tokens_in, 'out': tokens_out, 'usd': round(usd, 6)}) + '\n')
+
+
+def spent_this_month(path):
+    from datetime import datetime, timezone
+    month = datetime.now(timezone.utc).strftime('%Y-%m')
+    total = 0.
+    try:
+        for line in open(path):
+            row = json.loads(line)
+            if row['at'].startswith(month):
+                total += row['usd']
+    except FileNotFoundError:
+        pass
+    return total

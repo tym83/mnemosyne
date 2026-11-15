@@ -4,6 +4,7 @@ STRING = {'type': 'string'}
 RUNTIME = {'type': 'object', 'required': ['mode', 'inventory'], 'properties': {
     'mode': {'type': 'string', 'enum': ['chamber', 'background', 'GPU', 'API']},
     'render': {'type': 'boolean', 'default': True},
+    'budget': {'type': 'number', 'minimum': 0, 'default': 0},
     'suspend': {'type': 'boolean', 'default': False},
     'deadlineSeconds': {'type': 'integer', 'minimum': 60, 'maximum': 604800},
     'drafts': {'type': 'integer', 'minimum': 1, 'maximum': 10},

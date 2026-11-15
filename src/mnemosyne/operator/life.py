@@ -187,6 +187,14 @@ class Life:
             if a not in self.life.working():
                 self.stop.wait(1800)   # ill, silent or in despair: their life, not ours, decides when
                 continue
+            budget = float(self.request.get('budget') or 0)
+            if budget:
+                from mnemosyne.models import spent_this_month
+                if spent_this_month(self.base/'spend.jsonl') >= budget:
+                    # The owner's monthly budget for the model API is spent: the creator waits for the next month.
+                    self.say('budget reached', aid)
+                    self.stop.wait(3600)
+                    continue
             try:
                 self.work(a)
             except Exception:
@@ -256,6 +264,7 @@ def main():
     namespace = os.environ['MNEMO_NAMESPACE']
     base = Path('/works')/request['atelier']
     base.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault('MNEMO_SPEND_LOG', str(base/'spend.jsonl'))
     from .keys import load
     key = load(json.loads(Path(os.environ.get('MNEMO_KEY_CONFIG', '/runtime/key.json')).read_text()))
     with connect() as api:
