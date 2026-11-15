@@ -1,4 +1,7 @@
-"""Viennese periods: antecedent/consequent over functional harmony, Alberti bass, a trip to the dominant."""
+"""Viennese periods: antecedent/consequent over functional harmony, Alberti bass, a trip to the dominant.
+
+In a minor key (plan `mode: minor`) the home key uses harmonic minor (V and viio with the raised
+leading tone) and the middle sections go to the relative major instead of the dominant."""
 from music21 import stream
 from .choices import ChoiceSource
 from .common import ENSEMBLES, setup, limits, put, finish
@@ -12,15 +15,31 @@ ANTECEDENT = (('I', 'I', 'IV', 'I', 'ii', 'V', 'V', 'V'),
 CLOSE = ('ii', 'V7', 'I', 'I')          # perfect authentic cadence
 MODULATE = ('ii', 'V7', 'I', 'I')       # the same cadence, sounding in the dominant key
 RETURN = ('IV', 'ii', 'V7', 'V7')       # standing on the home dominant
+# Major numerals of the templates as they sound in a minor home key.
+MINOR_NUMERALS = {'I': 'i', 'ii': 'iio', 'iii': 'III', 'IV': 'iv', 'vi': 'VI', 'viio': 'viio', 'V': 'V', 'V7': 'V7'}
 RHYTHMS = ((1, 1, 1, 1), (1.5, .5, 1, 1), (2, 1, 1), (.5, .5, 1, 2), (1, .5, .5, 1, 1), (1, 1, 2))
 
 
-def plan_phrases(sections, rng):
+def away(minor):
+    """The key of the middle sections: the dominant in major, the relative major in minor."""
+    return 3 if minor else 7
+
+
+def local_minor(minor, key):
+    return minor and key == 0
+
+
+def plan_phrases(sections, rng, minor=False):
     """(start, slots[(numeral, key)], kind) for every phrase; codettas fill odd bars."""
     phrases = []
     n = len(sections)
+    far = away(minor)
+
+    def at_key(numerals, key):
+        return [(MINOR_NUMERALS[c] if local_minor(minor, key) else c, key) for c in numerals]
+
     for s, (start, end, sec) in enumerate(sections):
-        key = 7 if 0 < s < n-1 else 0
+        key = far if 0 < s < n-1 else 0
         bars = int((end-start)//4)
         count = bars//4
         at = start
@@ -28,26 +47,26 @@ def plan_phrases(sections, rng):
             template = ANTECEDENT[rng.randrange(len(ANTECEDENT))] if p % 2 == 0 else template
             last = p == count-1
             if p % 2 == 0 and not last:
-                slots, kind = [(c, key) for c in template], 'half'
+                slots, kind = at_key(template, key), 'half'
             elif last and s == 0 and n >= 3:
-                slots, kind = [(c, 0) for c in template[:4]] + [(c, 7) for c in MODULATE], 'modulating'
-            elif last and key == 7 and s == n-2:
-                slots, kind = [(c, 7) for c in template[:4]] + [(c, 0) for c in RETURN], 'retransition'
+                slots, kind = at_key(template[:4], 0) + at_key(MODULATE, far), 'modulating'
+            elif last and key == far and s == n-2:
+                slots, kind = at_key(template[:4], far) + at_key(RETURN, 0), 'retransition'
             else:
-                slots, kind = [(c, key) for c in template[:4]+CLOSE], 'full'
+                slots, kind = at_key(template[:4]+CLOSE, key), 'full'
             phrases.append((at, slots, kind, p % 2 == 1))
             at += 16
         while at+4 <= end:
-            if key == 7 and s == n-2:
-                slots = [('V7', 0), ('V7', 0)]  # keep standing on the home dominant
+            if key == far and s == n-2:
+                slots = at_key(('V7', 'V7'), 0)  # keep standing on the home dominant
             elif at+8 <= end:
-                slots = [('I', key), ('V7', key)]
+                slots = at_key(('I', 'V7'), key)
             else:
-                slots = [('I', key), ('I', key)]
+                slots = at_key(('I', 'I'), key)
             phrases.append((at, slots, 'codetta', False))
             at += 4
         if at < end:
-            phrases.append((at, [('I', key)], 'tail', False))
+            phrases.append((at, at_key(('I',), key), 'tail', False))
     return phrases
 
 
@@ -59,7 +78,7 @@ def harmony_at(phrases, at):
     return phrases[0][1][0]
 
 
-def melody(rng, phrases, tonic, low, high, ends):
+def melody(rng, phrases, tonic, low, high, ends, minor=False):
     notes = []
     previous = (low+high)//2
     opening = None
@@ -88,7 +107,7 @@ def melody(rng, phrases, tonic, low, high, ends):
                 if (at-start) % 2 == 0:
                     pitch = nearest(pcs, previous+rng.choice([-3, -1, 1, 3]), low, high)
                 else:
-                    pitch = step(previous, scale(tonic, key=key), rng.choice([-1, 1]), low, high)
+                    pitch = step(previous, scale(tonic, local_minor(minor, key), key), rng.choice([-1, 1]), low, high)
                 notes.append((at, value, pitch))
                 if not consequent and at < start+8:
                     first.append((at, value, pitch))
@@ -109,9 +128,10 @@ def melody(rng, phrases, tonic, low, high, ends):
 def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> stream.Score:
     score, rng, sections, total = setup(plan, seed, 'classical', choices=choices)
     tonic = int(plan.get('tonic', 60)) % 12
+    minor = plan.get('mode', 'major') == 'minor'
     names = ENSEMBLES[plan['ensemble']]
     role = roles(names)
-    phrases = plan_phrases(sections, rng)
+    phrases = plan_phrases(sections, rng, minor)
     ends = {}
     for (start, _, _, _), nxt in zip(phrases, phrases[1:]+[(total,)]):
         ends[start] = nxt[0]
@@ -123,11 +143,12 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
         r = role[i]
         for a, b, sec in sections:
             key = harmony_at(phrases, a)[1]
-            mark(part, a, f"{r}; {'dominant' if key else 'home'} key")
+            where = 'home' if not key else 'relative major' if minor else 'dominant'
+            mark(part, a, f"{r}; {where} key")
         if r == 'melody':
             low, high = limits(name, sections[0][2])
             top = min(high, max(low+12, 84))
-            for at, length, pitch in melody(rng, phrases, tonic, max(low, top-16), top, ends.__getitem__):
+            for at, length, pitch in melody(rng, phrases, tonic, max(low, top-16), top, ends.__getitem__, minor):
                 lo, hi = limits(name, section_of(at))
                 while pitch > hi:
                     pitch -= 12
@@ -169,6 +190,7 @@ def compose(plan: dict, seed: int, *, choices: ChoiceSource | None = None) -> st
                         put(part, at+t*value, value*.75 if value == 1 else value, pitch)
     score.editorial.cadences = [(start, slots[-1], kind) for start, slots, kind, _ in phrases
                                 if kind in ('half', 'full', 'modulating', 'retransition')]
+    score.editorial.mode = 'minor' if minor else 'major'
     return finish(score, total)
 
 

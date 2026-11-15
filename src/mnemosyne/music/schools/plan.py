@@ -24,6 +24,7 @@ class SchoolPlan(BaseModel):
     tempo: float = Field(gt=0)
     form: list[Section] = Field(min_length=1)
     tonic: float | None = None
+    mode: Literal['major', 'minor'] | None = None
     centre: float | None = None
     fundamental: float | None = None
     quotation: dict | None = None

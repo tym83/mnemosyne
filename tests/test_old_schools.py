@@ -168,6 +168,36 @@ class OldSchoolTests(unittest.TestCase):
             self.assertEqual(int(bass_at[start+14]) % 12, chord(tonic, numeral, key)[0])
         self.assertEqual({key for _, (_, key), _ in cadences}, {0, 7})  # there and back
 
+    def test_classical_minor_cadences_on_i_or_v_with_raised_leading_tone(self):
+        plan = json.loads((PLANS/'classical.json').read_text())
+        plan['mode'] = 'minor'
+        plan['tonic'] = 57
+        from mnemosyne.music.schools.plan import SchoolPlan
+        SchoolPlan.model_validate(plan)
+        score = SCHOOLS['classical'].compose(plan, plan['seed'])
+        self.assertEqual(score.editorial.mode, 'minor')
+        tonic = 57 % 12
+        names = ENSEMBLES[plan['ensemble']]
+        bass = next(i for i, r in roles(names).items() if r == 'bass')
+        bass_at = {at: ps[0] for at, _, ps in events(score.parts[bass])}
+        expected = {'half': 'V', 'full': {0: 'i', 3: 'I'}, 'modulating': {3: 'I'}, 'retransition': 'V7'}
+        cadences = score.editorial.cadences
+        self.assertGreater(len(cadences), 6)
+        for start, (numeral, key), kind in cadences:
+            want = expected[kind]
+            self.assertEqual(numeral, want[key] if isinstance(want, dict) else want)
+            self.assertEqual(int(bass_at[start+14]) % 12, chord(tonic, numeral, key)[0])
+        self.assertEqual({key for _, (_, key), _ in cadences}, {0, 3})  # to the relative major and back
+        pcs = {int(p) % 12 for part in score.parts for _, _, ps in events(part) for p in ps}
+        self.assertIn((tonic+11) % 12, pcs)  # G sharp: the raised leading tone of A minor
+        self.assertIn((tonic+3) % 12, pcs)   # C: the minor third / the relative major
+        home_end = min(start for start, _, kind in cadences if kind == 'modulating')
+        home = {int(p) % 12 for part in score.parts for at, _, ps in events(part) for p in ps if at < home_end}
+        self.assertIn((tonic+11) % 12, home)
+        self.assertNotIn((tonic+10) % 12, home)  # harmonic minor: no natural seventh at home
+        default, _ = compose('classical')
+        self.assertEqual(default.editorial.mode, 'major')
+
     def test_romantic_chromatic_harmony_and_climax_register(self):
         score, plan = compose('romantic')
         tonic = int(plan.get('tonic', 60)) % 12
