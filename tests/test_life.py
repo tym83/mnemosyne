@@ -137,6 +137,16 @@ class LightenTests(unittest.TestCase):
             ref = light['spec']['process']
             self.assertEqual(json.loads((Path(tmp)/ref['file']).read_text()), body['spec']['process'])
 
+    def test_any_large_field_moves_to_the_volume(self):
+        from mnemosyne.operator.kube import lighten, LIMIT
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {'kind': 'Notebook', 'metadata': {'name': 'n'},
+                    'spec': {'opus': 'w', 'entries': [{'answer': 'y' * 1000}] * 900}}
+            light = lighten(body, tmp)
+            self.assertLess(len(json.dumps(light)), 100_000)
+            self.assertEqual(light['spec']['opus'], 'w')
+
 
 class BudgetTests(unittest.TestCase):
     def test_spending_is_recorded_and_summed_for_the_month(self):

@@ -163,9 +163,23 @@ def backfill(root: Path, *, backend=None, log=print) -> int:
     short = [t for t in todo if len(plain(t)) <= LONG]
     long = [t for t in todo if len(plain(t)) > LONG]
     done = 0
+
+    def render(chunk):
+        """A failed batch is halved and tried again; a single text that still fails goes the long way."""
+        try:
+            return list(zip(chunk, render_batch(chunk, notebook, backend)))
+        except RuntimeError:
+            reasons = [e.get('reason') for e in notebook if isinstance(e, dict) and e.get('reason')][-5:]
+            (root/'translation-errors.json').write_text(json.dumps(reasons, ensure_ascii=False, indent=1))
+            log(f'translate: a batch of {len(chunk)} failed: {reasons[-1:] or "no reason"}')
+            if len(chunk) == 1:
+                return [(chunk[0], None)]
+            half = len(chunk) // 2
+            return render(chunk[:half]) + render(chunk[half:])
+
     for i in range(0, len(short), BATCH):
         chunk = short[i:i + BATCH]
-        for text, russian in zip(chunk, render_batch(chunk, notebook, backend)):
+        for text, russian in render(chunk):
             if russian is None:
                 long.append(text)
             else:
@@ -175,7 +189,10 @@ def backfill(root: Path, *, backend=None, log=print) -> int:
         log(f'{done}/{len(todo)}')
     for text in long:
         # The Translator does not need to know the language: he names what he reads.
-        memory.put(text, translator.translate(text, 'unknown', notebook, backend=backend, step='translate:long'))
+        try:
+            memory.put(text, translator.translate(text, 'unknown', notebook, backend=backend, step='translate:long'))
+        except RuntimeError:
+            continue   # left for the next turn; the reason is in translation-errors.json
         done += 1
         memory.save()
         log(f'{done}/{len(todo)}')

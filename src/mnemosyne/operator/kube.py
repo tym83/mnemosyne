@@ -91,7 +91,7 @@ def lighten(body, store=None):
     def walk(node, path):
         if isinstance(node, dict):
             for k in list(node):
-                if k == 'process' and isinstance(node[k], (dict, list)):
+                if isinstance(node[k], (dict, list)) and (k == 'process' or len(json.dumps(node[k])) > 64_000):
                     data = json.dumps(node[k], ensure_ascii=False, sort_keys=True).encode()
                     digest = hashlib.sha256(data).hexdigest()
                     ref = {'sha256': digest, 'bytes': len(data)}

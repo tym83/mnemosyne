@@ -96,3 +96,22 @@ class ComposerTranslationTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FailingBatchTests(unittest.TestCase):
+    def test_a_failed_batch_is_halved_until_each_text_is_translated(self):
+        texts = [f'A sentence of prose number {i}, long enough to be translated.' for i in range(6)]
+
+        def batch(chunk, notebook, backend):
+            if len(chunk) > 2:
+                notebook.append({'reason': 'max_tokens'})
+                raise RuntimeError('translate:batch: all configured endpoints failed')
+            return ['RU ' + t for t in chunk]
+
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch.object(memory, 'gather', return_value=texts), \
+                patch.object(memory, 'render_batch', side_effect=batch):
+            done = memory.backfill(Path(tmp), log=lambda *_: None)
+            m = memory.Memory(Path(tmp))
+            self.assertEqual(done, 6)
+            self.assertEqual([m.get(t) for t in texts], ['RU ' + t for t in texts])
