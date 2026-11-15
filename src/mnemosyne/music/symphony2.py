@@ -8,6 +8,7 @@ composer always knows what is realized. Tempo is per movement and a section may 
 or change it gradually across its length (`tempo_to`, one step per quarter note); meter may change per
 section.
 """
+from dataclasses import replace
 from fractions import Fraction
 import hashlib
 import math
@@ -48,6 +49,7 @@ SECTION_KEYS = {'role', 'bars', 'meter', 'tempo', 'tempo_to', 'theme', 'transfor
                 'harmonic_rhythm', 'layers', 'schools', 'notes'}
 LAYER_KEYS = {'instruments', 'role', 'material', 'transform', 'pattern', 'dynamic', 'register', 'density',
               'technique', 'bars', 'octave_double', 'time_scale', 'repeat', 'offset', 'rest_between', 'notes'}
+PLAN_LIMIT = 100_000  # characters of JSON: a plan the composer can write out whole in one answer
 GRID = .25  # onsets of a time-scaled line fall on a sixteenth grid; the ratio holds over a phrase
 
 
@@ -93,8 +95,14 @@ def instruments_of(plan):
 
 
 def validate(plan, *, study=False):
-    from .symphony import FORMS
+    """Check a plan and return its length in seconds. A theme without `source` gets {'kind': 'composed'}."""
     from .schools import SCHOOLS
+    import json
+    size = len(json.dumps(plan, ensure_ascii=False))
+    if size > PLAN_LIMIT:
+        raise ValueError(f'plan is {size} characters; the limit is {PLAN_LIMIT}. Write it compactly: at most 12 '
+                         'layers per section, one layer per idea (repeat, bars and several instruments in one layer '
+                         'instead of copies), notes of one sentence')
     strict(plan, PLAN_KEYS, 'plan')
     if not plan.get('concept') or not plan.get('method') or not plan.get('title') or type(plan.get('seed')) is not int:
         raise ValueError('title, integer seed, concept and method required')
@@ -119,7 +127,7 @@ def validate(plan, *, study=False):
             raise ValueError(f'theme {name}: durations are quarters in multiples of 0.25 (a sixteenth), got {bad}; '
                              'for an irrational tempo ratio write the theme plainly and give the layer time_scale')
         if not theme.get('source'):
-            raise ValueError(f'theme {name}: provenance (source) required')
+            theme['source'] = {'kind': 'composed'}
     for name, row in rows.items():
         if sorted(int(x) % 12 for x in row) != list(range(12)) or len(row) != 12:
             raise ValueError(f'row {name}: twelve distinct pitch classes')
@@ -140,12 +148,9 @@ def validate(plan, *, study=False):
         if mv.get('mode', 'major') not in MODES:
             raise ValueError(f'{where}: mode must be one of {sorted(MODES)}')
         secs = mv.get('sections', [])
-        form = mv.get('form')
-        if form == 'free':
-            if not secs or any(not isinstance(s.get('role'), str) or not s['role'] for s in secs):
-                raise ValueError(f'{where}: a free form names every section role')
-        elif form not in FORMS or [s.get('role') for s in secs] != FORMS[form]:
-            raise ValueError(f'{where}: form must be "free" or one of {sorted(FORMS)} with its section order')
+        # A named form whose roles differ (or an unknown form name) is a free form: roles are the composer's.
+        if not secs or any(not isinstance(s.get('role'), str) or not s['role'] for s in secs):
+            raise ValueError(f'{where}: name every section role (a short word: "exposition", "A", "storm"…)')
         used = set()
         quarters = Fraction(0)
         for si, sec in enumerate(secs):
@@ -191,11 +196,11 @@ def validate(plan, *, study=False):
                     raise ValueError(f'{lw}: unpitched {unpitched} need role "percussion" '
                                      '(pitched instruments may share that layer)')
                 tech = layer.get('technique')
-                if tech:
-                    lacking = [n for n in names if tech not in techniques(n)]
+                if tech in TECHNIQUES:
+                    lacking = [n for n in names if realized_technique(tech, n) is None]
                     if lacking:
-                        raise ValueError(f'{lw}: technique {tech} has no samples for {lacking}; available: '
-                                         + '; '.join(f'{n}: {sorted(techniques(n))}' for n in lacking))
+                        raise ValueError(f'{lw}: technique {tech} changes the sound and has no samples for {lacking}; '
+                                         'available: ' + '; '.join(f'{n}: {sorted(techniques(n))}' for n in lacking))
                 material = layer.get('material', 'harmony')
                 kind, _, ref = str(material).partition(':')
                 if kind == 'theme' and ref not in themes or kind == 'row' and ref not in rows:
@@ -271,6 +276,22 @@ def techniques(instrument):
     return names | {'arco' if spec['family'] == 'strings' else 'sustain'}
 
 
+def realized_technique(tech, instrument):
+    """(technique for the event, shortened) as an instrument realizes a layer technique, or None if it cannot.
+
+    arco and sustain are the plain sound of every instrument; staccato without its own samples is a
+    shortened plain note. Other techniques change the sound and need samples."""
+    if not tech or tech in ('arco', 'sustain'):
+        return None, False
+    if tech == 'staccato' and REGISTRY[instrument]['family'] in ('keyboard', 'plucked', 'percussion'):
+        return 'staccato', False  # orchestration plays a struck staccato as its plain, naturally short sound
+    if tech in techniques(instrument):
+        return tech, False
+    if tech == 'staccato':
+        return None, True
+    return None
+
+
 def playable(instrument):
     """Sounding span an instrument really plays here: its range met by its sampled keys."""
     spec = REGISTRY[instrument]
@@ -281,8 +302,9 @@ def playable(instrument):
     return lo, hi
 
 
-def place(pitch, instrument, register=None):
-    """The octave of pitch class `pitch` nearest to the register's centre, playable and sampled."""
+def place(pitch, instrument, register=None, technique=None):
+    """The octave of pitch class `pitch` nearest to the register's centre, playable and sampled
+    (in the zones of `technique` when it has its own)."""
     spec = REGISTRY[instrument]
     if spec.get('unpitched'):
         return spec['comfortable'][0]
@@ -293,8 +315,9 @@ def place(pitch, instrument, register=None):
     if register and lo <= pitch <= hi and spec['range'][0] <= pitch <= spec['range'][1]:
         return pitch  # a written pitch inside its register stays where the composer put it
     target = (lo + hi) / 2 if register else pitch
-    technique = 'arco' if spec['family'] == 'strings' else 'sustain'
-    zones = spec['samples'].get('key_ranges', {}).get(technique, [spec['range']])
+    plain = 'arco' if spec['family'] == 'strings' else 'sustain'
+    ranges = spec['samples'].get('key_ranges', {})
+    zones = ranges.get(technique) or ranges.get(plain, [spec['range']])
     options = [pitch + 12 * k for k in range(-10, 11)
                if spec['range'][0] <= pitch + 12 * k <= spec['range'][1]
                and any(a <= round(pitch + 12 * k) <= b for a, b in zones)]
@@ -487,10 +510,51 @@ def realize_section(plan, mi, si, start, slots, rng):
     return out
 
 
-def merge_chords(events, polyphony):
+def note_adjustment(adjusted, name, kind, count=1):
+    """Record what the realization had to change so a plan would play (shown in the development report)."""
+    entry = adjusted.setdefault(name, {})
+    entry[kind] = entry.get(kind, 0) + count
+
+
+def lane_ids(plan):
+    """Orchestration lane ids of every instrument, in the order orchestration builds them."""
+    out = {}
+    for p in audio_ensemble(plan['orchestra']):
+        for div in range(p.divisi):
+            out.setdefault(p.instrument, []).append(p.id + (f'-div{div+1}' if p.divisi > 1 else ''))
+    return out
+
+
+def share_desks(items, desks, adjusted, name):
+    """Give every event of one monophonic instrument a desk on which it overlaps nothing.
+
+    An event keeps its own desk when that desk is free, else takes another free one. When all are busy,
+    the note sounding on its desk is cut at the new onset; a note that starts together with notes on every
+    desk is left out. Both are recorded."""
+    lanes = [[] for _ in range(desks)]
+    out = []
+    for item in sorted(items, key=lambda x: x[0]):
+        at, d = item[0], item[5]
+        order = [d] + [k for k in range(desks) if k != d]
+        free = next((k for k in order if not lanes[k] or lanes[k][-1][0] + lanes[k][-1][1] <= at + 1e-9), None)
+        if free is None:
+            free = next((k for k in order if lanes[k][-1][0] < at - 1e-9), None)
+            if free is None:
+                note_adjustment(adjusted, name, 'dropped')
+                continue
+            lanes[free][-1][1] = at - lanes[free][-1][0]
+            note_adjustment(adjusted, name, 'truncated')
+        item[5] = free
+        lanes[free].append(item)
+        out.append(item)
+    return out
+
+
+def merge_chords(events, polyphony, players=2, adjusted=None, name=None):
     """Overlapping events of one polyphonic player as non-overlapping chords (a held tone is re-struck
     only where the sounding set changes). More simultaneous tones than the instrument holds go to a
-    second player of the same kind, if the orchestra has one."""
+    second player of the same kind, if the orchestra has one; otherwise the outer tones sound and the
+    inner ones are left out (recorded)."""
     if not events:
         return []
     cuts = sorted({e.at for e in events} | {e.at + e.duration for e in events})
@@ -510,6 +574,10 @@ def merge_chords(events, polyphony):
             segments.append((a, b - a, pitches, vel, tech))
     chunks = [[], []]
     for at, dur, ps, v, t in segments:
+        if len(ps) > polyphony and players < 2:
+            if adjusted is not None:
+                note_adjustment(adjusted, name, 'chord_tones_dropped', len(ps) - polyphony)
+            ps = ps[:polyphony - 1] + ps[-1:]
         chunks[0].append(Event(at, dur, ps[:polyphony], v, t))
         if len(ps) > polyphony:
             chunks[1].append(Event(at, dur, ps[polyphony:2 * polyphony], v, t))
@@ -524,6 +592,7 @@ def movement(plan, index):
     slots = instruments_of(plan)
     rng = random.Random(int.from_bytes(hashlib.sha256(f"{plan['seed']}:{index}".encode()).digest()[:8]))
     lines, sections, meters, start = [], [], [], 0.
+    desk_of = {}  # line id -> (instrument, desk): the lane a line keeps if free assignment cannot place it
     steps, words = [], []  # the tempo map: (quarter, bpm, shown); rit./accel. words
     for sec in mv['sections']:
         length = float(meter(sec.get('meter', '4/4'))[0]) * sec['bars']
@@ -550,57 +619,70 @@ def movement(plan, index):
             meters.append((start, sec.get('meter', '4/4')))
         length = bar_q * sec['bars']
         named, merged = {}, {}
+        adjusted = {}
+        pending = {}  # monophonic instrument -> its events from every layer, to share out among its desks
         for li, layer, events in realize_section(plan, index, si, start, slots, rng):
-            for name in layer['instruments']:
+            for pos, name in enumerate(layer['instruments']):
                 role = line_role(layer['role'], name)
                 spec = REGISTRY[name]
                 poly = spec['polyphony'] > 1
+                technique, short = realized_technique(layer.get('technique'), name)
                 # A chord on monophonic players is shared out among them, top to bottom; a keyboard or harp takes it whole.
                 desks = 1 if poly else max(1, slots[name])
-                lanes = [[] for _ in range(desks)]
                 for at, dur, ps, t in events:
                     vel = velocity(layer.get('dynamic', 'mf'), t)
+                    if short:
+                        dur = min(dur, on_grid(dur * .5))  # staccato without its own samples: a short plain note
                     # Desks take chord tones top down; a bass or drone desk takes the lowest first.
-                    placed = sorted({place(p, name, layer.get('register')) for p in ps},
+                    placed = sorted({place(p, name, layer.get('register'), technique) for p in ps},
                                     reverse=layer['role'] not in ('bass', 'drone'))
                     if poly:
-                        lanes[0].append(Event(at, dur, tuple(placed[:spec['polyphony']]), vel, layer.get('technique')))
+                        merged.setdefault(name, []).append(Event(at, dur, tuple(placed[:spec['polyphony']]), vel, technique))
+                        named[name] = named.get(name, 0) + 1
                         continue
+                    if len(placed) > desks:
+                        # More chord tones than players: the desks take them in order (top down, or bottom up
+                        # for a bass or drone) as grammar v2 always has; the rest are recorded as left out.
+                        note_adjustment(adjusted, name, 'chord_tones_dropped', len(placed) - desks)
                     for d in range(desks):
                         if d < len(placed) or d == 0:
                             p = placed[d % len(placed)]
-                            lanes[d].append(Event(at, dur, (p,), vel, layer.get('technique')))
+                            pending.setdefault(name, []).append([at, dur, p, vel, technique, d, (li, pos), role])
                     if layer.get('octave_double') and desks > 1 and len(placed) == 1:
                         lo, hi = spec['range']
                         other = next((placed[0] + k for k in (-12, 12) if lo <= placed[0] + k <= hi), None)
                         if other is not None:
-                            lanes[1].append(Event(at, dur, (other,), vel, layer.get('technique')))
-                if poly:
-                    merged.setdefault(name, []).extend(lanes[0])
-                    named[name] = named.get(name, 0) + len(lanes[0])
-                    continue
-                for d, evs in enumerate(lanes):
-                    if not evs:
-                        continue
-                    evs = tuple(e for e in evs if e.duration > 1e-6)
-                    ps = [p for e in evs for p in e.pitches]
-                    lines.append(Line(f'mv{index+1}:s{si+1}:l{li+1}:{name}:{d+1}', role, evs,
-                                      (min(ps), max(ps)), .5, None, name))
-                named[name] = named.get(name, 0) + sum(len(evs) for evs in lanes)
+                            pending.setdefault(name, []).append([at, dur, other, vel, technique, 1, (li, pos), role])
+        grouped = {}
+        for name, items in pending.items():
+            for item in share_desks(items, max(1, slots[name]), adjusted, name):
+                at, dur, p, vel, technique, d, key, role = item
+                grouped.setdefault((key, d), (name, role, []))[2].append(Event(at, dur, (p,), vel, technique))
+                named[name] = named.get(name, 0) + 1
+        for ((li, _), d), (name, role, evs) in sorted(grouped.items(), key=lambda x: x[0]):
+            evs = tuple(e for e in sorted(evs, key=lambda e: e.at) if e.duration > 1e-6)
+            if not evs:
+                continue
+            ps = [p for e in evs for p in e.pitches]
+            lines.append(Line(f'mv{index+1}:s{si+1}:l{li+1}:{name}:{d+1}', role, evs,
+                              (min(ps), max(ps)), .5, None, name))
+            desk_of[lines[-1].id] = (name, d)
         for name, evs in merged.items():
             # Two hands, or a harp's two layers: everything one keyboard plays at once becomes its chords.
-            for k, chunk in enumerate(merge_chords(evs, REGISTRY[name]['polyphony'])):
+            for k, chunk in enumerate(merge_chords(evs, REGISTRY[name]['polyphony'], slots[name], adjusted, name)):
                 ps = [p for e in chunk for p in e.pitches]
                 lines.append(Line(f'mv{index+1}:s{si+1}:{name}:hands{k+1}', 'figuration', tuple(chunk),
                                   (min(ps), max(ps)), .5, None, name))
+                desk_of[lines[-1].id] = (name, k)
         sections.append({'role': sec['role'], 'bars': sec['bars'], 'meter': sec.get('meter', '4/4'),
                          'mode': sec.get('mode', mv.get('mode', 'major')),
                          'progression': sec.get('progression', [1]),
                          'start_quarters': start, 'end_quarters': start + length,
-                         'start_seconds': clock(start), 'duration_seconds': clock(start + length) - clock(start),
+                         'start_seconds': clock(start), 'duration_seconds': clock(start + length) - clock(start) if changing else length * 60 / base,
                          'sounding': named, 'tacet': sorted(set(slots) - set(named)),
                          **({'tempo': section_tempo(mv, sec)[0]} if 'tempo' in sec else {}),
-                         **({'tempo_to': section_tempo(mv, sec)[1]} if section_tempo(mv, sec)[1] is not None else {})})
+                         **({'tempo_to': section_tempo(mv, sec)[1]} if section_tempo(mv, sec)[1] is not None else {}),
+                         **({'adjusted': adjusted} if adjusted else {})})
         start += length
     op = {'title': f"{plan['title']} — {index+1}. {mv['title']}", 'ensemble': plan['orchestra'],
           'tempo': base, 'duration': start * 60 / base, 'school': 'symphony', 'audio_profile': 'native_sfz',
@@ -609,7 +691,16 @@ def movement(plan, index):
         # Score time stays in quarters; the renderer and the score's marks follow the map.
         op.update(duration=clock(total), quarters=total,
                   tempo_map=[list(x) for x in steps], tempo_text=[list(w) for w in words])
-    score, assignment = orchestrate(lines, op)
+    try:
+        score, assignment = orchestrate(lines, op)
+    except ValueError as exc:
+        if 'No playable available player' not in str(exc):
+            raise
+        # Free assignment can split a line between desks and then find no desk for the next one; the desks
+        # were already shared out without overlap, so each line keeps its own.
+        lanes = lane_ids(plan)
+        pinned = [replace(line, lane=lanes[desk_of[line.id][0]][desk_of[line.id][1]]) for line in lines]
+        score, assignment = orchestrate(pinned, op)
     from music21 import dynamics, expressions, metadata
     # The work's title above, the movement's below: music21 otherwise writes one long title twice.
     score.metadata = metadata.Metadata()

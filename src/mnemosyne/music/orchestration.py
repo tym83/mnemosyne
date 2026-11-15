@@ -33,6 +33,7 @@ class Line:
     density: float = .5
     colour: str | None = None
     instrument: str | None = None
+    lane: str | None = None  # a fixed lane id (player or divisi group), when the caller already shared them out
 
 
 def school_lines(score, plan):
@@ -111,6 +112,8 @@ def orchestrate(lines, plan):
             def eligible(lane, pitches):
                 p=lane['player']; spec=p.spec
                 if line.instrument and p.instrument != line.instrument:
+                    return False
+                if line.lane and lane['id'] != line.lane:
                     return False
                 if bool(spec.get('unpitched')) != (line.role=='percussion_layer'):
                     return False

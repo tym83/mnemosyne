@@ -210,6 +210,99 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertGreater(len(trombone), 10)
 
 
+    def test_plain_techniques_and_staccato_without_samples_are_realized(self):
+        plan = g.example()
+        plan['orchestra'].append({'instrument': 'soprano_choir', 'players': 8})
+        sec = plan['movements'][1]['sections'][0]
+        sec['layers'] = [
+            {'instruments': ['oboe'], 'role': 'melody', 'material': 'theme:waltz', 'technique': 'arco'},
+            {'instruments': ['violin_1_section'], 'role': 'pad', 'pattern': 'sustain', 'technique': 'sustain'},
+            {'instruments': ['harp'], 'role': 'figuration', 'pattern': 'arpeggio', 'technique': 'staccato'},
+            {'instruments': ['soprano_choir'], 'role': 'melody', 'material': 'theme:waltz', 'technique': 'staccato'}]
+        g.validate(plan)
+        _, _, assignment, dev = g.movement(plan, 1)
+        end = dev['sections'][0]['end_quarters']
+        tech = lambda name: {e['technique'] for p in assignment['players'] if p['instrument'] == name
+                             for e in p['events'] if e['at'] < end}
+        self.assertEqual(tech('oboe'), {'sustain'})
+        self.assertEqual(tech('violin_1_section'), {'arco'})
+        self.assertEqual(tech('harp'), {'sustain'})
+        choir = sorted((e['at'], e['duration']) for p in assignment['players'] if p['instrument'] == 'soprano_choir'
+                       for e in p['events'])
+        # The section augments the theme: its first half note is sung as a quarter, the next enters on time.
+        self.assertEqual(choir[:2], [(0.0, 1.0), (2.0, 1.0)])
+        for name, tech_name in (('harp', 'pizzicato'), ('flute', 'col_legno')):
+            bad = g.example()
+            bad['movements'][1]['sections'][0]['layers'][0] = {'instruments': [name], 'role': 'melody',
+                                                               'material': 'theme:waltz', 'technique': tech_name}
+            with self.assertRaisesRegex(ValueError, f'{tech_name} changes the sound.*available'):
+                g.validate(bad)
+
+    def test_unknown_or_mismatched_form_is_free(self):
+        plan = g.example()
+        plan['movements'][0]['form'] = 'sonata'  # its roles are not the sonata's
+        plan['movements'][1]['form'] = 'nocturne with a storm'
+        del plan['movements'][2]['form']
+        g.validate(plan)
+        plan['movements'][0]['sections'][0]['role'] = ''
+        with self.assertRaisesRegex(ValueError, 'name every section role'):
+            g.validate(plan)
+
+    def test_theme_source_defaults_to_composed(self):
+        plan = g.example()
+        del plan['themes']['waltz']['source']
+        g.validate(plan)
+        self.assertEqual(plan['themes']['waltz']['source'], {'kind': 'composed'})
+
+    def test_layers_sharing_an_instrument_never_overlap_on_a_desk(self):
+        plan = g.example()
+        sec = plan['movements'][1]['sections'][0]  # two oboes in the orchestra
+        sec['layers'] = [
+            {'instruments': ['oboe'], 'role': 'pad', 'pattern': 'sustain', 'dynamic': 'pp'},
+            {'instruments': ['oboe'], 'role': 'melody', 'material': 'theme:waltz', 'repeat': 0},
+            {'instruments': ['oboe'], 'role': 'points', 'material': 'row:crowd', 'pattern': 'points', 'density': 1},
+            {'instruments': ['oboe'], 'role': 'counter', 'material': 'theme:waltz', 'offset': 1, 'repeat': 0}]
+        g.validate(plan)
+        _, _, assignment, dev = g.movement(plan, 1)
+        for player in assignment['players']:
+            events = sorted(player['events'], key=lambda e: e['at'])
+            for a, b in zip(events, events[1:]):
+                self.assertLessEqual(a['at'] + a['duration'], b['at'] + 1e-9, player['id'])
+        adjusted = dev['sections'][0]['adjusted']['oboe']
+        self.assertGreater(adjusted.get('truncated', 0) + adjusted.get('dropped', 0), 0)
+
+    def test_more_chord_tones_than_one_harp_holds_keep_the_outer_ones(self):
+        from mnemosyne.music.orchestration import Event
+        events = [Event(0, 4, tuple(range(60, 81, 2)), 64)]  # eleven tones, one harp of eight
+        (chunk,) = g.merge_chords(events, 8, players=1, adjusted=(adjusted := {}), name='harp')
+        self.assertEqual(len(chunk[0].pitches), 8)
+        self.assertEqual((max(chunk[0].pitches), min(chunk[0].pitches)), (80, 60))
+        self.assertEqual(adjusted, {'harp': {'chord_tones_dropped': 3}})
+        plan = g.example()
+        sec = plan['movements'][1]['sections'][0]
+        sec['layers'] = [
+            {'instruments': ['harp'], 'role': 'pad', 'material': 'theme:waltz', 'pattern': 'sustain', 'register': [40, 52]},
+            {'instruments': ['harp'], 'role': 'pad', 'material': 'theme:waltz', 'pattern': 'sustain', 'register': [64, 76]}]
+        g.validate(plan)
+        _, _, assignment, dev = g.movement(plan, 1)
+        self.assertIn('chord_tones_dropped', dev['sections'][0]['adjusted']['harp'])
+        harp = [e for p in assignment['players'] if p['instrument'] == 'harp' for e in p['events']]
+        self.assertTrue(harp and all(len(e['pitches']) <= 8 for e in harp))
+
+    def test_an_oversized_plan_is_refused_with_a_way_to_shorten_it(self):
+        plan = g.example()
+        plan['notes'] = 'x' * g.PLAN_LIMIT
+        with self.assertRaisesRegex(ValueError, 'limit is .*at most 12 layers per section'):
+            g.validate(plan)
+    def test_a_line_can_keep_a_fixed_lane(self):
+        from mnemosyne.music.orchestration import Event, Line, orchestrate
+        op = {'title': 't', 'ensemble': [{'instrument': 'oboe', 'count': 2}], 'tempo': 60, 'duration': 8,
+              'school': 'symphony'}
+        line = Line('x', 'melody', (Event(0, 2, (69,), 64),), (69, 69), .5, None, 'oboe', 'oboe-2')
+        _, assignment = orchestrate([line], op)
+        self.assertEqual([p['id'] for p in assignment['players'] if p['events']], ['oboe-2'])
+        self.assertEqual(g.lane_ids({'orchestra': op['ensemble']}), {'oboe': ['oboe-1', 'oboe-2']})
+
 def tempo_map_seconds(op):
     from mnemosyne.music import tempo_map
     return tempo_map.seconds_at(op, op['quarters'])

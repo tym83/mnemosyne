@@ -158,10 +158,24 @@ def plan_contract(method):
                           '(tempo_to does not carry over). Fermatas and rubato are not realized; put them in notes.',
                           'Notation: guitar on the treble clef an octave lower (8vb); keyboards and harp switch to the '
                           'bass clef in low bars. Pedal and other playing marks are not written; put them in notes.',
-                          'Chords on monophonic instruments are shared among their players; keep players enough.',
+                          'Chords on monophonic instruments are shared among their players, top down (a bass or drone '
+                          'bottom up); tones beyond the players are left out. Layers that name the same instrument '
+                          'share its players: a note that finds every player busy cuts the note sounding on its desk, '
+                          'or is left out if all start together. A keyboard or harp holds its polyphony; with one '
+                          'player, a wider chord keeps its outer tones. The development report lists every such '
+                          'change per section (adjusted); keep players enough.',
+                          'Techniques: arco and sustain are every instrument\'s plain sound; staccato without its own '
+                          'samples is a short plain note. A technique that changes the sound (pizzicato, col_legno, '
+                          'harmonics, tremolo) needs samples: see techniques per instrument.',
+                          'form names the movement; any section roles are accepted (a named form needs no fixed '
+                          'section order). Every section needs a role word.',
+                          'A theme may give its provenance in source; without it the theme is {"kind": "composed"}.',
                           'layers: [] is a general pause.',
                           'Unknown fields are rejected: what the grammar cannot express goes into "notes" as text.',
-                          '3–5 movements, 20–45 minutes (a sketch study may be shorter and have 1–5 movements).'],
+                          '3–5 movements, 20–45 minutes (a sketch study may be shorter and have 1–5 movements).',
+                          f'Write the plan compactly: at most 12 layers per section, no repeated identical layers '
+                          f'(use repeat, bars and several instruments in one layer), notes of one sentence. A plan '
+                          f'over {g.PLAN_LIMIT} characters of JSON is refused.'],
                 'example': g.example()}
     if method.school not in SCHOOLS:
         raise ValueError('unknown school')
