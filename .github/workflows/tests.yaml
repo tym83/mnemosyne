@@ -1,0 +1,34 @@
+name: Tests
+# Pull requests and manual runs only: pushes do not start CI.
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      # The Cozystack packaging test renders the app chart with the public cozy-lib library chart.
+      - uses: actions/checkout@v4
+        with:
+          repository: cozystack/cozystack
+          path: cozystack
+          sparse-checkout: packages/library/cozy-lib
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - uses: azure/setup-helm@v4.3.0
+      - name: Install dependencies
+        run: uv sync --locked --extra operator
+      - name: Unit tests
+        env:
+          PYTHONPATH: src
+          COZYSTACK_CHECKOUT: ${{ github.workspace }}/cozystack
+        run: uv run --locked --extra operator python -m unittest discover -s tests

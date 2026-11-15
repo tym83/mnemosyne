@@ -1,15 +1,34 @@
 import json
 from pathlib import Path
+import tempfile
 import unittest
 
 from mnemosyne.scenario.live import realize, IMAGE, NOTE, REPLICAS
 
+ROOT = Path(__file__).resolve().parents[1]
+GENERATED = ROOT/'out/scenarios/leonia/ops.jsonl'
 
-@unittest.skipUnless(Path("out/scenarios/leonia/ops.jsonl").exists(), "generate the Leonia scenario first")
+
 class RealizeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # The generated year is not in git: use the local one, or generate it (seeded, a few seconds).
+        cls.path = GENERATED
+        if not cls.path.exists():
+            from mnemosyne.scenario.generate import run
+            cls.tmp = tempfile.TemporaryDirectory()
+            run(ROOT/'scenarios/leonia.yaml', Path(cls.tmp.name))
+            cls.path = Path(cls.tmp.name)/'leonia/ops.jsonl'
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, 'tmp'):
+            cls.tmp.cleanup()
+
     def ops(self):
-        for line in open(Path('out/scenarios/leonia/ops.jsonl')):
-            yield json.loads(line)
+        with open(self.path) as lines:
+            for line in lines:
+                yield json.loads(line)
 
     def test_workloads_run_a_real_tiny_image_and_keep_their_version(self):
         seen = set()
