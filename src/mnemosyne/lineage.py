@@ -45,6 +45,8 @@ class Parameters:
     spaces: int = 2
     # Chance that an empty space is taken on a given night: 1 fills it at once, lower rates let a generation arrive over months.
     birth_rate: float = 1.
+    # Creators born with the atelier (0: one per art).
+    founders: int = 0
     arts: tuple = ('music', 'literature')
     # One step is one real day. Old-age survival has median near 730 days.
     maturation_min: int = 25
@@ -215,7 +217,9 @@ class Lineage:
         self.climate_history = []
         self.occasions = []
         self.reception = Reception(seed)
-        for art in self.p.arts:
+        # Founders of the atelier: by default one per art; a living atelier starts with one creator
+        # and the others arrive one by one in their own time.
+        for art in self.p.arts[:self.p.founders or None]:
             self._birth(art=art)
 
     def date(self) -> str:
