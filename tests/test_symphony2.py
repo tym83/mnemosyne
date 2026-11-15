@@ -109,6 +109,19 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertEqual(g.place(60.5, 'harp') % 1, 0)
         self.assertEqual(g.place(60.5, 'violin_1_section'), 60.5)
 
+    def test_a_written_pitch_without_a_sample_moves_to_an_octave_that_sounds(self):
+        # Timpani range reaches 60, the samples only 48: a register [36, 53] cannot keep 53.
+        self.assertEqual(g.place(53, 'timpani', register=(36, 53)), 41)
+        self.assertEqual(g.place(45, 'timpani', register=(36, 53)), 45)
+
+    def test_a_studio_plan_with_a_timpani_chord_is_realized(self):
+        # A plan from the cluster: a two-note timpani chord adds a player, and its notes reach past the samples.
+        import json
+        from pathlib import Path
+        from mnemosyne.music.composer import Method, validate_plan
+        data = json.loads((Path(__file__).parent/'fixtures'/'sketch_timpani_chord.json').read_text())
+        validate_plan(data['plan'], Method(**data['method']), sketch=True)
+
     def test_a_wide_chord_is_played_by_more_players_of_the_same_instrument(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][2]          # the general pause: nothing else sounds there

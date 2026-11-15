@@ -321,7 +321,7 @@ class WriterNight:
     @staticmethod
     def idea_words(st):
         """The accepted idea as the writer would say it, not as a form to fill."""
-        parts = [f'Замысел: {st.idea}', f'Сверхзадача: {st.superobjective}', f'Мысль: {st.thought}',
+        parts = [f'Замысел: {st.idea}', f'Сверхзадача: {st.superobjective}', f'Мысль: {st.message}',
                  'Чувства: ' + '; '.join(st.emotions), 'Чего я боюсь: ' + '; '.join(st.risks)]
         return '\n'.join(plain(p) for p in parts)
 

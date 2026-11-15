@@ -70,7 +70,7 @@ metadata: {name: {{ $name }}-studio}
 rules:
 - apiGroups: [mnemosyne.art]
   resources: [ateliers, ateliers/status, artists, artists/status, opera, opera/status, notebooks, notebooks/status, sketches, sketches/status, biographies, biographies/status, reviews, reviews/status, leitmotifs, leitmotifs/status, audiencelogs, audiencelogs/status, editions, editions/status]
-  verbs: [get, create, patch]
+  verbs: [get, create, update, patch]
 ---
 {{- range $role := list "controller" "studio" }}
 apiVersion: rbac.authorization.k8s.io/v1

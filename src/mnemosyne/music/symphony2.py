@@ -312,12 +312,13 @@ def place(pitch, instrument, register=None, technique=None):
         # Fixed-pitch instruments play no quarter tones (and a MIDI chord cannot bend its notes apart).
         pitch = round(pitch)
     lo, hi = register or spec['comfortable']
-    if register and lo <= pitch <= hi and spec['range'][0] <= pitch <= spec['range'][1]:
-        return pitch  # a written pitch inside its register stays where the composer put it
-    target = (lo + hi) / 2 if register else pitch
     plain = 'arco' if spec['family'] == 'strings' else 'sustain'
     ranges = spec['samples'].get('key_ranges', {})
     zones = ranges.get(technique) or ranges.get(plain, [spec['range']])
+    if (register and lo <= pitch <= hi and spec['range'][0] <= pitch <= spec['range'][1]
+            and any(a <= pitch <= b for a, b in zones)):
+        return pitch  # a written pitch inside its register stays where the composer put it, if it sounds
+    target = (lo + hi) / 2 if register else pitch
     options = [pitch + 12 * k for k in range(-10, 11)
                if spec['range'][0] <= pitch + 12 * k <= spec['range'][1]
                and any(a <= round(pitch + 12 * k) <= b for a, b in zones)]
@@ -729,7 +730,7 @@ def movement(plan, index):
             raise
         # Free assignment can split a line between desks and then find no desk for the next one; the desks
         # were already shared out without overlap, so each line keeps its own.
-        lanes = lane_ids(plan)
+        lanes = lane_ids({'orchestra': op['ensemble']})   # with the players chords added
         pinned = [replace(line, lane=lanes[desk_of[line.id][0]][desk_of[line.id][1]]) for line in lines]
         score, assignment = orchestrate(pinned, op)
     from music21 import dynamics, expressions, metadata

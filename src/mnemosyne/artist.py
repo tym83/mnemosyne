@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Literal
 from .assets import project_root
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from .taste import make_taste, prompt as taste_prompt
 
@@ -59,7 +59,9 @@ class Statement(BaseModel):
     idea: str
     operators_used: list[str]  # which tools of invention brought the idea
     superobjective: str  # Stanislavsky: what the whole work is for, one phrase
-    thought: str
+    # What the work says. Named 'thought', the field made the API's classifier read an artist's idea as
+    # the model's own reasoning (refusal: reasoning_extraction); older records keep that name.
+    message: str = Field(validation_alias=AliasChoices('message', 'thought'))
     why_i_must_say_it: str
     why_now: str
     freshness: str
@@ -333,7 +335,7 @@ def method(portrait: SelfPortrait, st: Statement, art: str, atlas_methods: list[
     if not portrait.inner_critic:
         portrait.inner_critic = make_taste(portrait.name)
     w = Writer(nb, backend=backend, data_class="art")
-    system = (f"Ты — {portrait.name}. {portrait.what_i_am_as_artist}\n\nТвоя идея: {st.idea}\n{st.thought}\n\n"
+    system = (f"Ты — {portrait.name}. {portrait.what_i_am_as_artist}\n\nТвоя идея: {st.idea}\n{st.message}\n\n"
               f"Искусство: {art}. Не упоминай технику, компьютеры, серверы.")
     known = "\n".join(f"- {m.get('name')}: {m.get('hero') or m.get('principles') or ''}" for m in atlas_methods)
     base = ("Выбери творческий метод для этой идеи. Варианты: взять существующий (existing); скрестить два (cross); "

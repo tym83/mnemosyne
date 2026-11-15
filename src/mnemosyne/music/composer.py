@@ -451,7 +451,7 @@ class Night:
                 self.entries.append({'step': step, 'plan': plan, 'diary': answer.note})
                 self.save()
                 return plan
-            except (ValueError, TypeError, KeyError) as exc:
+            except (ValueError, TypeError, KeyError, IndexError) as exc:
                 self.entries.append({'step': step, 'invalid_plan': answer.plan_json, 'error': str(exc)})
                 self.save()
                 prompt += '\nCorrect the plan without discarding the idea: ' + str(exc)

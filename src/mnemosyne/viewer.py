@@ -245,7 +245,7 @@ STATUS = {'accepted': 'работа принята', 'unfinished': 'работа
 
 VERDICT = {'accept': 'принята', 'rewrite': 'не доведена', 'repetition': 'повтор', 'unfinished': 'не доведена'}
 
-STATEMENT = (('idea', 'Замысел'), ('superobjective', 'Сверхзадача'), ('thought', 'Мысль'),
+STATEMENT = (('idea', 'Замысел'), ('superobjective', 'Сверхзадача'), ('message', 'Мысль'), ('thought', 'Мысль'),
              ('why_i_must_say_it', 'Почему я должен это сказать'), ('why_now', 'Почему сейчас'),
              ('freshness', 'В чём новизна'), ('not_a_cliche_because', 'Почему это не штамп'),
              ('emotions', 'Чувства'), ('how_it_changes_a_heart', 'Что это меняет в читателе'),

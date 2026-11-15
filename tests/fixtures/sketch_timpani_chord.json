@@ -1,0 +1,925 @@
+{
+ "method": {
+  "kind": "broken_principle",
+  "school": "classical",
+  "sources": [
+   "classical"
+  ],
+  "principle": "Każde pytanie otrzymuje odpowiedź: tonika jest domem, dominanta drogą, a każdy okres zamyka się kadencją w tonacji.",
+  "transformation": "Część symfoniczna, menuet z triem i da capo, w składzie orkiestry kameralnej (flet, obój, klarnet, fagot, róg, trąbka, kotły, harfa, smyczki). Menuet w F-dur w 3/4 jest wzorcowo wiedeński: dwie repetowane części, okresy pytanie i odpowiedź, półkadencje na C, hemiola dwa na trzy w przedostatnim takcie każdej frazy przed kadencją doskonałą. Melodia omija dźwięk h, nigdy go nie dotyka. Trio jest tym samym menuetem odbitym wysokościowo wokół osi h (odwrócenie o tę samą odległość w górę i w dół od h). F przechodzi na F, A na cis/des, C na b, więc F-dur staje się b-moll, a dominanta C-E-G zamienia się w es-moll. F zostaje na miejscu, ale z toniki staje się kwintą. Trio prowadzą fagot, wiolonczele i altówki, a skrzypce dają pod nim pedał F flażoletami. Jedyna zgoda na nieścisłość: pojedyncze dźwięki lustra wolno przesunąć o pół tonu tam, gdzie b-moll brzmiałby fałszywie dla tańca, ale wyłącznie w głosach wewnętrznych. Da capo: menuet wraca w skrzypcach, fletach i oboju, a fagot z wiolonczelami grają jednocześnie jego ścisłe lustro wokół h. Na każdym F oba głosy zlewają się w unisonie, a tam, gdzie melodia odchodzi od osi, interwał między nimi rośnie i trze. Złamanie zasady dzieje się w ostatniej frazie. W miejscu hemioli melodia po raz pierwszy wspina się chromatycznie (g, gis, a, ais) na h, a lustro schodzi (es, d, cis, c) na to samo h. Wszyscy trzymają unison h pod fermatą: smyczki forte, potem diminuendo do flażoletu, i nie rozwiązują go na c. Następuje urwanie, a po nim długa generalpauza z fermatą, co najmniej trzy takty ciszy. Dopiero wtedy tutti piano gra pustą, formalnie poprawną kadencję V–I w F, krótką jak podpis. Pytanie postawione na osi zostaje bez odpowiedzi, a forma kadencjonuje obok niego.",
+  "concept": "Menuet festynowy i jego lustro wodne tańczą ten sam taniec. Biorący i zabrany mają wspólne wszystko poza jednym dźwiękiem. Pojednanie na F przychodzi łatwo i za darmo w każdej frazie, a spotkanie na h, na tonie syreny mgłowej, jest jedynie wspólnym trzymaniem. Hemiola rąk przy sieci jest hemiolą wiedeńską przed kadencją i właśnie w jej miejscu forma traci władzę. To przeprosiny dla Kuby: jego płacz nad ikrą i mój płacz nad ojcem to ta sama żałoba w odbiciu.",
+  "reason": "Szkoła wiedeńska jest moim domem i tylko w niej złamanie zasady o odpowiedzi coś znaczy. Słuchacz musi najpierw uwierzyć w okres, kadencję i hemiolę, żeby usłyszał, że unison na h nie jest błędem, tylko pytaniem, którego tonacja nie umie zamknąć. Lustro biorę z myślenia serialnego, ale nie wprowadzam serii: zostaje jedna oś i jedna operacja, wyliczalna jak kombinacja szachowa. Z mojej ręki zostawiam to, co forma znosi: długi oddech melodii w trio, cezurę-urwanie, flażolety na trzymanym dźwięku i ciszę jako ruch przeciwnika.",
+  "notagen_prompt": "",
+  "form": "symphony"
+ },
+ "plan": {
+  "version": 2,
+  "title": "Menuet z lustrem na h",
+  "seed": 4,
+  "concept": "Festynowy menuet w F-dur i jego lustro wokół h tańczą ten sam taniec; spotykają się łatwo na F, a raz, bez rozwiązania, na h.",
+  "method": "Złamana zasada wiedeńska: każdy okres kadencjonuje, poza ostatnim, gdzie hemiola wspina się chromatycznie na h, unison syreny zostaje urwany, a kadencja w F przychodzi po ciszy obok pytania.",
+  "held_swell": false,
+  "orchestra": [
+   {
+    "instrument": "flute",
+    "count": 1
+   },
+   {
+    "instrument": "oboe",
+    "count": 1
+   },
+   {
+    "instrument": "clarinet",
+    "count": 1
+   },
+   {
+    "instrument": "bassoon",
+    "count": 1
+   },
+   {
+    "instrument": "horn",
+    "count": 1
+   },
+   {
+    "instrument": "trumpet",
+    "count": 1
+   },
+   {
+    "instrument": "timpani",
+    "count": 1
+   },
+   {
+    "instrument": "harp",
+    "count": 1
+   },
+   {
+    "instrument": "violin_1_section",
+    "players": 8,
+    "divisi": 2
+   },
+   {
+    "instrument": "violin_2_section",
+    "players": 7,
+    "divisi": 2
+   },
+   {
+    "instrument": "viola_section",
+    "players": 6,
+    "divisi": 2
+   },
+   {
+    "instrument": "cello_section",
+    "players": 5,
+    "divisi": 2
+   },
+   {
+    "instrument": "bass_section",
+    "players": 4,
+    "divisi": 2
+   }
+  ],
+  "themes": {
+   "menuet": {
+    "pitches": [
+     72,
+     77,
+     76,
+     77,
+     69,
+     70,
+     72,
+     74,
+     72,
+     70,
+     69,
+     67,
+     65,
+     70,
+     69,
+     67,
+     69,
+     70,
+     67,
+     67,
+     72,
+     77,
+     76,
+     77,
+     81,
+     82,
+     81,
+     79,
+     77,
+     76,
+     74,
+     72,
+     74,
+     72,
+     70,
+     69,
+     67,
+     65
+    ],
+    "durations": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1.5,
+     0.5,
+     1,
+     1,
+     1,
+     1,
+     3,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Menuet festynowy w F-dur, 8+8 taktów, hemiola w taktach 14–15, bez dźwięku h."
+    }
+   },
+   "lustro": {
+    "pitches": [
+     58,
+     53,
+     54,
+     53,
+     61,
+     60,
+     58,
+     56,
+     58,
+     60,
+     61,
+     63,
+     65,
+     60,
+     61,
+     63,
+     61,
+     60,
+     63,
+     63,
+     58,
+     53,
+     54,
+     53,
+     49,
+     48,
+     49,
+     51,
+     53,
+     54,
+     56,
+     58,
+     56,
+     58,
+     60,
+     61,
+     63,
+     65
+    ],
+    "durations": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1.5,
+     0.5,
+     1,
+     1,
+     1,
+     1,
+     3,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     3
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Ścisłe lustro menueta wokół h (130 minus wysokość): F-dur staje się b-moll, F zostaje F."
+    }
+   },
+   "menuet_ostatni": {
+    "pitches": [
+     72,
+     77,
+     76,
+     77,
+     69,
+     70,
+     72,
+     74,
+     72,
+     70,
+     69,
+     67,
+     65,
+     70,
+     69,
+     67,
+     69,
+     70,
+     67,
+     67,
+     72,
+     77,
+     76,
+     77,
+     81,
+     82,
+     81,
+     79,
+     77,
+     76,
+     74,
+     72,
+     74,
+     72,
+     67,
+     68,
+     69,
+     70,
+     71
+    ],
+    "durations": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1.5,
+     0.5,
+     1,
+     1,
+     1,
+     1,
+     3,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     9
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Ostatnia fraza: w miejscu hemioli g, gis, a, ais na h."
+    }
+   },
+   "lustro_ostatnie": {
+    "pitches": [
+     58,
+     53,
+     54,
+     53,
+     61,
+     60,
+     58,
+     56,
+     58,
+     60,
+     61,
+     63,
+     65,
+     60,
+     61,
+     63,
+     61,
+     60,
+     63,
+     63,
+     58,
+     53,
+     54,
+     53,
+     49,
+     48,
+     49,
+     51,
+     53,
+     54,
+     56,
+     58,
+     56,
+     58,
+     63,
+     62,
+     61,
+     60,
+     59
+    ],
+    "durations": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1.5,
+     0.5,
+     1,
+     1,
+     1,
+     1,
+     3,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     9
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Lustro ostatniej frazy: es, d, cis, c na h."
+    }
+   },
+   "hemiola": {
+    "pitches": [
+     41,
+     48,
+     41
+    ],
+    "durations": [
+     2,
+     2,
+     2
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Trzy szarpnięcia sieci na dwa takty."
+    }
+   },
+   "pedal_f": {
+    "pitches": [
+     77
+    ],
+    "durations": [
+     48
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Wspólne F obu światów."
+    }
+   },
+   "syrena": {
+    "pitches": [
+     71
+    ],
+    "durations": [
+     9
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Ton syreny mgłowej."
+    }
+   },
+   "syrena_nisko": {
+    "pitches": [
+     59
+    ],
+    "durations": [
+     9
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Syrena oktawę niżej."
+    }
+   },
+   "syrena_flazolet": {
+    "pitches": [
+     83
+    ],
+    "durations": [
+     6
+    ],
+    "source": {
+     "kind": "composed",
+     "note": "Syrena gasnąca we flażolecie."
+    }
+   }
+  },
+  "movements": [
+   {
+    "title": "Menuet na festyn śledziowy",
+    "character": "taneczny, schludny, z jednym pytaniem bez odpowiedzi",
+    "form": "scherzo-trio",
+    "tempo": 120,
+    "centre": 53,
+    "mode": "major",
+    "sections": [
+     {
+      "role": "scherzo",
+      "bars": 32,
+      "meter": "3/4",
+      "theme": "menuet",
+      "progression": [
+       1,
+       1,
+       4,
+       5,
+       1,
+       2,
+       5,
+       5,
+       1,
+       1,
+       2,
+       6,
+       5,
+       2,
+       5,
+       1
+      ],
+      "harmonic_rhythm": 1,
+      "notes": "Menuet wzorcowo wiedeński, oba razy z hemiolą akcentowaną na dwa w taktach 14–15 i czystą kadencją na F.",
+      "layers": [
+       {
+        "instruments": [
+         "violin_1_section",
+         "flute",
+         "oboe"
+        ],
+        "role": "melody",
+        "material": "theme:menuet",
+        "repeat": 0,
+        "dynamic": "mf",
+        "register": [
+         65,
+         82
+        ]
+       },
+       {
+        "instruments": [
+         "violin_2_section",
+         "viola_section"
+        ],
+        "role": "pad",
+        "material": "harmony",
+        "pattern": "waltz",
+        "dynamic": "mp",
+        "register": [
+         53,
+         72
+        ]
+       },
+       {
+        "instruments": [
+         "cello_section",
+         "bass_section"
+        ],
+        "role": "bass",
+        "material": "harmony",
+        "pattern": "waltz",
+        "dynamic": "mf",
+        "register": [
+         36,
+         53
+        ]
+       },
+       {
+        "instruments": [
+         "bassoon"
+        ],
+        "role": "counter",
+        "material": "harmony",
+        "pattern": "points",
+        "density": 0.3,
+        "dynamic": "p",
+        "technique": "staccato",
+        "register": [
+         48,
+         65
+        ]
+       },
+       {
+        "instruments": [
+         "horn"
+        ],
+        "role": "pad",
+        "material": "harmony",
+        "pattern": "sustain",
+        "dynamic": "p",
+        "register": [
+         53,
+         70
+        ]
+       },
+       {
+        "instruments": [
+         "timpani"
+        ],
+        "role": "percussion",
+        "material": "theme:hemiola",
+        "dynamic": "f",
+        "bars": [
+         14,
+         31
+        ],
+        "repeat": 2,
+        "rest_between": 42
+       }
+      ]
+     },
+     {
+      "role": "trio",
+      "bars": 32,
+      "meter": "3/4",
+      "tempo": 108,
+      "mode": "phrygian",
+      "theme": "lustro",
+      "progression": [
+       4,
+       4,
+       1,
+       7,
+       4,
+       3,
+       7,
+       7,
+       4,
+       4,
+       3,
+       6,
+       7,
+       3,
+       7,
+       4
+      ],
+      "harmonic_rhythm": 1,
+      "notes": "Lustro wokół h: kolekcja F-frygijska to b-moll, tonika F-dur staje się b-moll, dominanta es-moll, a F zostaje kwintą.",
+      "layers": [
+       {
+        "instruments": [
+         "viola_section",
+         "cello_section",
+         "bassoon"
+        ],
+        "role": "melody",
+        "material": "theme:lustro",
+        "repeat": 0,
+        "dynamic": "mp",
+        "register": [
+         48,
+         65
+        ]
+       },
+       {
+        "instruments": [
+         "violin_1_section",
+         "violin_2_section"
+        ],
+        "role": "drone",
+        "material": "theme:pedal_f",
+        "repeat": 0,
+        "dynamic": "pp",
+        "technique": "harmonics"
+       },
+       {
+        "instruments": [
+         "bass_section"
+        ],
+        "role": "bass",
+        "material": "harmony",
+        "pattern": "waltz",
+        "dynamic": "p",
+        "technique": "pizzicato",
+        "register": [
+         34,
+         48
+        ]
+       },
+       {
+        "instruments": [
+         "harp"
+        ],
+        "role": "figuration",
+        "material": "harmony",
+        "pattern": "arpeggio",
+        "dynamic": "pp",
+        "register": [
+         53,
+         77
+        ]
+       },
+       {
+        "instruments": [
+         "horn"
+        ],
+        "role": "pad",
+        "material": "harmony",
+        "pattern": "sustain",
+        "dynamic": "pp",
+        "register": [
+         53,
+         68
+        ]
+       },
+       {
+        "instruments": [
+         "clarinet"
+        ],
+        "role": "counter",
+        "material": "harmony",
+        "pattern": "points",
+        "density": 0.15,
+        "dynamic": "pp",
+        "register": [
+         60,
+         75
+        ]
+       }
+      ]
+     },
+     {
+      "role": "scherzo_return",
+      "bars": 18,
+      "meter": "3/4",
+      "theme": "menuet_ostatni",
+      "progression": [
+       1,
+       1,
+       4,
+       5,
+       1,
+       2,
+       5,
+       5,
+       1,
+       1,
+       2,
+       6,
+       5,
+       5,
+       5,
+       5,
+       5,
+       5
+      ],
+      "harmonic_rhythm": 1,
+      "notes": "Da capo bez repetycji z lustrem naraz; w takcie 14 zamiast hemioli wspinaczka na h, unison h pod długą fermatą od forte do flażoletu i urwanie bez c.",
+      "layers": [
+       {
+        "instruments": [
+         "violin_1_section",
+         "flute",
+         "oboe"
+        ],
+        "role": "melody",
+        "material": "theme:menuet_ostatni",
+        "dynamic": "mf",
+        "register": [
+         65,
+         82
+        ]
+       },
+       {
+        "instruments": [
+         "cello_section",
+         "bassoon"
+        ],
+        "role": "counter",
+        "material": "theme:lustro_ostatnie",
+        "dynamic": "mf",
+        "register": [
+         48,
+         65
+        ]
+       },
+       {
+        "instruments": [
+         "violin_2_section",
+         "viola_section"
+        ],
+        "role": "pad",
+        "material": "harmony",
+        "pattern": "waltz",
+        "dynamic": "p",
+        "register": [
+         53,
+         72
+        ],
+        "bars": [
+         1,
+         13
+        ]
+       },
+       {
+        "instruments": [
+         "bass_section"
+        ],
+        "role": "bass",
+        "material": "harmony",
+        "pattern": "waltz",
+        "dynamic": "mp",
+        "register": [
+         34,
+         48
+        ],
+        "bars": [
+         1,
+         13
+        ]
+       },
+       {
+        "instruments": [
+         "horn",
+         "violin_2_section",
+         "viola_section"
+        ],
+        "role": "drone",
+        "material": "theme:syrena",
+        "dynamic": [
+         "f",
+         "pp"
+        ],
+        "bars": [
+         16,
+         18
+        ]
+       },
+       {
+        "instruments": [
+         "clarinet",
+         "bass_section"
+        ],
+        "role": "drone",
+        "material": "theme:syrena_nisko",
+        "dynamic": [
+         "f",
+         "pp"
+        ],
+        "bars": [
+         16,
+         18
+        ]
+       },
+       {
+        "instruments": [
+         "violin_1_section"
+        ],
+        "role": "drone",
+        "material": "theme:syrena_flazolet",
+        "dynamic": "pp",
+        "technique": "harmonics",
+        "bars": [
+         17,
+         18
+        ]
+       }
+      ]
+     },
+     {
+      "role": "cesura",
+      "bars": 3,
+      "meter": "3/4",
+      "notes": "Generalpauza z fermatą, cisza jak ruch przeciwnika w partii listowej.",
+      "layers": []
+     },
+     {
+      "role": "coda",
+      "bars": 2,
+      "meter": "3/4",
+      "progression": [
+       5,
+       1
+      ],
+      "harmonic_rhythm": 1,
+      "notes": "Pusta, poprawna kadencja V–I w F, krótka jak podpis.",
+      "layers": [
+       {
+        "instruments": [
+         "flute",
+         "oboe",
+         "clarinet",
+         "horn",
+         "trumpet",
+         "violin_1_section",
+         "violin_2_section",
+         "viola_section"
+        ],
+        "role": "chorale",
+        "material": "harmony",
+        "pattern": "sustain",
+        "dynamic": "p",
+        "register": [
+         53,
+         77
+        ]
+       },
+       {
+        "instruments": [
+         "bassoon",
+         "cello_section",
+         "bass_section",
+         "timpani"
+        ],
+        "role": "bass",
+        "material": "harmony",
+        "pattern": "sustain",
+        "dynamic": "p",
+        "register": [
+         36,
+         53
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
