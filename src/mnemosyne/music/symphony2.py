@@ -584,12 +584,31 @@ def merge_chords(events, polyphony, players=2, adjusted=None, name=None):
     return [c for c in chunks if c]
 
 
+def enlarged(orchestra, added):
+    """The orchestra with the extra players a chord needed: a section divides further, a solo
+    instrument gets more players of its own kind (as an orchestra adds a fifth and sixth horn)."""
+    if not added:
+        return orchestra
+    out = [dict(e) for e in orchestra]
+    for name, extra in added.items():
+        entry = next(e for e in out if e['instrument'] == name)
+        if REGISTRY[name]['section']:
+            room = entry.get('players', 1) - entry.get('divisi', 1)
+            step = min(room, extra)
+            entry['divisi'] = entry.get('divisi', 1) + step
+            extra -= step
+        if extra > 0:
+            entry['count'] = entry.get('count', 1) + extra
+    return out
+
+
 def movement(plan, index):
     """Score, orchestration plan, assignment and a development report for one movement."""
     from .symphony import ORCHESTRA  # noqa: F401  (v1 shared constants live there)
     mv = plan['movements'][index]
     bpm = mv['tempo']
     slots = instruments_of(plan)
+    base_slots, added = dict(slots), {}   # players added where a chord needs more of the same instrument
     rng = random.Random(int.from_bytes(hashlib.sha256(f"{plan['seed']}:{index}".encode()).digest()[:8]))
     lines, sections, meters, start = [], [], [], 0.
     desk_of = {}  # line id -> (instrument, desk): the lane a line keeps if free assignment cannot place it
@@ -621,15 +640,10 @@ def movement(plan, index):
         named, merged = {}, {}
         adjusted = {}
         pending = {}  # monophonic instrument -> its events from every layer, to share out among its desks
-        in_section = {n for l in sec.get('layers', []) for n in l['instruments']}
         for li, layer, events in realize_section(plan, index, si, start, slots, rng):
             low_first = layer['role'] in ('bass', 'drone')
             mono = [(pos, n) for pos, n in enumerate(layer['instruments']) if REGISTRY[n]['polyphony'] <= 1
                     and not REGISTRY[n].get('unpitched')]
-            families = {REGISTRY[n]['family'] for _, n in mono}
-            # Players of the same family who are silent in this section can take tones nobody else can play.
-            spare = [n for n in slots if n not in in_section and REGISTRY[n]['family'] in families
-                     and REGISTRY[n]['polyphony'] <= 1 and not REGISTRY[n].get('unpitched')]
             for pos, name in enumerate(layer['instruments']):
                 spec = REGISTRY[name]
                 if (pos, name) in mono:
@@ -647,33 +661,20 @@ def movement(plan, index):
                         pending.setdefault(name, []).append([at, dur, placed[0], vel, technique, 0, (li, pos), line_role(layer['role'], name)])
             if not mono:
                 continue
-            # Every monophonic desk of the layer, instrument by instrument; then the spare players of the family.
-            desks = [(pos, n, d) for pos, n in mono for d in range(max(1, slots[n]))]
-            extra = [(len(layer['instruments']) + k, n, d) for k, n in enumerate(spare) for d in range(max(1, slots[n]))]
             for at, dur, ps, t in events:
                 vel = velocity(layer.get('dynamic', 'mf'), t)
                 tones = sorted(set(ps), reverse=not low_first)
-                fewest = min(max(1, slots[n]) for _, n in mono)
-                if len(tones) <= fewest:
-                    # Every instrument of the layer doubles the chord on its own desks.
-                    assignment = [(pos, n, d, tones[d]) for pos, n in mono for d in range(max(1, slots[n]))
-                                  if d < len(tones)]
-                else:
-                    # A chord wider than an instrument: its tones are spread over all the layer's desks, then
-                    # over silent players of the same family; only what nobody can hold is left out.
-                    targets = desks + extra
-                    assignment = [(pos, n, d, tones[k]) for k, (pos, n, d) in enumerate(targets) if k < len(tones)]
-                    for pos, n, d, _ in assignment:
-                        if (pos, n, d) in extra:
-                            note_adjustment(adjusted, n, 'took_chord_tone')
-                    if len(tones) > len(targets):
-                        note_adjustment(adjusted, mono[0][1], 'chord_tones_dropped', len(tones) - len(targets))
-                for pos, name, d, tone in assignment:
+                for pos, name in mono:
+                    # The instrument the composer named plays the whole chord. If it has fewer players than
+                    # tones, the orchestra gets more players of that same instrument (or a section divides).
+                    if len(tones) > max(1, slots[name]):
+                        added[name] = max(added.get(name, 0), len(tones) - base_slots[name])
+                        slots[name] = len(tones)
                     technique, short = realized_technique(layer.get('technique'), name)
                     held = min(dur, on_grid(dur * .5)) if short else dur
-                    p = place(tone, name, layer.get('register'), technique)
-                    pending.setdefault(name, []).append([at, held, p, vel, technique, d, (li, pos),
-                                                         line_role(layer['role'], name)])
+                    for d, tone in enumerate(tones):
+                        pending.setdefault(name, []).append([at, held, place(tone, name, layer.get('register'), technique),
+                                                             vel, technique, d, (li, pos), line_role(layer['role'], name)])
                 if layer.get('octave_double') and len(tones) == 1:
                     pos, name = mono[0]
                     if slots[name] > 1:
@@ -714,7 +715,7 @@ def movement(plan, index):
                          **({'tempo_to': section_tempo(mv, sec)[1]} if section_tempo(mv, sec)[1] is not None else {}),
                          **({'adjusted': adjusted} if adjusted else {})})
         start += length
-    op = {'title': f"{plan['title']} — {index+1}. {mv['title']}", 'ensemble': plan['orchestra'],
+    op = {'title': f"{plan['title']} — {index+1}. {mv['title']}", 'ensemble': enlarged(plan['orchestra'], added),
           'tempo': base, 'duration': start * 60 / base, 'school': 'symphony', 'audio_profile': 'native_sfz',
           'meters': meters, 'held_swell': bool(plan.get('held_swell', False))}
     if changing:
@@ -753,7 +754,7 @@ def movement(plan, index):
                 item.activeSite.remove(item)
             else:
                 last[kind] = value
-    return score, op, assignment, {'grammar': 2, 'sections': sections, 'seconds': op['duration'],
+    return score, op, assignment, {'grammar': 2, **({'added_players': added} if added else {}), 'sections': sections, 'seconds': op['duration'],
                                    'bars': sum(s['bars'] for s in mv['sections']), 'tempo': bpm}
 
 
