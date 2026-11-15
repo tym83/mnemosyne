@@ -109,6 +109,23 @@ class SymphonyV2Tests(unittest.TestCase):
         self.assertEqual(g.place(60.5, 'harp') % 1, 0)
         self.assertEqual(g.place(60.5, 'violin_1_section'), 60.5)
 
+    def test_a_wide_chord_is_spread_over_the_layer_and_spare_players(self):
+        plan = g.example()
+        sec = plan['movements'][1]['sections'][2]          # the general pause: nothing else sounds there
+        sec['layers'] = [{'instruments': ['horn', 'trombone'], 'role': 'pad', 'pattern': 'sustain',
+                          'material': 'harmony', 'dynamic': 'p'}]
+        sec['progression'] = [1]
+        from unittest.mock import patch
+        wide = [50, 53, 57, 60, 62, 65, 69]                 # seven tones: horn x4 + trombone x2 = 6 desks
+        with patch.object(g, 'chord', return_value=wide):
+            _, _, assignment, dev = g.movement(plan, 1)
+        pause = dev['sections'][2]
+        desks = {p['id'] for p in assignment['players'] for e in p['events']
+                 if pause['start_quarters'] <= e['at'] < pause['end_quarters']}
+        self.assertEqual(len(desks), 7)                     # a brass player silent here took the seventh tone
+        self.assertIn('took_chord_tone', str(pause.get('adjusted', '')))
+        self.assertNotIn('chord_tones_dropped', str(pause.get('adjusted', '')))
+
     def test_tempo_canon_voice_keeps_its_ratio(self):
         plan = g.example()
         sec = plan['movements'][1]['sections'][0]

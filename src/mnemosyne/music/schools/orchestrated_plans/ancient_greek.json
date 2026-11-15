@@ -45,7 +45,20 @@
     }
   ],
   "audio_profile": "native_sfz",
-  "orchestration": "pierrot",
+  "orchestration": [
+    {
+      "instrument": "flute",
+      "count": 2
+    },
+    {
+      "instrument": "oboe",
+      "count": 2
+    },
+    {
+      "instrument": "harp",
+      "count": 3
+    }
+  ],
   "colour": "woody",
   "doublings": false,
   "study_basis": "Technical realization of the school method documented in schools/README.md; no artistic quality judgment."
