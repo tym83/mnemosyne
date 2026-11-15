@@ -565,3 +565,15 @@ def update(life, base, *, writer_factory: Callable | None = None, limit: int = 4
     save(base, lex)
     return {'entities': len(ents), 'relations': len(rels), 'revised': revised, 'pending': pending,
             'calls': calls, 'errors': errors}
+
+
+def main(argv):
+    import argparse
+    ap = argparse.ArgumentParser(prog='mnemo lexicon')
+    ap.add_argument('--root', type=Path, required=True, help='atelier directory with lineage.json')
+    ap.add_argument('--limit', type=int, default=40, help='model calls at most in this run')
+    a = ap.parse_args(argv)
+    from .lineage import Lineage
+    life = Lineage.restore(json.loads((a.root/'lineage.json').read_text()))
+    report = update(life, a.root, limit=a.limit, log=print)
+    print(json.dumps({**report, 'revised': len(report['revised'])}, ensure_ascii=False))

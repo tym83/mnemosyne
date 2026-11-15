@@ -1,6 +1,6 @@
 """An atelier's history as one archive: lived elsewhere, continued in a cluster.
 
-export packs an atelier directory (lineage.json, translations.json and the
+export packs an atelier directory (lineage.json, translations.json, lexicon.json and the
 nights with their works, notebooks, carriers and the ledger) into a tar.gz in
 the layout the studio keeps on its volume:
 
@@ -22,7 +22,7 @@ from pathlib import Path
 import tarfile
 import urllib.request
 
-TOP = ('lineage.json', 'translations.json', 'year.jsonl')
+TOP = ('lineage.json', 'translations.json', 'lexicon.json', 'year.jsonl')
 NEVER = ('keys', 'site', 'site2', 'restore-try')
 
 

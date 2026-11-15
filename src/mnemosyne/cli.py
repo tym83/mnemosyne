@@ -64,6 +64,9 @@ def main(argv=None):
     if argv and argv[0] == 'translate':
         from .writing.memory import main as translate
         return translate(argv[1:])
+    if argv and argv[0] == 'lexicon':
+        from .lexicon import main as lexicon
+        return lexicon(argv[1:])
     if argv and argv[0] == 'view':
         from .viewer import main as view
         return view(argv[1:])
@@ -72,6 +75,7 @@ def main(argv=None):
     commands.add_parser('restore', help='decode works and optionally apply; see mnemo restore --help')
     commands.add_parser('history', help='export a lived atelier history or import it into a volume')
     commands.add_parser('translate', help="the Translator renders the atelier's foreign texts into Russian")
+    commands.add_parser('lexicon', help="bring the atelier's Lexicon up to date: only stale paragraphs are rewritten")
     commands.add_parser('view', help='read the atelier history in the console or export a site; see mnemo view --help')
     keys = commands.add_parser('keys').add_subparsers(dest='action', required=True)
     new = keys.add_parser('new', help="create the owner's key (keep offline) and the atelier's key (for the cluster)")
