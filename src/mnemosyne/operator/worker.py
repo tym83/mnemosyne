@@ -317,7 +317,7 @@ def main():
                     else restored_lineage(api, namespace, request['atelier']))
         records, report = run(request, root, key, objects, previous=previous,
                               climate=sense(api, request.get('snapshotNamespace') or namespace, base))
-        publish(api, namespace, records)
+        publish(api, namespace, records, store=base)
         dump(checkpoint, json.loads((root/'lineage.json').read_text()))
         if request['mode'] != 'chamber':
             # Translations are filled in after the night; a failure there never undoes the night.

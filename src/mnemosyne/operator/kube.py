@@ -1,4 +1,5 @@
 """Explicit resource inventory; no wildcard permission that accidentally grants Secrets."""
+from pathlib import Path
 from mnemosyne.state.collect import secret_resource
 
 
@@ -75,13 +76,47 @@ def crd_reference(obj):
                                   for v in spec.get('versions', [])]}}
 
 
-def publish(api, namespace, records):
+LIMIT = 700_000  # bytes of JSON per object; etcd refuses requests above about 1.5 MB
+
+
+def lighten(body, store=None):
+    """An object too big for etcd keeps its summary; each work's full process (every answer and
+    plan) moves to a file in the atelier's store on its volume and is referenced by path and hash."""
+    import hashlib
+    import json
+    if len(json.dumps(body)) <= LIMIT:
+        return body
+    body = json.loads(json.dumps(body))
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for k in list(node):
+                if k == 'process' and isinstance(node[k], (dict, list)):
+                    data = json.dumps(node[k], ensure_ascii=False, sort_keys=True).encode()
+                    digest = hashlib.sha256(data).hexdigest()
+                    ref = {'sha256': digest, 'bytes': len(data)}
+                    if store is not None:
+                        folder = Path(store)/'process'
+                        folder.mkdir(parents=True, exist_ok=True)
+                        (folder/f'{digest}.json').write_bytes(data)
+                        ref['file'] = f'process/{digest}.json'
+                    node[k] = ref
+                else:
+                    walk(node[k], path + [k])
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, path + [i])
+    walk(body.get('spec', {}), [])
+    return body
+
+
+def publish(api, namespace, records, store=None):
     from kubernetes import client
     from mnemosyne.atelier import GROUP, VERSION, KINDS
     from kubernetes.client.exceptions import ApiException
     custom = client.CustomObjectsApi(api)
     for source in sorted(records, key=lambda o: o['kind'] == 'Atelier'):
-        body = dict(source)
+        body = lighten(dict(source), store)
         body['metadata'] = {**source['metadata'], 'namespace': namespace}
         status = body.pop('status', None)
         plural = KINDS[body['kind']]

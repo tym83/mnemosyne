@@ -85,7 +85,7 @@ class Life:
                 if record['kind'] == 'Atelier':
                     record['metadata']['name'] = self.request['atelier']
         try:
-            publish(self.api, self.namespace, records)
+            publish(self.api, self.namespace, records, store=self.base)
         except Exception as exc:
             self.say('publish failed', type(exc).__name__, exc)
 

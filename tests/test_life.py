@@ -123,3 +123,16 @@ class RestoreForNewClusterTests(unittest.TestCase):
         out = for_new_cluster(pvc)
         self.assertNotIn('volumeName', out['spec'])
         self.assertNotIn('pv.kubernetes.io/bind-completed', out['metadata']['annotations'])
+
+
+class LightenTests(unittest.TestCase):
+    def test_a_huge_notebook_keeps_a_reference_to_its_process(self):
+        from mnemosyne.operator.kube import lighten, LIMIT
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            body = {'kind': 'Notebook', 'metadata': {'name': 'n'},
+                    'spec': {'opus': 'w', 'process': {'entries': ['x' * 1000] * 1000}}}
+            light = lighten(body, tmp)
+            self.assertLess(len(json.dumps(light)), LIMIT)
+            ref = light['spec']['process']
+            self.assertEqual(json.loads((Path(tmp)/ref['file']).read_text()), body['spec']['process'])
