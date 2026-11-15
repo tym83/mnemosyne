@@ -165,8 +165,9 @@ def run(request, root, key, objects, *, previous=None, climate=None):
         sources, records = chamber(life, root)
     else:
         from mnemosyne.music.composer import Night
-        from mnemosyne.rhythm import works_today
-        for artist in (a for a in life.working() if a.art == 'music' and works_today(a, life.night, request.get('seed', 0))):
+        # Every creator works every day; only their own life (illness, despair, silence, renunciation)
+        # takes them out of life.working() for a while.
+        for artist in (a for a in life.working() if a.art == 'music'):
             night = Night(life, artist.id, root/artist.id, LocalStudio(), backend=None,
                           sound=request.get('render', True))
             # Inner life is the felt climate the composer derives itself; nothing is supplied.
@@ -192,8 +193,9 @@ def run(request, root, key, objects, *, previous=None, climate=None):
                                      'final': accepted and sk['id'] == night.record.get('final')}))
     if request['mode'] != 'chamber':
         from mnemosyne.writing.night import WriterNight
-        from mnemosyne.rhythm import works_today
-        for artist in (a for a in life.working() if a.art == 'literature' and works_today(a, life.night, request.get('seed', 0))):
+        # Every creator works every day; only their own life (illness, despair, silence, renunciation)
+        # takes them out of life.working() for a while.
+        for artist in (a for a in life.working() if a.art == 'literature'):
             writer = WriterNight(life, artist.id, root/artist.id, backend=None)
             try:
                 writer.run()

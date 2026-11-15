@@ -44,7 +44,6 @@ class WorkerFailureTests(unittest.TestCase):
              patch('mnemosyne.writing.night.WriterNight', FakeWriter), \
              patch('mnemosyne.reception.Reception.write_words', create=True), \
              patch('mnemosyne.lineage.Lineage.write_words'), \
-             patch('mnemosyne.rhythm.works_today', return_value=True), \
              patch.object(worker, 'weave', return_value={'phase': 'Verified', 'pending_pieces': 0}):
             records, report = worker.run({'mode': 'API', 'atelier': 'a', 'render': False},
                                          Path(tmp)/'night', None, [])
