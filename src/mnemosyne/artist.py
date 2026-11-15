@@ -27,6 +27,7 @@ the cluster again giving only halftones.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -190,6 +191,24 @@ def self_portrait(fate: dict, nb: list, backend: str | None = None, inner: str |
     return result
 
 
+def gist(work: str) -> str:
+    """A former work as its title and the first sentence of its idea.
+
+    Whole ideas of four works, beside the masters' tools of invention, made the API's classifier take
+    the request for an extraction of the model's own reasoning and refuse it every time; the gist
+    is enough not to repeat oneself."""
+    try:
+        record = json.loads(work)
+    except (TypeError, ValueError):
+        return work
+    if not isinstance(record, dict):
+        return work
+    idea = str(record.get("idea") or "")
+    first = re.split(r"(?<=[.!?])\s", idea.strip(), maxsplit=1)[0]
+    title = record.get("title")
+    return f"«{title}»: {first}" if title else first
+
+
 def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, world: str | None = None,
               backend: str | None = None, rounds: int = 3,
               contemporaries: list[str] | None = None,
@@ -219,7 +238,7 @@ def statement(portrait: SelfPortrait, art: str, catalogue: list[str], nb: list, 
     if inner:
         base += "\n\nЧто в тебе сейчас:\n" + inner
     if catalogue:
-        base += "\n\nТвои прежние работы (не повторяй себя):\n" + "\n".join(f"- {c}" for c in catalogue)
+        base += "\n\nТвои прежние работы (не повторяй себя):\n" + "\n".join(f"- {gist(c)}" for c in catalogue)
     if world:
         base += "\n\nЧто происходит в мире сейчас:\n" + world
     if illumination and illumination.get("idea"):

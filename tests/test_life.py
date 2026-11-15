@@ -206,3 +206,12 @@ class PublishTests(unittest.TestCase):
             kube.publish(None, 'mnemosyne', [body])
         self.assertEqual(stored['spec']['process'], {'sha256': 'abc', 'bytes': 3})
         self.assertEqual(stored['metadata']['resourceVersion'], '7')
+
+
+class GistTests(unittest.TestCase):
+    def test_a_former_work_is_named_by_its_title_and_first_sentence(self):
+        from mnemosyne.artist import gist
+        work = json.dumps({'title': 'Lock-In', 'idea': 'A span falls by courtesy. Then forty players cross.'})
+        self.assertEqual(gist(work), '«Lock-In»: A span falls by courtesy.')
+        self.assertEqual(gist(json.dumps({'idea': 'One. Two.'})), 'One.')
+        self.assertEqual(gist('plain text'), 'plain text')

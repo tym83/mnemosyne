@@ -562,7 +562,7 @@ class Night:
             portrait = ideas.SelfPortrait(name=name, portrait=a.portrait + '\nУчителя: '+', '.join(teachers),
                 what_i_am_as_artist=a.portrait, wounds=[], loves=[], fears=[], inner_critic={**a.inner_critic, 'teachers': teachers})
             st, history = ideas.statement(portrait, 'музыка',
-                [json.dumps({k: w.get(k) for k in ('idea', 'method', 'verdict')}, ensure_ascii=False)
+                [json.dumps({k: w.get(k) for k in ('title', 'idea', 'method', 'verdict')}, ensure_ascii=False)
                  for w in a.catalogue], self.entries, backend=self.backend,
                 contemporaries=[str(w['idea']) for b in self.life.artists if b.id != a.id
                                 for w in b.catalogue if w.get('idea')],

@@ -206,7 +206,7 @@ class WriterNight:
             inner += ('\n\nТвоя школа — ' + poetics.brief(home, SCHOOLS[home].RULES) +
                       '\nЗамысел может родиться внутри её поэтики, в споре с ней или вне её.')
         st, history = ideas.statement(portrait, 'литература',
-            [json.dumps({k: w.get(k) for k in ('idea', 'school', 'verdict')}, ensure_ascii=False) for w in a.catalogue],
+            [json.dumps({k: w.get(k) for k in ('title', 'idea', 'school', 'verdict')}, ensure_ascii=False) for w in a.catalogue],
             self.entries, backend=self.backend,
             contemporaries=[str(w['idea']) for b in life.artists if b.id != a.id for w in b.catalogue if w.get('idea')],
             illumination=life.idea_seed(a.id), inner=inner, set_aside=a.problem,
