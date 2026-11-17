@@ -69,18 +69,29 @@ class Atelier:
 
     def notebook(self, wid):
         if not hasattr(self, '_notebooks'):
-            self._notebooks = {}
+            self._notebooks, self._sessions = {}, {}
             for night in self.nights:
                 for p in night.rglob('notebook.json'):
                     record = json.loads(p.read_text())
                     if record.get('opus'):
                         self._notebooks[record['opus']] = record
+                        self._sessions[record['opus']] = p.parent
             # A composer's notebook is also kept in the work: it outlasts the files of the session.
             for _, w in self.works():
                 record = (w.get('process') or {}).get('composer')
                 if isinstance(record, dict) and record.get('opus'):
                     self._notebooks.setdefault(record['opus'], record)
         return self._notebooks.get(wid)
+
+    def recordings(self, wid):
+        """The rendered sound of a work: the whole work first, then its movements, as files of its session."""
+        record, folder = self.notebook(wid), getattr(self, '_sessions', {}).get(wid)
+        if not record or folder is None:
+            return []
+        final = next((s for s in record.get('sketches', []) if s.get('id') == record.get('sounding_work')), None)
+        paths = [folder/p for p in ((final or {}).get('audio') or {}).get('local_mp3', [])]
+        paths = [p for p in paths if p.is_file()]
+        return sorted(paths, key=lambda p: (p.parent.name.startswith('mv'), str(p)))
 
     def records(self):
         """Every night's notebook, finished or not: rejected ideas and requested schools included."""
@@ -184,7 +195,7 @@ details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-
 dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
 .cmd{font:14px ui-monospace,Menlo,monospace;background:var(--line);padding:8px 10px;border-radius:4px}
 .lead{font-size:1.05em;border-left:3px solid var(--accent);padding-left:14px}
-#score{background:#fff;border-radius:6px;padding:8px;overflow-x:auto}
+audio{width:100%;max-width:520px;vertical-align:middle}#score{background:#fff;border-radius:6px;padding:8px;overflow-x:auto}
 """
 PLAYER = ('<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,'
           'npm/focus-visible@5.2.0,npm/html-midi-player@1.5.0"></script>')
@@ -542,6 +553,19 @@ def site(at, out: Path):
             text = toggle(f'<pre>{html.escape(original)}</pre>', f'<pre>{html.escape(ru)}</pre>') if ru \
                 else f'<pre>{html.escape(original)}</pre>'
             parts.append(f'<div id="text" class="work">{text}</div>')
+        recordings = at.recordings(w['id'])
+        if recordings:
+            (out/'audio'/w['id']).mkdir(parents=True, exist_ok=True)
+            items = []
+            for i, path in enumerate(recordings):
+                name = 'work.mp3' if i == 0 and not path.parent.name.startswith('mv') else f'{path.parent.name}.mp3'
+                copyfile(path, out/'audio'/w['id']/name)
+                label = 'Вся работа' if name == 'work.mp3' else f'Часть {int(path.parent.name[2:]) + 1}'
+                src = html.escape(f'audio/{w["id"]}/{name}')
+                items.append(f'<p>{label}<br><audio controls preload="none" src="{src}"></audio> '
+                             f'<a href="{src}" download>mp3</a></p>')
+            parts.append('<h2 id="listen">Слушать</h2><p class="muted">Запись, сыгранная студией мастерской по '
+                         'партитуре.</p>' + ''.join(items))
         scores = [p for p in at.files(w['id']) if p.suffix == '.musicxml']
         if scores:
             # The composer's clean draft for reading; the woven score carries the backup in its dynamics.
@@ -592,7 +616,8 @@ def site(at, out: Path):
                   'хранят куски зашифрованной резервной копии кластера; как из них поднять кластер — на странице '
                   '<a href="restore.html">Восстановление</a>.</p>'
                 + f'<ul>{"".join(sources) or "<li>нет файлов</li>"}</ul>')
-        toc = ([('text', 'Текст', 1)] if original else []) + ([('play', 'Сыграть', 1), ('score-head', 'Партитура', 1)] if scores else []) \
+        toc = ([('text', 'Текст', 1)] if original else []) + ([('listen', 'Слушать', 1)] if recordings else []) \
+            + ([('play', 'Сыграть', 1), ('score-head', 'Партитура', 1)] if scores else []) \
             + ([('idea', 'Замысел', 1)] if idea else []) \
             + ([('process', 'Как работа рождалась', 1)] if record else []) \
             + ([('manifesto', 'Манифест замысла', 2)] if record.get('statement') else []) \

@@ -79,3 +79,32 @@ class ViewerTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ListenTests(unittest.TestCase):
+    def test_a_sounded_work_can_be_heard_on_its_page(self):
+        life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
+        for _ in range(30):
+            life.step({})
+        a, w = next((a, w) for a in life.artists for w in a.catalogue)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/'lineage.json').write_text(json.dumps(life.state()))
+            session = root/'creators'/a.id/'20261117T201500'
+            result = session/'woven-render-draft-02'/'result'
+            for rel in ('score.mp3', 'mv0/score.mp3', 'mv1/score.mp3'):
+                (result/rel).parent.mkdir(parents=True, exist_ok=True)
+                (result/rel).write_bytes(b'ID3')
+            mp3 = ['woven-render-draft-02/result/mv0/score.mp3', 'woven-render-draft-02/result/mv1/score.mp3',
+                   'woven-render-draft-02/result/score.mp3']
+            (session/'notebook.json').write_text(json.dumps({
+                'opus': w['id'], 'artist': a.id, 'status': 'accepted', 'final': 'draft-02', 'sounding_work': 'draft-02',
+                'sketches': [{'id': 'draft-02', 'audio': {'local_mp3': mp3}}]}))
+            (session/'woven').mkdir()
+            (session/'woven'/f'{w["id"]}-notebook.variants.json').write_text('{}')
+            site(Atelier(root), root/'site')
+            page = (root/'site'/f'work-{w["id"]}.html').read_text()
+            self.assertIn('id="listen"', page)
+            self.assertLess(page.index('work.mp3'), page.index('mv0.mp3'))
+            self.assertTrue((root/'site'/'audio'/w['id']/'work.mp3').exists())
+            self.assertTrue((root/'site'/'audio'/w['id']/'mv1.mp3').exists())
