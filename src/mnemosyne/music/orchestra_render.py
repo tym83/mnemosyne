@@ -29,6 +29,8 @@ def engravable(xml):
     exported as an empty <words/> direction, which musicxml2ly turns into a broken \\tempo string."""
     import xml.etree.ElementTree as ET
     xml = Path(xml)
+    if not xml.exists():
+        return xml  # nothing to clean; musicxml2ly reports the missing score itself
     tree = ET.parse(xml)
     for measure in tree.iter('measure'):
         for direction in list(measure.findall('direction')):
