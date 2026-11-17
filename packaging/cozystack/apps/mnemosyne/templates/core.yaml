@@ -46,6 +46,11 @@ spec:
         - {apiVersion: networking.k8s.io/v1, kind: Ingress, resource: ingresses}
         - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, resource: roles}
         - {apiVersion: rbac.authorization.k8s.io/v1, kind: RoleBinding, resource: rolebindings}
+        - {apiVersion: batch/v1, kind: CronJob, resource: cronjobs}
+        - {apiVersion: autoscaling/v2, kind: HorizontalPodAutoscaler, resource: horizontalpodautoscalers}
+        - {apiVersion: policy/v1, kind: PodDisruptionBudget, resource: poddisruptionbudgets}
+        - {apiVersion: v1, kind: LimitRange, resource: limitranges}
+        - {apiVersion: v1, kind: ResourceQuota, resource: resourcequotas}
         {{- range list "Atelier:ateliers" "Leitmotif:leitmotifs" "Opus:opera" "Notebook:notebooks" "Sketch:sketches" "Artist:artists" "Biography:biographies" "Review:reviews" "AudienceLog:audiencelogs" "Edition:editions" }}
         {{- $pair := splitList ":" . }}
         - {apiVersion: mnemosyne.art/v1alpha1, kind: {{ first $pair }}, resource: {{ last $pair }}}

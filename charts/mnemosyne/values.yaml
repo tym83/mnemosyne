@@ -75,6 +75,14 @@ addon:
     - {apiVersion: networking.k8s.io/v1, kind: Ingress, resource: ingresses}
     - {apiVersion: rbac.authorization.k8s.io/v1, kind: Role, resource: roles}
     - {apiVersion: rbac.authorization.k8s.io/v1, kind: RoleBinding, resource: rolebindings}
+    - {apiVersion: rbac.authorization.k8s.io/v1, kind: ClusterRole, resource: clusterroles}
+    - {apiVersion: rbac.authorization.k8s.io/v1, kind: ClusterRoleBinding, resource: clusterrolebindings}
+    - {apiVersion: batch/v1, kind: CronJob, resource: cronjobs}
+    - {apiVersion: autoscaling/v2, kind: HorizontalPodAutoscaler, resource: horizontalpodautoscalers}
+    - {apiVersion: policy/v1, kind: PodDisruptionBudget, resource: poddisruptionbudgets}
+    - {apiVersion: v1, kind: LimitRange, resource: limitranges}
+    - {apiVersion: v1, kind: ResourceQuota, resource: resourcequotas}
+    - {apiVersion: scheduling.k8s.io/v1, kind: PriorityClass, resource: priorityclasses}
     - {apiVersion: apiextensions.k8s.io/v1, kind: CustomResourceDefinition, resource: customresourcedefinitions}
     # The atelier's own objects are the carrier, never the payload. Data backups
     # (e.g. velero.io Backup, database operator backups) can be listed here as the map to the data.

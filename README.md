@@ -234,7 +234,9 @@ The works volume holds `/works/<release>-atelier/`:
 
    The export refuses symlinks and overwrites and writes a SHA-256 manifest.
    Copies kept elsewhere (gallery downloads, an S3 mirror of night Jobs, any
-   archive) are equally valid inputs.
+   archive) are equally valid inputs. When the old cluster is gone, the gallery's
+   restore page offers every carrier as one archive, `carriers.tar.gz`; unpack it
+   and pass `--works ./carriers`.
 
 2. **Decode and check**, without contacting a cluster:
 
@@ -253,6 +255,9 @@ The works volume holds `/works/<release>-atelier/`:
    a referenced CustomResourceDefinition (operators, Cozystack, and so on).
    Restore does not write type definitions; it checks that each one exists,
    retries, and then stops, listing the definitions still missing.
+   This includes the Mnemosyne chart itself, with the same owner public key and
+   `addon.suspend: true`: it brings the atelier's types, and the atelier in the
+   new cluster does not live beside the old one until the restore is done.
 
 4. **Apply:**
 
