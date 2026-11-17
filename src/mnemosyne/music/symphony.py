@@ -303,15 +303,46 @@ def test_plan():
         [0,5,3,7,0],[[.25,.45],[.4,.7],[.6,.85],[.75,1],[.8,.08]])}]}
 
 
+def silent(measure):
+    """The same bar with nothing played: a player a movement does not need rests through it."""
+    from music21 import note
+    bar=stream.Measure(number=measure.number)
+    for keep in measure.getElementsByClass(('TimeSignature','KeySignature','Clef')):
+        bar.insert(keep.offset,deepcopy(keep))
+    bar.insert(0,note.Rest(quarterLength=measure.barDuration.quarterLength if measure.barDuration else measure.quarterLength))
+    return bar
+
+
 def join_scores(scores,title):
+    """Movements as one full score. Players are matched by part id: a movement may add players (a chord
+    needing more of one instrument) or leave some out; a player absent from a movement rests through it."""
     joined=stream.Score();joined.atSoundingPitch=True;joined.metadata=metadata.Metadata(title=title)
-    for pi in range(len(scores[0].parts)):
-        part=stream.Part(id=scores[0].parts[pi].id);part.partName=scores[0].parts[pi].partName
-        part.insert(0,deepcopy(scores[0].parts[pi].recurse().getElementsByClass('Instrument').first()))
+    def players(score):
+        # A named part is the same player in every movement (the k-th of a repeated name, if any); a part with
+        # music21's generated numeric id has no name and is matched by its place.
+        seen={};out={}
+        for i,part in enumerate(score.parts):
+            name=part.id if isinstance(part.id,str) else f'#{i}'
+            k=seen.get(name,0);seen[name]=k+1
+            out[(name,k)]=part
+        return out
+    movements=[players(score) for score in scores]
+    order=[]
+    for parts in movements:
+        order+=[key for key in parts if key not in order]
+    for key in order:
+        first=next(parts[key] for parts in movements if key in parts)
+        part=stream.Part(id=first.id) if isinstance(first.id,str) else stream.Part();part.partName=first.partName
+        instrument=first.recurse().getElementsByClass('Instrument').first()
+        if instrument is not None:
+            part.insert(0,deepcopy(instrument))
         offset=0;number=1
-        for score in scores:
-            for measure in score.parts[pi].getElementsByClass('Measure'):
-                copied=deepcopy(measure);copied.number=number;number+=1
+        for score,parts in zip(scores,movements):
+            own=parts.get(key)
+            source=own if own is not None else score.parts[0]
+            for measure in source.getElementsByClass('Measure'):
+                copied=deepcopy(measure) if own is not None else silent(measure)
+                copied.number=number;number+=1
                 for ins in list(copied.recurse().getElementsByClass('Instrument')):ins.activeSite.remove(ins)
                 part.insert(offset+measure.offset,copied)
             offset+=float(score.highestTime)

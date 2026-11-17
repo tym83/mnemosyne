@@ -22,6 +22,22 @@ from .schools.performance import write_midi
 RATE=44100
 
 
+def engravable(xml):
+    """A copy of a score for LilyPond without the tempo steps that only sound.
+
+    A gradual tempo change keeps every step in the MusicXML so that it plays anywhere; an unshown step is
+    exported as an empty <words/> direction, which musicxml2ly turns into a broken \\tempo string."""
+    import xml.etree.ElementTree as ET
+    xml = Path(xml)
+    tree = ET.parse(xml)
+    for measure in tree.iter('measure'):
+        for direction in list(measure.findall('direction')):
+            types = direction.findall('direction-type')
+            if types and all(len(t) == 1 and t[0].tag == 'words' and not (t[0].text or '').strip() for t in types):
+                measure.remove(direction)
+    copy = xml.with_suffix('.engrave.musicxml')
+    tree.write(copy, encoding='utf-8', xml_declaration=True)
+    return copy
 
 def strip_creator(path):
     import xml.etree.ElementTree as ET
@@ -55,7 +71,7 @@ def engrave(score,base,log):
     recovered=converter.parse(xml).toSoundingPitch()
     if note_events(score.stripTies())!=note_events(recovered.stripTies()):
         raise ValueError(f'Written/sounding MusicXML mismatch: {base}')
-    run(['musicxml2ly','-o',base.with_suffix('.ly'),xml],log)
+    run(['musicxml2ly','-o',base.with_suffix('.ly'),engravable(xml)],log)
     ly=base.with_suffix('.ly')
     if len(score.parts)>12:
         size,paper=(10,'a2') if len(score.parts)>28 else (12,'a3')

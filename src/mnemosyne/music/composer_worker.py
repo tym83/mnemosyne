@@ -76,7 +76,8 @@ def execute(request, out):
             scores.append(score)
         score = join_scores(scores, plan['title'])
         write_score(score, out/'score.musicxml')
-        run(['musicxml2ly', '-o', out/'score.ly', out/'score.musicxml'], out/'notation.log')
+        from .orchestra_render import engravable
+        run(['musicxml2ly', '-o', out/'score.ly', engravable(out/'score.musicxml')], out/'notation.log')
         subprocess.run(['pdfunite', *[str(out/f'mv{i}/score.pdf') for i in range(len(scores))],
                         str(out/'score.pdf')], check=True)
         if action == 'woven':

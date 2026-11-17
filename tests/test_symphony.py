@@ -137,3 +137,26 @@ class SurfaceTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class JoinTests(unittest.TestCase):
+    def test_a_player_added_in_one_movement_rests_through_the_others(self):
+        from music21 import meter, note, stream
+
+        def movement(ids):
+            score = stream.Score()
+            for pid in ids:
+                part = stream.Part()
+                part.append(meter.TimeSignature('3/4'))
+                for _ in range(2):
+                    part.append(note.Note('C4', quarterLength=3))
+                part = part.makeMeasures()
+                part.id = part.partName = pid
+                score.insert(0, part)
+            return score
+        joined = join_scores([movement(['timpani-1']), movement(['timpani-1', 'timpani-2'])], 'Two')
+        self.assertEqual([p.id for p in joined.parts], ['timpani-1', 'timpani-2'])
+        extra = joined.parts[1]
+        self.assertEqual(len(extra.getElementsByClass('Measure')), 4)
+        self.assertEqual(len(extra.flatten().notes), 2)
+        self.assertEqual(float(extra.highestTime), float(joined.parts[0].highestTime))
