@@ -26,6 +26,13 @@ class Session:
         self.record['status'] = 'accepted'
         return self.record
 
+    def render_final(self, woven):
+        self.record['sounding_work'] = 'final'
+        self.rendered_from = woven
+
+    def save(self):
+        pass
+
 
 class LifeTests(unittest.TestCase):
     def test_the_atelier_begins_with_one_creator(self):
@@ -65,6 +72,20 @@ class LifeTests(unittest.TestCase):
             self.assertTrue(working)
             self.assertEqual({aid for aid, _ in Session.made} & working, working)
             self.assertEqual(len(Session.made), len({aid for aid, _ in Session.made}))
+
+    def test_an_accepted_composition_sounds_after_it_carries(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(living.Life, 'carry', return_value=None):
+            life = living.Life({'atelier': 'a', 'inventory': []}, Path(tmp), X25519PrivateKey.generate(), None, 'ns',
+                               night_factory=Session, writer_factory=Session)
+            composer = next(a for a in life.life.artists if a.art == 'music')
+            life.work(composer)
+            self.assertIn(f'sounded {composer.id}', (Path(tmp)/'life.log').read_text())
+
+    def test_woven_scores_are_named_as_the_renderer_looks_them_up(self):
+        sketch = {'id': 'draft-02', 'carriers': [{'movement_index': 0}, {'movement_index': 1}]}
+        self.assertEqual(living.carrier_name(sketch, 1, sketch['carriers'][1]), 'draft-02-mv2')
+        lone = {'id': 'draft-01', 'score': 'x'}
+        self.assertEqual(living.carrier_name(lone, 0, {'score': 'x'}), 'draft-01')
 
     def test_a_new_artifact_carries_the_cluster_at_once(self):
         from mnemosyne.state.ledger import Ledger

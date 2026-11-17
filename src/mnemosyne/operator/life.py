@@ -43,6 +43,13 @@ def start_delay(artist, rng):
     return rng.uniform(0, rest_seconds(artist, rng))
 
 
+def carrier_name(sketch, index, carrier):
+    """A woven score's name, as the renderer looks it up: a movement by its number, a lone score by its sketch."""
+    if 'movement_index' in carrier:
+        return f"{sketch['id']}-mv{carrier['movement_index'] + 1}"
+    return sketch['id'] if len(sketch.get('carriers') or [carrier]) == 1 else f"{sketch['id']}-{index}"
+
+
 class Life:
     def __init__(self, request, base, key, api, namespace, *, night_factory=None, writer_factory=None):
         self.request, self.base, self.key, self.api, self.namespace = request, base, key, api, namespace
@@ -242,7 +249,7 @@ class Life:
             try:
                 session.run('', drafts=self.request.get('drafts', 3), key=None)
             finally:
-                sources = [(f'{sk["id"]}-{i}', session.root/c['score'],
+                sources = [(carrier_name(sk, i, c), session.root/c['score'],
                             'symphony' if sk.get('form') == 'symphony' else sk['plan']['school'],
                             {'plan': sk['plan'], 'form': sk.get('form', 'school')})
                            for sk in session.sketches if 'plan' in sk
@@ -250,6 +257,16 @@ class Life:
                 sources += margins(self.life, root, MARGINS_PER_WORK, only=a.id)
                 self.carry(sources, [(session.work_id, session.record)], root/'woven')
                 self.say('composed', a.id, session.record.get('status'))
+            # An accepted work sounds from its woven scores; the backup never waits for it.
+            try:
+                session.render_final(root/'woven')
+                if session.record.get('sounding_work'):
+                    session.save()
+                    self.say('sounded', a.id, session.work_id)
+                elif session.record.get('sound_pending'):
+                    self.say('not sounded', a.id, session.record['sound_pending'])
+            except Exception as exc:
+                self.say('render failed', a.id, type(exc).__name__, str(exc)[:200])
         else:
             from mnemosyne.writing.night import WriterNight
             resume = self.unfinished(a) if self.writer_factory is None else None
