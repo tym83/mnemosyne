@@ -17,6 +17,8 @@ import struct as st
 import subprocess
 from urllib.parse import quote
 from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+import time
 
 REVISION = '6dd651d55dde97fd4028699be9d4481f26917891'
 BASE = f'https://raw.githubusercontent.com/sgossner/VSCO-2-CE/{REVISION}/'
@@ -32,11 +34,26 @@ def label(s):
     return s.encode()[:19].ljust(20,b'\0')
 
 
+def opened(url, attempts=6):
+    """A download that waits out a sample host's passing outage (5xx, 429, dropped connection)."""
+    for attempt in range(attempts):
+        try:
+            return urlopen(url, timeout=120)
+        except HTTPError as exc:
+            if exc.code < 500 and exc.code != 429 or attempt + 1 == attempts:
+                raise
+        except URLError:
+            if attempt + 1 == attempts:
+                raise
+        time.sleep(5 * 2 ** attempt)
+
+
 def fetch(path, root):
     dest = root/path
     if not dest.exists():
         dest.parent.mkdir(parents=True,exist_ok=True)
-        data = urlopen(BASE+quote(path,safe='/'),timeout=120).read()
+        with opened(BASE+quote(path,safe='/')) as response:
+            data = response.read()
         dest.write_bytes(data)
     return dest
 

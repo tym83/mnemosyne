@@ -29,7 +29,8 @@ def download(url,path):
     if path.exists():return
     path.parent.mkdir(parents=True,exist_ok=True)
     temp=path.with_suffix(path.suffix+'.partial')
-    with urlopen(url,timeout=120) as src, temp.open('wb') as out:
+    from .sample_bank import opened
+    with opened(url) as src, temp.open('wb') as out:
         shutil.copyfileobj(src,out)
     temp.replace(path)
 
