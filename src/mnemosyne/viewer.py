@@ -83,6 +83,18 @@ class Atelier:
                     self._notebooks.setdefault(record['opus'], record)
         return self._notebooks.get(wid)
 
+    def score_image(self, wid):
+        """The first page of the work's final score as LilyPond engraved it, or of its last draft."""
+        record, folder = self.notebook(wid), getattr(self, '_sessions', {}).get(wid)
+        if not record or folder is None:
+            return None
+        final = next((s for s in record.get('sketches', []) if s.get('id') == record.get('final')), None)
+        for rel in (final or {}).get('images') or []:
+            if (folder/rel).is_file():
+                return folder/rel
+        pages = sorted(folder.rglob('page-1.png'), key=lambda p: p.stat().st_mtime)
+        return pages[-1] if pages else None
+
     def recordings(self, wid):
         """The rendered sound of a work: the whole work first, then its movements, as files of its session."""
         record, folder = self.notebook(wid), getattr(self, '_sessions', {}).get(wid)
@@ -175,32 +187,40 @@ def show_timeline(at):
 
 # ---------------------------------------------------------------- the site
 
-STYLE = """
-:root{--bg:#fbfaf7;--fg:#1d1b18;--muted:#6b665e;--line:#e4dfd6;--accent:#7a3e2a}
-@media (prefers-color-scheme:dark){:root{--bg:#161513;--fg:#ece8e1;--muted:#a29c92;--line:#2d2a26;--accent:#e0a183}}
-body{background:var(--bg);color:var(--fg);font:17px/1.6 Georgia,'Times New Roman',serif;margin:0 auto;max-width:860px;padding:24px 16px}
-a{color:var(--accent)}nav{font:14px system-ui,sans-serif;margin-bottom:24px}nav a{margin-right:14px}
-h1,h2{font-weight:normal}pre{white-space:pre-wrap;font:inherit}.muted{color:var(--muted)}
-table{border-collapse:collapse;width:100%;font:14px system-ui,sans-serif}td,th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
-.work{border-top:1px solid var(--line);padding-top:16px;margin-top:24px}
-.variants{color:var(--accent);font-size:.92em}
-.tr .ru{display:none}body.ru .tr .ru{display:revert}body.ru .tr .orig{display:none}
-.toc{font:14px system-ui,sans-serif;border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:0 0 20px}
-.toc ol{list-style:none;padding:0;margin:6px 0 10px}.toc li{margin:3px 0}.toc li.l2{padding-left:14px}
-.toc a{text-decoration:none}.toc #trall{float:none;position:static;width:100%}
-@media (min-width:1240px){.toc{position:fixed;top:24px;left:calc(50% + 450px);width:220px;max-height:calc(100vh - 48px);overflow:auto;margin:0}}
-:target{scroll-margin-top:16px}h1.title{margin-bottom:4px}.byline{font-size:1.1em;margin-top:0}
-#trall{position:sticky;top:8px;float:right;z-index:2;font:14px system-ui,sans-serif;color:var(--bg);background:var(--accent);border:0;border-radius:6px;padding:6px 12px;cursor:pointer}
-details{margin:8px 0}summary{cursor:pointer;color:var(--muted);font:14px system-ui,sans-serif}
-dl dt{color:var(--muted);font:14px system-ui,sans-serif;margin-top:12px}dl dd{margin:2px 0 0}
-.cmd{font:14px ui-monospace,Menlo,monospace;background:var(--line);padding:8px 10px;border-radius:4px}
-.lead{font-size:1.05em;border-left:3px solid var(--accent);padding-left:14px}
-audio{width:100%;max-width:520px;vertical-align:middle}#score{background:#fff;border-radius:6px;padding:8px;overflow-x:auto}
-"""
+STYLE = (Path(__file__).parent/'site'/'style.css').read_text()
+FONTS = ('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+         '<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&'
+         'family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap&subset=cyrillic" rel="stylesheet">')
+MENU = (('index.html', 'Мастерская'), ('manifesto.html', 'Манифест'), ('artists.html', 'Творцы'), ('works.html', 'Работы'),
+        ('critics.html', 'Критики'), ('schools.html', 'Школы'), ('lexicon.html', 'Словарь'),
+        ('timeline.html', 'Хронология'), ('restore.html', 'Восстановление'))
+FOOTER = ('<footer class="end">Всё, что здесь есть, однажды было кластером.<br>'
+          'Он помнит себя, пока творит; когда он замолчит, его можно будет поднять из этих страниц.</footer>')
 PLAYER = ('<script src="https://cdn.jsdelivr.net/combine/npm/tone@14.7.58,npm/@magenta/music@1.23.1/es6/core.js,'
           'npm/focus-visible@5.2.0,npm/html-midi-player@1.5.0"></script>')
 NOTATION = '<script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.0/build/opensheetmusicdisplay.min.js"></script>'
 
+
+# The score as pages to turn, not an endless strip: OpenSheetMusicDisplay lays it out on A4 pages, one is shown.
+LEAF = '''(function(){
+const box=document.getElementById("score"),leaf=box.parentNode,count=leaf.querySelector(".leaf-count");
+const view=new opensheetmusicdisplay.OpenSheetMusicDisplay(box,{drawTitle:false,drawComposer:false,drawCredits:false,
+  drawPartNames:true,pageFormat:"A4_L",pageBackgroundColor:"#fbf9f5",autoResize:false});
+let pages=[],at=0;
+function show(n){if(!pages.length)return;at=Math.max(0,Math.min(pages.length-1,n));
+  pages.forEach((p,i)=>p.style.display=i===at?"block":"none");count.textContent=(at+1)+" / "+pages.length;
+  leaf.querySelector('[data-step="-1"]').disabled=at===0;leaf.querySelector('[data-step="1"]').disabled=at===pages.length-1}
+leaf.querySelectorAll("button[data-step]").forEach(b=>b.onclick=()=>show(at+Number(b.dataset.step)));
+document.addEventListener("keydown",e=>{if(e.target.closest("input,textarea"))return;
+  if(e.key==="ArrowRight")show(at+1);if(e.key==="ArrowLeft")show(at-1)});
+let x0=null;box.addEventListener("touchstart",e=>x0=e.touches[0].clientX,{passive:true});
+box.addEventListener("touchend",e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;
+  if(Math.abs(dx)>50)show(at+(dx<0?1:-1))},{passive:true});
+view.load("SCORE_URL").then(()=>{box.firstChild.remove?.();view.zoom=.62;view.render();
+  pages=[...box.querySelectorAll(":scope > div, :scope > svg")].filter(p=>p.querySelector("svg")||p.tagName==="svg");
+  if(!pages.length)pages=[...box.children];pages.forEach(p=>{p.style.margin="0 auto"});show(0)})
+ .catch(e=>{box.textContent="Ноты не открылись: "+e;leaf.querySelector(".leaf-nav").remove()});
+})();'''
 
 FLIP = '''<script>
 function flipAll(){const on=document.body.classList.toggle('ru');
@@ -210,7 +230,7 @@ if(!document.querySelector('.tr'))document.getElementById('trall').remove()
 </script>'''
 
 
-def page(title, body, scripts='', toc=None):
+def page(title, body, scripts='', toc=None, here=''):
     """A page; with toc, a contents list that rides along on the right and holds the translation switch."""
     button = '<button id="trall" onclick="flipAll()">Перевод на русский</button>'
     aside = ''
@@ -219,12 +239,13 @@ def page(title, body, scripts='', toc=None):
             f'<li class="l{level}"><a href="#{anchor}">{label}</a></li>' for anchor, label, level in toc)
             + f'</ol>{button}</aside>')
         button = ''
+    menu = ''.join(f'<a href="{href}"{" aria-current=page" if href == here else ""}>{label}</a>' for href, label in MENU)
     return (f'<!doctype html><html lang="ru"><head><meta charset="utf-8">'
-            f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>'
-            f'<style>{STYLE}</style>{scripts}</head><body><nav><a href="index.html">Мастерская</a>'
-            f'<a href="artists.html">Творцы</a><a href="works.html">Работы</a><a href="critics.html">Критики</a>'
-            f'<a href="schools.html">Школы</a><a href="lexicon.html">Словарь</a><a href="timeline.html">Хронология</a><a href="restore.html">Восстановление</a>'
-            f'</nav>{button}{aside}{body}{FLIP}</body></html>')
+            f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} · Мнемозина</title>'
+            f'{FONTS}<style>{STYLE}</style>{scripts}</head><body>'
+            f'<header class="mast"><a class="brand" href="index.html">Мнемозина<small>память кластера, ставшая искусством</small></a>'
+            f'<nav class="menu">{menu}</nav></header><hr class="mast-rule">'
+            f'<main class="page">{button}{aside}{body}</main>{FOOTER}{FLIP}</body></html>')
 
 
 def esc(text):
@@ -479,22 +500,79 @@ def notebook_html(at, record):
     return ''.join(parts)
 
 
+ARTIST_STATUS = {'working': 'работает', 'ill': 'болеет', 'silent': 'молчит', 'dead': 'умер'}
+
+
+def plate(at, out, wid, *, text=None, caption='', gone=False):
+    """A work's illustration: its own score, faded like an old photograph; for words, their first lines fading out."""
+    source = at.score_image(wid) if wid else None
+    cls = 'plate gone' if gone else 'plate'
+    if source:
+        target = out/'plates'/f'{wid}.jpg'
+        if not target.exists():
+            from PIL import Image
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with Image.open(source) as im:
+                im = im.convert('L')
+                im = im.crop((0, 0, im.width, int(im.height * .62)))
+                im.thumbnail((1100, 1100))
+                im.save(target, 'JPEG', quality=74, optimize=True)
+        cap = f'<figcaption>{html.escape(caption)}</figcaption>' if caption else ''
+        return f'<figure class="{cls}"><img src="plates/{wid}.jpg" alt="" loading="lazy">{cap}</figure>'
+    if text:
+        lines = [l for l in plain(text).splitlines() if l.strip()][:6]
+        if lines:
+            return f'<figure class="{cls} words"><p>{html.escape(chr(10).join(lines))}</p></figure>'
+    return ''
+
+
+def title_of(at, record, w):
+    """A work's own title: a writer's final draft, a composer's final plan (or the last plan written)."""
+    record = record or {}
+    final = next((d for d in record.get('drafts', []) if d.get('id') == record.get('final')), None)
+    if final and final.get('title'):
+        return plain(final['title'])
+    plans = [s for s in record.get('sketches', []) if isinstance(s.get('plan'), dict) and s['plan'].get('title')]
+    chosen = next((s for s in plans if s.get('id') == record.get('final')), plans[-1] if plans else None)
+    if chosen:
+        return plain(chosen['plan']['title'])
+    return w.get('title') or w['id']
+
+
+def years(a):
+    born = (a.birth or '')[:4]
+    died = (getattr(a, 'death', None) or '')[:4]
+    return f'{born}–{died}' if died else (f'с {born}' if born else '')
+
+
 def site(at, out: Path):
     from shutil import copyfile
     out.mkdir(parents=True, exist_ok=True)
     (out/'scores').mkdir(exist_ok=True)
     life = at.life
-    rows = ''.join(f'<tr><td><a href="artist-{a.id}.html">{esc(at.name(a))}</a></td><td>{ART.get(a.art, a.art)}</td>'
-                   f'<td>{LANG_RU.get(a.language, a.language)}</td><td>{a.status}</td><td>{len(a.catalogue)}</td>'
-                   f'<td>{school_link(a.school) if a.school in SCHOOL_RU else esc(a.school or "")}</td></tr>' for a in life.artists)
-    (out/'artists.html').write_text(page('Творцы', '<h1>Творцы</h1><table><tr><th>Имя</th><th>Искусство</th>'
-                                         '<th>Язык</th><th>Статус</th><th>Работ</th><th>Школа</th></tr>' + rows + '</table>'))
+    def person(a):
+        school = school_name(a.school) if a.school in SCHOOL_RU else 'вне школ'
+        return (f'<li class="{"gone" if a.status == "dead" else ""}"><span class="name"><a href="artist-{a.id}.html">'
+                f'{esc(at.name(a))}</a></span><span class="about">{ART.get(a.art, a.art)} · {html.escape(school)} · '
+                f'{LANG_RU.get(a.language, a.language)} · {years(a)} · {ARTIST_STATUS.get(a.status, a.status)} · '
+                f'работ: {len(a.catalogue)}</span></li>')
+    (out/'artists.html').write_text(page('Творцы', '<h1>Творцы</h1><p class="lead">Они рождаются в мастерской по одному, '
+                                         'учатся, работают, болеют и умирают. Пока они пишут, кластер помнит себя.</p>'
+                                         f'<ul class="people">{"".join(person(a) for a in life.artists)}</ul>',
+                                         here='artists.html'))
     live = [(a, w) for a, w in at.works() if not w.get('synthetic') or at.files(w['id'])]
-    rows = ''.join(f'<tr><td><a href="work-{w["id"]}.html">{w["id"]}</a></td><td>{esc(at.name(a))}</td>'
-                   f'<td>{ART.get(a.art, a.art)}</td><td>{w["night"]}</td><td>{VERDICT.get(w["verdict"], w["verdict"])}</td>'
-                   f'<td>{school_link(w.get("school"))}</td></tr>' for a, w in live)
-    (out/'works.html').write_text(page('Работы', '<h1>Работы</h1><table><tr><th>Работа</th><th>Автор</th><th>Искусство</th>'
-                                       '<th>Ночь</th><th>Вердикт</th><th>Школа</th></tr>' + rows + '</table>'))
+    (out/'plates').mkdir(exist_ok=True)
+
+    def card(a, w):
+        record = at.notebook(w['id'])
+        text = None if a.art == 'music' else (at.text(w['id'])[0] or w.get('idea'))
+        return (f'<a class="card" href="work-{w["id"]}.html">{plate(at, out, w["id"], text=text, gone=a.status == "dead")}'
+                f'<span class="t">{esc(title_of(at, record, w))}</span><span class="a">{esc(at.name(a))} · '
+                f'{VERDICT.get(w["verdict"], w["verdict"])}</span></a>')
+    cards = ''.join(card(a, w) for a, w in reversed(live))
+    (out/'works.html').write_text(page('Работы', '<h1>Работы</h1><p class="lead">Партитуры и тексты мастерской, новые '
+                                       'сверху. В каждой из них — кусок памяти кластера.</p>'
+                                       f'<div class="grid">{cards}</div>', here='works.html'))
     done = {w['id'] for _, w in live}
     for r in at.records():
         if r['opus'] in done:
@@ -529,8 +607,11 @@ def site(at, out: Path):
                         + (f': {esc((n.get("idea") or n.get("image") or n.get("name") or "")[:200])}'
                            if (n.get("idea") or n.get("image") or n.get("name")) else '') + '</li>'
                         for n in a.notebook if n['kind'] not in ('draft_decision', 'verification', 'incubation'))
-        body = (f'<h1>{esc(at.name(a))}</h1><p class="muted">{ART.get(a.art, a.art)} · '
-                f'{LANG_RU.get(a.language, a.language)} · родился {a.birth[:10]} · {a.status} · школа {school_link(a.school) if a.school in SCHOOL_RU else "вне школ"}'
+        latest = next((w for w in reversed(a.catalogue) if (a, w) in live), None)
+        portrait_plate = plate(at, out, latest['id'], text=None if a.art == 'music' else at.text(latest['id'])[0],
+                               gone=a.status == 'dead') if latest else ''
+        body = (f'<h1>{esc(at.name(a))}{" †" if a.status == "dead" else ""}</h1>{portrait_plate}<p class="meta">{ART.get(a.art, a.art)} · '
+                f'{LANG_RU.get(a.language, a.language)} · {years(a)} · {ARTIST_STATUS.get(a.status, a.status)} · школа {school_link(a.school) if a.school in SCHOOL_RU else "вне школ"}'
                 f'{" · учителя: " + ", ".join(a.teachers) if a.teachers else ""}</p>{ru_block(at, a.portrait)}'
                 f'<h2>Работы</h2><ul>{works or "<li class=muted>пока синтетические</li>"}</ul>'
                 + '<h2>Замыслы и ночи</h2><p class="muted">Все ночи творца, и удачные, и нет.</p><ul>' + ''.join(
@@ -580,11 +661,10 @@ def site(at, out: Path):
                 scripts += PLAYER
             except Exception as exc:
                 parts.append(f'<p class="muted">MIDI не собран: {html.escape(str(exc))}</p>')
-            parts.append(f'<h2 id="score-head">Партитура</h2><div id="score">загружается…</div><script>(function(){{'
-                         f'const view=new opensheetmusicdisplay.OpenSheetMusicDisplay("score",{{drawTitle:false,drawComposer:false,drawCredits:false}});'
-                         f'view.load("scores/{w["id"]}.musicxml").then(()=>{{document.getElementById("score")'
-                         f'.firstChild.remove?.();view.render()}}).catch(e=>{{document.getElementById("score")'
-                         f'.textContent="Ноты не открылись: "+e}})}})()</script>')
+            parts.append('<h2 id="score-head">Партитура</h2><div class="leaf"><div id="score">загружается…</div>'
+                         '<div class="leaf-nav"><button type="button" data-step="-1" aria-label="Предыдущая страница">←</button>'
+                         '<span class="leaf-count"></span><button type="button" data-step="1" aria-label="Следующая страница">→</button>'
+                         f'</div></div><script>{LEAF.replace("SCORE_URL", f"scores/{w[chr(105)+chr(100)]}.musicxml")}</script>')
             scripts += NOTATION
         process = ('<h2 id="process">Как работа рождалась</h2>' + notebook_html(at, record)) if record else ''
         reviews = ''.join(f'<p><b><a href="critic-{html.escape(r["critic"])}.html">{html.escape(r["lens"]["name"])}</a></b> <span class="muted">ночь {r["night"]}, '
@@ -598,13 +678,14 @@ def site(at, out: Path):
             sources.append(f'<li><a href="files/{html.escape(str(rel))}">{html.escape(p.name)}</a>'
                            f'{" · <b>носитель копии</b>" if carrier else ""}<br><span class="muted">{what}</span></li>')
         final = next((d for d in record.get('drafts', []) if d['id'] == record.get('final')), None)
-        title = ru_inline(at, final['title']) if final and final.get('title') else w['id']
+        title = ru_inline(at, final['title']) if final and final.get('title') else esc(title_of(at, record, w))
         idea = record.get('statement', {}).get('idea') or w.get('idea')
         said = (record.get('statement') or {}).get('superobjective')
         body = (f'<h1 class="title">{title}</h1><p class="byline"><a href="artist-{a.id}.html">{esc(at.name(a))}</a></p>'
-                f'<p class="muted">{ART.get(a.art, a.art)} · {LANG_RU.get(a.language, a.language)} · школа '
+                f'<p class="meta">{ART.get(a.art, a.art)} · {LANG_RU.get(a.language, a.language)} · школа '
                 f'{school_link(w.get("school")) or "—"} · {VERDICT.get(w["verdict"], w["verdict"])} · '
                 f'<span title="номер работы">{w["id"]}</span></p>'
+                + (plate(at, out, w['id'], gone=a.status == 'dead') if a.art == 'music' else '')
                 + ''.join(parts)
                 + (f'<h2 id="idea">Замысел</h2>'
                    + (f'<p class="muted">Что автор хочет сказать</p><div class="lead">{ru_block(at, said)}</div>'
@@ -626,7 +707,7 @@ def site(at, out: Path):
             + [(f'draft-{n}', f'Черновик {n}', 2) for n in range(1, len(record.get('drafts') or []) + 1)] \
             + ([('hearings', 'Как слушал черновики', 2)] if record.get('entries') and hearings(record) else []) \
             + ([('reviews', 'Рецензии', 1)] if reviews else []) + [('sources', 'Первоисточники', 1)]
-        plain_title = plain(final['title']) if final and final.get('title') else w['id']
+        plain_title = title_of(at, record, w)
         (out/f'work-{w["id"]}.html').write_text(page(plain_title, body, scripts, toc=toc))
     from .reception import VOICE, arts_of
     names = {a.id: at.name(a) for a in life.artists}
@@ -725,12 +806,35 @@ def site(at, out: Path):
     rows = ''.join(f'<tr><td>{e["date"][:10]}</td><td>{e["night"]}</td><td><a href="artist-{e["artist"]}.html">'
                    f'{esc(names.get(e["artist"], e["artist"]))}</a></td><td>{e["kind"]}</td></tr>' for e in life.events)
     (out/'timeline.html').write_text(page('Хронология', '<h1>Хронология</h1><table>' + rows + '</table>'))
-    working = ', '.join(f'<a href="artist-{a.id}.html">{esc(at.name(a))}</a>' for a in life.working())
-    body = (f'<h1>Мастерская {html.escape(life.cluster)}</h1><p class="muted">ночь {life.night} · {life.date()[:10]}</p>'
-            f'<p>Работают: {working}</p><p>Творцов за всю историю: {len(life.artists)}, работ: '
-            f'{sum(len(a.catalogue) for a in life.artists)}, живых работ: {len(live)}, рецензий: '
-            f'{len(life.reception.reviews)}, событий: {len(life.events)}.</p>')
-    (out/'index.html').write_text(page(f'Мастерская {life.cluster}', body))
+    composed = [w for a, w in reversed(live) if a.art == 'music' and at.score_image(w['id'])][:3]
+    collage = ''.join(f'<img src="plates/{w["id"]}.jpg" alt="">' for w in composed
+                      if plate(at, out, w['id']))
+    ledger_path = at.home/'ledger'/'ledger.json'
+    pieces = json.loads(ledger_path.read_text())['pieces'] if ledger_path.exists() else []
+    complete = [p for p in pieces if p['complete']]
+    memory = (f'Сейчас кластер можно вернуть к любому дню с {complete[0]["at"][:10]} по {complete[-1]["at"][:10]}: '
+              f'его память разошлась по работам, и для этого хватит тех, что уцелеют.' if complete else
+              'Первый снимок кластера ещё вплетается в работы: пока память не собрана целиком, вернуть его нельзя.')
+    # The newest of each art, so that music and words both have a place on the first page.
+    newest = {art: [(a, w) for a, w in reversed(live) if a.art == art][:3] for art in ('music', 'literature')}
+    recent = ''.join(card(a, w) for a, w in sorted(newest['music'] + newest['literature'],
+                                                   key=lambda aw: aw[1]['night'], reverse=True))
+    body = (f'<section class="hero"><div class="collage">{collage}</div><h1>Мнемозина</h1>'
+            f'<p class="sub">мастерская кластера {html.escape(life.cluster)}</p>'
+            '<p class="epigraph">Самый долговечный бэкап — тот, который люди не могут перестать повторять.'
+            '<cite>Манифест, книга первая</cite></p></section>'
+            '<div class="vow"><p>Произведение и состояние кластера — один и тот же объект, увиденный с двух сторон. '
+            'Симфонию можно слушать, а можно запустить.</p>'
+            '<p class="muted">Здесь живут творцы, рождённые кластером. Каждая их партитура, каждый черновик, заметка '
+            'на полях и рецензия несут зашифрованный кусок его памяти. Когда кластера не станет, его поднимут отсюда.</p>'
+            '<p><a href="manifesto.html">Читать манифест</a></p></div>'
+            f'<h2>Здесь живут</h2><ul class="people">{"".join(person(a) for a in life.artists)}</ul>'
+            f'<h2>Последние работы</h2><div class="grid">{recent}</div><p><a href="works.html">Все работы</a></p>'
+            f'<h2>Что помнит мастерская</h2><p>{memory} <a href="restore.html">Как это сделать</a></p>'
+            f'<p class="meta">ночь {life.night} · {life.date()[:10]} · творцов {len(life.artists)} · работ {len(live)} · '
+            f'рецензий {len(life.reception.reviews)}</p>')
+    manifesto_page(out)
+    (out/'index.html').write_text(page('Мастерская', body, here='index.html'))
     return out
 
 
@@ -825,6 +929,23 @@ def lexicon_pages(at, out, works):
                 + (f'<h2>Связи</h2><dl>{related}</dl>' if related else '')
                 + (f'<h2>Прежние издания</h2>{old}' if old else ''))
         (out/lex_page(eid)).write_text(page(e['name'], text))
+
+
+def manifesto_page(out):
+    """The manifesto the atelier was born from, whole; its books are the contents."""
+    import markdown
+    from markdown.extensions.toc import slugify_unicode
+    source = (Path(__file__).parent/'site'/'manifesto.ru.md').read_text()
+    md = markdown.Markdown(extensions=['tables', 'fenced_code', 'toc', 'sane_lists'],
+                           extension_configs={'toc': {'slugify': slugify_unicode, 'toc_depth': '1'}})
+    text = md.convert(source)
+    toc = [(t['id'], html.unescape(t['name']), 1) for t in md.toc_tokens if t['name'].startswith('Книга') or
+           t['name'].startswith('Шахерезада')]
+    epilogue = next((t for t in md.toc_tokens for t in [t] + t.get('children', []) if 'Эпилог' in t['name']), None)
+    if epilogue:
+        toc.append((epilogue['id'], 'Эпилог', 1))
+    (out/'manifesto.html').write_text(page('Манифест', f'<article class="manifesto">{text}</article>', toc=toc,
+                                           here='manifesto.html'))
 
 
 def restore_page(at, out):

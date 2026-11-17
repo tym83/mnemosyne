@@ -12,6 +12,7 @@ dependencies = [
     "cryptography>=46",
     "ezdxf>=1.4.5",
     "kubernetes>=37.0.1",
+    "markdown>=3.7",
     "music21>=10.5.2",
     "numpy>=2.5.4",
     "ortools>=9.15.6755",
