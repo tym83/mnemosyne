@@ -432,11 +432,15 @@ class Night:
                     'Choose every musical parameter yourself; no cluster facts. '
                     'Keep any "notes" field to one short sentence. In note write two to four sentences '
                     'to the performer: what this version is and how it should sound. '
+                    'Keep plan_json compact: a complete work is at most about twice the size of its sketch plan. '
+                    'Return to material by reference (theme, transform, pattern, repeat) and let the grammar derive '
+                    'the notes; never write out what the grammar realizes. '
                     + ('Short study of the method.' if sketch else 'Complete work, derived from the sketches.'),
                     'context': context, 'contract': contract}, ensure_ascii=False)
         for attempt in range(3):
-            # A symphony plan with thinking runs past 32k tokens; the endpoint's own limit still caps it.
-            answer = self.ask(self.system, prompt, PlanText, f'{step}:{attempt}', max_tokens=64000,
+            # A compact plan of a whole symphony fits well inside 32k tokens. A larger answer was the model writing
+            # out what the grammar derives; at 50k+ tokens such answers were refused or cut, at full price.
+            answer = self.ask(self.system, prompt, PlanText, f'{step}:{attempt}', max_tokens=32000,
                               images=[self.root/p for p in context.get('candidate_images', [])])
             try:
                 plan = validate_plan(json.loads(answer.plan_json), method, sketch=sketch)
