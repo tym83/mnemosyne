@@ -241,3 +241,21 @@ class FormTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class WriterResumeTests(unittest.TestCase):
+    def test_an_interrupted_work_goes_on_without_asking_again(self):
+        life, a = writer_life('ru')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)/'w'
+            root.mkdir()
+            method = {'kind': 'school', 'school': 'haiku', 'reason': 'fixture'}
+            (root/'notebook.json').write_text(json.dumps({
+                'opus': f'{a.id}-w00007', 'status': 'searching',
+                'entries': [{'step': 'method', 'result': method}, {'step': 'draft:0:0', 'error': 'cut off'}]}))
+            night = WriterNight(life, a.id, root, resume=True)
+            self.assertEqual(night.work_id, f'{a.id}-w00007')
+            self.assertEqual(set(night.writer.replay), {'method'})
+            with patch('mnemosyne.literature.Writer._ask', side_effect=AssertionError('asked again')):
+                self.assertEqual(night.writer.ask('s', 'p', Method, 'method').school, 'haiku')
+            self.assertTrue(night.record['resumed'])

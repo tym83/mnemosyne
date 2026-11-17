@@ -335,11 +335,8 @@ class Night:
             # The work resumes where it stopped: answers already given are replayed, studio results reused.
             self.work_id = previous.get('opus', self.work_id)
             self.record.update(opus=self.work_id, resumed=True)
-            replay = {}
-            for e in previous.get('entries', []):
-                if isinstance(e, dict) and e.get('step') and isinstance(e.get('result'), dict):
-                    replay.setdefault(e['step'], e['result'])
-            self.writer.replay = replay
+            from ..literature import answers
+            self.writer.replay = answers(previous)
         self.work = None
         self.save()
 

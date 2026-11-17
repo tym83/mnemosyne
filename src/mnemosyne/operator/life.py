@@ -252,7 +252,12 @@ class Life:
                 self.say('composed', a.id, session.record.get('status'))
         else:
             from mnemosyne.writing.night import WriterNight
-            factory = self.writer_factory or (lambda life, aid, folder: WriterNight(life, aid, folder, backend=None))
+            resume = self.unfinished(a) if self.writer_factory is None else None
+            if resume:
+                root = resume
+                self.say('resuming', a.id, root.name)
+            factory = self.writer_factory or (lambda life, aid, folder: WriterNight(
+                life, aid, folder, backend=None, resume=resume is not None))
             session = factory(self.life, a.id, root)
             self.say('writing', a.id, session.work_id)
             try:

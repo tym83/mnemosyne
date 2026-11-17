@@ -139,7 +139,7 @@ class WriterNight:
     # Several writers may work on one night; the shared life is changed by one at a time.
     LIFE = threading.RLock()
 
-    def __init__(self, life, artist_id, root, *, backend=None):
+    def __init__(self, life, artist_id, root, *, backend=None, resume=False):
         self.life = life
         self.artist = next(a for a in life.artists if a.id == artist_id)
         if self.artist.art != 'literature':
@@ -148,12 +148,22 @@ class WriterNight:
             raise ValueError('a living working artist is required')
         self.work_id = f'{artist_id}-w{len(self.artist.catalogue):05d}'
         self.root, self.backend = Path(root), backend
-        self.root.mkdir(parents=True, exist_ok=False)
+        previous = None
+        if resume and (self.root/'notebook.json').exists():
+            previous = json.loads((self.root/'notebook.json').read_text())
+        else:
+            self.root.mkdir(parents=True, exist_ok=False)
         self.entries = []
         self.writer = Writer(self.entries, backend=backend, data_class='art')
         self.record = {'version': 1, 'art': 'literature', 'artist': artist_id, 'opus': self.work_id,
                        'night': life.night, 'language': self.artist.language, 'status': 'searching',
                        'entries': self.entries, 'drafts': []}
+        if previous:
+            # The work goes on where it stopped: answers already given are replayed, not asked or paid for again.
+            from ..literature import answers
+            self.work_id = previous.get('opus', self.work_id)
+            self.record.update(opus=self.work_id, resumed=True)
+            self.writer.replay = answers(previous)
 
     def save(self):
         dump(self.root/'notebook.json', self.record)

@@ -207,6 +207,15 @@ def settle(result, prose):
     return result
 
 
+def answers(record) -> dict:
+    """Answers an interrupted work already has, by step: a resumed work replays them instead of asking again."""
+    replay = {}
+    for e in (record or {}).get('entries', []):
+        if isinstance(e, dict) and e.get('step') and isinstance(e.get('result'), dict):
+            replay.setdefault(e['step'], e['result'])
+    return replay
+
+
 class Writer:
     """One validated interface for configured text and draft-reading models.
 
