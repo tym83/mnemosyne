@@ -58,8 +58,8 @@ class Models(BaseModel):
     @model_validator(mode='after')
     def check(self):
         for role, names in self.roles.items():
-            if role not in ('artist', 'critic', 'chronicler', 'eye') or not names:
-                raise ValueError('roles: artist, critic, chronicler, eye; nonempty fallback lists')
+            if role not in ('artist', 'critic', 'chronicler', 'eye', 'translator') or not names:
+                raise ValueError('roles: artist, critic, chronicler, eye, translator; nonempty fallback lists')
             if any(n not in self.endpoints for n in names):
                 raise ValueError('unknown endpoint in role')
         return self

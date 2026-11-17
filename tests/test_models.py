@@ -250,3 +250,14 @@ class LooseSchemaTests(unittest.TestCase):
         from mnemosyne.models import loose
         s = {'type': 'object', 'properties': {'q': {'type': 'number', 'minimum': 0, 'maximum': 1}}}
         self.assertEqual(loose(s), {'type': 'object', 'properties': {'q': {'type': 'number'}}})
+
+
+class TranslatorRoleTests(unittest.TestCase):
+    def test_a_translator_role_routes_translations_to_its_own_endpoint(self):
+        from mnemosyne.models import Endpoint, Models
+        m = Models(endpoints={'opus': Endpoint(backend='anthropic', base_url='https://x/v1', model='o'),
+                              'sonnet': Endpoint(backend='anthropic', base_url='https://x/v1', model='s')},
+                   roles={'artist': ['opus'], 'translator': ['sonnet']})
+        self.assertEqual([n for n, _ in m.route('translator')], ['sonnet'])
+        self.assertEqual([n for n, _ in Models(endpoints=m.endpoints, roles={'artist': ['opus']}).route('translator')],
+                         ['opus'])

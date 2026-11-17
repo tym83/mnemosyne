@@ -118,6 +118,7 @@ models:
     critic: [api]
     chronicler: [api]
     eye: [api]
+    translator: [api]   # необязательно; без неё переводы идут через роль artist
 ```
 
 Secret с ключом API (`model-api` выше) создаёт владелец; чарт только ссылается

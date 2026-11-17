@@ -116,6 +116,7 @@ models:
     critic: [api]
     chronicler: [api]
     eye: [api]
+    translator: [api]   # optional; without it translations use the artist role
 ```
 
 The API key Secret (`model-api` above) is created by the owner; the chart only
