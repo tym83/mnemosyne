@@ -81,6 +81,19 @@ class LifeTests(unittest.TestCase):
             life.work(composer)
             self.assertIn(f'sounded {composer.id}', (Path(tmp)/'life.log').read_text())
 
+    def test_an_accepted_work_that_never_sounded_is_found_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            life = living.Life({'atelier': 'a', 'inventory': []}, Path(tmp), X25519PrivateKey.generate(), None, 'ns')
+            composer = next(a for a in life.life.artists if a.art == 'music')
+            sessions = Path(tmp)/'creators'/composer.id
+            for stamp, record in (('1', {'status': 'accepted', 'final': 'draft-02', 'sounding_work': 'draft-02'}),
+                                  ('2', {'status': 'failed'}),
+                                  ('3', {'status': 'accepted', 'final': 'draft-01'}),
+                                  ('4', {'status': 'accepted', 'final': 'draft-00', 'sound': 'off'})):
+                (sessions/stamp).mkdir(parents=True)
+                (sessions/stamp/'notebook.json').write_text(json.dumps(record))
+            self.assertEqual(life.unsounded(composer), sessions/'3')
+
     def test_woven_scores_are_named_as_the_renderer_looks_them_up(self):
         sketch = {'id': 'draft-02', 'carriers': [{'movement_index': 0}, {'movement_index': 1}]}
         self.assertEqual(living.carrier_name(sketch, 1, sketch['carriers'][1]), 'draft-02-mv2')

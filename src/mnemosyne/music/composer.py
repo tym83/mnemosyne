@@ -792,17 +792,17 @@ class Night:
         if request['form'] == 'symphony':
             movements = []
             for c in sorted(final['carriers'], key=lambda c: c['movement_index']):
+                # A movement carries backup pieces only when there were pieces left to carry; the sound does
+                # not need them, so an unwoven movement sounds from its own score.
                 path = woven/(final['id']+f"-mv{c['movement_index']+1}.musicxml")
                 if not path.exists():
-                    self.record['sound_pending'] = 'final movement has no woven carrier'
-                    return
+                    path = self.root/c['score']
                 movements.append({'xml': path.read_text(), **retained(c['score'])})
             request['movements'] = movements
         else:
             path = woven/(final['id']+'.musicxml')
             if not path.exists():
-                self.record['sound_pending'] = 'final work has no woven carrier'
-                return
+                path = self.root/final['score']
             request['xml'] = path.read_text()
             assignment = (self.root/final['score']).parent/'orchestration.json'
             request['assignment'] = json.loads(assignment.read_text()) if assignment.exists() else None

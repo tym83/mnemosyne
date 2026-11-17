@@ -232,7 +232,39 @@ class Life:
                 return sessions[-1].parent
         return None
 
+    def unsounded(self, a):
+        """An accepted work of this composer that has not sounded yet (it was accepted before it could)."""
+        for notebook in sorted((self.base/'creators'/a.id).glob('*/notebook.json')):
+            record = json.loads(notebook.read_text())
+            if (record.get('status') == 'accepted' and record.get('final') and not record.get('sounding_work')
+                    and 'sound' not in record):
+                return notebook.parent
+        return None
+
+    def sound(self, a, folder):
+        """Render an accepted work from its own session, as it would have sounded when it was accepted."""
+        from mnemosyne.music.composer import Night
+        record = json.loads((folder/'notebook.json').read_text())
+        session = Night(self.life, a.id, folder, LocalStudio(), backend=None, sound=True, resume=True)
+        session.record.clear()
+        session.record.update(record)
+        session.sketches[:] = record.get('sketches', [])
+        session.record['sketches'] = session.sketches
+        try:
+            session.render_final(folder/'woven')
+        except Exception as exc:
+            session.record['sound'] = f'failed: {type(exc).__name__}: {str(exc)[:200]}'
+            self.say('render failed', a.id, record.get('opus'), type(exc).__name__, str(exc)[:200])
+        session.save()
+        if session.record.get('sounding_work'):
+            self.say('sounded', a.id, record.get('opus'))
+
     def work(self, a):
+        if a.art == 'music' and self.night_factory is None and self.request.get('render', True):
+            backlog = self.unsounded(a)
+            if backlog:
+                self.sound(a, backlog)
+                return
         stamp = f'{now():%Y%m%dT%H%M%S}'
         root = self.base/'creators'/a.id/stamp
         if a.art == 'music':

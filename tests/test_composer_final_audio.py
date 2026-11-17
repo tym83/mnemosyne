@@ -98,6 +98,27 @@ class FinalAudioTests(unittest.TestCase):
             self.assertEqual(night.record['sounding_work'], 'final')
             self.assertNotIn('audio', night.sketches[0])
 
+    def test_a_movement_that_carried_nothing_sounds_from_its_own_score(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            woven = root/'woven'; woven.mkdir()
+            carriers = []
+            for i in range(2):
+                folder = root/f'mv{i}'; folder.mkdir()
+                (folder/'plan.json').write_text('{}')
+                (folder/'score.musicxml').write_text(f'clean-{i}')
+                carriers.append({'movement_index': i, 'score': f'mv{i}/score.musicxml'})
+            (woven/'final-mv1.musicxml').write_text('woven-0')
+            night = Night.__new__(Night)
+            night.root, night.sound, night.life = root, True, Mock(schools={})
+            night.record = {'final': 'final', 'verdict': {'verdict': 'accept'}}
+            night.sketches = [{'id': 'final', 'stage': 'draft-02', 'form': 'symphony', 'plan': {}, 'carriers': carriers}]
+            night.studio = Mock()
+            night.studio.run.return_value = {}
+            night.render_final(woven)
+            request = night.studio.run.call_args.args[0]
+            self.assertEqual([m['xml'] for m in request['movements']], ['woven-0', 'clean-1'])
+
     def test_sound_off_keeps_accepted_work_on_paper(self):
         with tempfile.TemporaryDirectory() as tmp:
             night = Night.__new__(Night)
