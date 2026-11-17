@@ -41,6 +41,24 @@ class ViewerTests(unittest.TestCase):
             self.assertIn('href="files/', page)
             self.assertTrue((root/'site'/'restore.html').exists())
 
+    def test_the_restore_page_offers_every_carrier_of_a_continuous_life(self):
+        import tarfile
+        life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
+        for _ in range(30):
+            life.step({})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/'lineage.json').write_text(json.dumps(life.state()))
+            woven = root/'creators'/'leonia-0001'/'20261117T130414'/'woven'
+            woven.mkdir(parents=True)
+            (woven/'leonia-0001-w00001.variants.json').write_text('{}')
+            site(Atelier(root), root/'site')
+            page = (root/'site'/'restore.html').read_text()
+            self.assertIn('creators/leonia-0001/20261117T130414/woven/leonia-0001-w00001.variants.json', page)
+            with tarfile.open(root/'site'/'carriers.tar.gz') as archive:
+                self.assertIn('carriers/creators/leonia-0001/20261117T130414/woven/leonia-0001-w00001.variants.json',
+                              archive.getnames())
+
     def test_original_first_translation_on_demand(self):
         from mnemosyne.viewer import ru_block
         from mnemosyne.writing.memory import Memory, foreign

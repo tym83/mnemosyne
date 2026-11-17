@@ -813,10 +813,17 @@ def restore_page(at, out):
               if complete else 'Пока ни один снимок не вплетён целиком: кластер из этих работ ещё не восстанавливается. '
               'Первый снимок (ключевой кадр) — самый большой; дальше идут только изменения, и они вплетаются быстро.')
     from shutil import copyfile
-    carriers = [p for night in at.nights for p in sorted((night/'woven').glob('*')) if p.is_file()]
+    # A night keeps its carriers in woven/; a continuous life, in creators/<id>/<session>/woven/.
+    carriers = sorted({p for night in at.nights for p in night.rglob('*')
+                       if p.is_file() and p.parent.name == 'woven'})
     for p in carriers:
         (out/'files'/p.relative_to(at.root)).parent.mkdir(parents=True, exist_ok=True)
         copyfile(p, out/'files'/p.relative_to(at.root))
+    # The owner takes every carrier at once: hundreds of links are not a way to rescue a cluster.
+    import tarfile
+    with tarfile.open(out/'carriers.tar.gz', 'w:gz') as archive:
+        for p in carriers:
+            archive.add(p, arcname=str(Path('carriers')/p.relative_to(at.root)))
     body = f"""<h1>Восстановление</h1>
 <p class="lead">Работы мастерской — одновременно резервная копия кластера. Не данные томов, а состояние кластера:
 все объекты API (инстансы, сервисы, настройки) на определённый момент. Копия зашифрована ключом владельца и разрезана
@@ -829,12 +836,13 @@ def restore_page(at, out):
 <li><b>Ключ владельца.</b> Его создают один раз командой <code>mnemo keys new --output DIR</code>. Файл
 <code>owner.key</code> хранится у владельца вне кластера; в кластер уходит только открытая часть. Без этого ключа
 работы читаются как искусство, но копия из них не извлекается.</li>
-<li><b>Работы.</b> Нужна папка с работами: отсюда — раздел «Первоисточники» на страницах работ (носители копии
-помечены), или вся папка <code>nights/</code> мастерской. Сейчас носителей: {len(carriers)}.</li>
-<li><b>Проверка без кластера.</b><pre class="cmd">mnemo restore --works nights/ --key owner.key --dry-run --at 2025-06-30T23:59:59Z</pre>
+<li><b>Работы.</b> Все носители одним архивом: <a href="carriers.tar.gz">carriers.tar.gz</a>
+(сейчас носителей: {len(carriers)}). Распакуйте его: <code>tar xzf carriers.tar.gz</code>. Носители есть и по одному —
+в списке ниже и в разделе «Первоисточники» на страницах работ.</li>
+<li><b>Проверка без кластера.</b><pre class="cmd">mnemo restore --works carriers/ --key owner.key --dry-run --at 2025-06-30T23:59:59Z</pre>
 Команда собирает куски, проверяет подписи, расшифровывает и пишет манифесты состояния на этот момент в новую папку.
 Без <code>--at</code> берётся самое новое состояние.</li>
-<li><b>Применение.</b><pre class="cmd">mnemo restore --works nights/ --key owner.key --apply --kubeconfig new.kubeconfig --context new</pre>
+<li><b>Применение.</b><pre class="cmd">mnemo restore --works carriers/ --key owner.key --apply --kubeconfig new.kubeconfig --context new</pre>
 Манифесты применяются к новому кластеру. Секреты по умолчанию не восстанавливаются; их включает
 <code>--include-secrets</code>, если владелец разрешил их в копии.</li>
 </ol>
