@@ -10,11 +10,14 @@ from copy import deepcopy
 
 from pydantic import BaseModel
 from .climate import temperament, feel, rhyme
+from .writing.translator import FOREIGN_SCRIPT
 
 
 def clip(x):
     return max(0., min(1., x))
 
+
+WOMEN = {'Mira', 'Ada', 'Iris', 'Nora'}
 
 class ReviewWords(BaseModel):
     text: str
@@ -313,16 +316,23 @@ class Reception:
                               chart=chart, programme=programme,
                               timestamps_ms=[i*337000 + r.randrange(256) for i in range(len(programme))]))
 
+    @staticmethod
+    def woman(critic):
+        """The critics are four women and two men; Russian needs to know which, the names may not tell."""
+        return critic.get('name') in WOMEN
+
     def critic_words(self, critic, life):
         """Who the critic is, in words: voice, taste, schools, mood, and what they wrote before."""
         values = critic['values']
         taste = [hi if v >= .5 else lo for v, (hi, lo) in zip(values, TASTE)]
         loves = [k for k, v in critic['schools'].items() if v > .15]
         hates = [k for k, v in critic['schools'].items() if v < -.15]
+        she = self.woman(critic)
         lines = [f'Ты критик {critic["name"]}. Голос: {VOICE.get(critic["voice"], critic["voice"])}.',
+                 'Ты женщина и пишешь о себе в женском роде.' if she else 'Ты мужчина и пишешь о себе в мужском роде.',
                  'Пишешь о ' + ' и '.join({'music': 'музыке', 'literature': 'литературе'}[x] for x in arts_of(critic)) + '.',
                  'В искусстве ценишь ' + '; '.join(taste) + '.',
-                 'К авторам ты ' + ('щедр' if critic['bias'] > .15 else 'строг' if critic['bias'] < -.15 else 'справедлив') + '.']
+                 'К авторам ты ' + ('щедр' if critic['bias'] > .15 else 'строг' if critic['bias'] < -.15 else 'справедлив') + ('а' if she else '') + '.']
         if loves:
             lines.append('Тебе близки школы: ' + ', '.join(loves) + '.')
         if hates:
@@ -465,13 +475,18 @@ class Reception:
                 title = 'работа' if review.get('work') else str(review.get('subject'))
                 system = f'Ты критик {critic["name"]}. Голос: {VOICE.get(critic["voice"], critic["voice"])}.'
             nb = []
-            words = writer_factory(nb).ask(
-                system + '\n' + genre + ' Говори о том, что действительно есть, цитируй и '
+            she = isinstance(critic, dict) and self.woman(critic)
+            prompt = (f'{about}\n\nДо чтения ты {"думала" if she else "думал"}: {leaning}. '
+                      f'Прочитав, ты можешь передумать.'
+                      + ('\nЭто пересмотр твоего прежнего мнения об этой работе.' if review.get('revision_of') else ''))
+            instruction = (system + '\n' + genre + ' Говори о том, что действительно есть, цитируй и '
                 'называй детали; не выдумывай того, чего нет. Не упоминай ночи, номера, мастерскую как механизм и '
-                'технику. В score — твоя оценка от 0 до 1 после чтения.',
-                f'{about}\n\nДо чтения ты думал: {leaning}. Прочитав, ты можешь передумать.'
-                + ('\nЭто пересмотр твоего прежнего мнения об этой работе.' if review.get('revision_of') else ''),
-                ReviewWords, 'review:' + review['id'])
+                'технику. В score — твоя оценка от 0 до 1 после чтения.')
+            words = writer_factory(nb).ask(instruction, prompt, ReviewWords, 'review:' + review['id'])
+            if FOREIGN_SCRIPT.search(words.text):
+                # A character of another script slipped into the Russian text: the critic writes it again.
+                words = writer_factory(nb).ask(instruction, prompt + '\nПиши только по-русски, без иероглифов.',
+                                               ReviewWords, 'review:' + review['id'] + ':again')
             review.update(text=words.text, words_pending=False, drafts=nb, about=title)
             if words.score is not None:
                 score = clip(words.score)
