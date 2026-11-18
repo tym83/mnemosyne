@@ -151,12 +151,17 @@ def typeset(text):
     return ''.join(out)
 
 
+def steps(path):
+    """The keys of a collected path; keys may themselves hold '/' (a score path), escaped as in JSON Pointer."""
+    return [k.replace('~1', '/').replace('~0', '~') for k in path.strip('/').split('/')]
+
+
 def collect(record, prefix=''):
     """Every string in a notebook record that carries a variant place, with its path."""
     found = []
     if isinstance(record, dict):
         for k in sorted(record):
-            found += collect(record[k], f'{prefix}/{k}')
+            found += collect(record[k], f"{prefix}/{str(k).replace('~', '~0').replace('/', '~1')}")
     elif isinstance(record, list):
         for i, v in enumerate(record):
             found += collect(v, f'{prefix}/{i}')

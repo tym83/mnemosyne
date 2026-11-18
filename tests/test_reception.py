@@ -43,6 +43,25 @@ class ReceptionTests(unittest.TestCase):
         self.assertTrue(life.reception.reviews)
         self.assertTrue(all(not x['words_pending'] for x in life.reception.reviews))
 
+    def test_critics_write_in_their_own_gender_and_only_in_russian(self):
+        life = Lineage('test', datetime(2025, 1, 1))
+        for _ in range(130):
+            life.step({})
+        asked = []
+        class Writer:
+            def __init__(self, nb): pass
+            def ask(self, system, prompt, schema, step):
+                asked.append((system, prompt, step))
+                return ReviewWords(text='двадцать一 минута' if not step.endswith(':again') else 'двадцать одна минута')
+        life.reception.write_words(Writer)
+        self.assertTrue(life.reception.reviews)
+        self.assertTrue(all('一' not in r['text'] for r in life.reception.reviews))
+        names = {c['id']: c['name'] for c in life.reception.critics}
+        for system, prompt, step in asked:
+            review = next(r for r in life.reception.reviews if step.split(':')[1] == r['id'])
+            she = names.get(review['critic']) in {'Mira', 'Ada', 'Iris', 'Nora'}
+            self.assertIn('ты думала' if she else 'ты думал:', prompt)
+
     def test_reception_feeds_fame_and_money_even_after_death(self):
         life = Lineage('test', datetime(2025, 1, 1))
         a = life.artists[0]

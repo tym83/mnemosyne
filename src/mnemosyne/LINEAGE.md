@@ -196,6 +196,13 @@ artist's verdict; the fate engine does not invent them. Novelty compares
 measured descriptors only with earlier real works, excluding synthetic stubs.
 A significant work adds a chronicler chapter with the same work ID.
 
+Before choosing a method the composer sees the forms and ensembles of their
+own latest works. When the last three of them share one form, the composer is
+tired of it: the next work takes the other form (a symphony after three
+school pieces, a school piece for any ensemble of the audio contract after
+three symphonies). This is the musical counterpart of a school that tires the
+critics when it fills the season.
+
 `Atelier.lineage` retains composer processes and their Sketch objects on
 re-export, including content-addressed file references. Pending/failed nights
 also emit Opus and Notebook objects. An idea the inner critic refuses after
