@@ -73,13 +73,29 @@ class LifeTests(unittest.TestCase):
             self.assertEqual({aid for aid, _ in Session.made} & working, working)
             self.assertEqual(len(Session.made), len({aid for aid, _ in Session.made}))
 
-    def test_an_accepted_composition_sounds_after_it_carries(self):
+    def test_a_composer_does_not_wait_for_the_sound_of_their_work(self):
         with tempfile.TemporaryDirectory() as tmp, patch.object(living.Life, 'carry', return_value=None):
             life = living.Life({'atelier': 'a', 'inventory': []}, Path(tmp), X25519PrivateKey.generate(), None, 'ns',
                                night_factory=Session, writer_factory=Session)
             composer = next(a for a in life.life.artists if a.art == 'music')
-            life.work(composer)
-            self.assertIn(f'sounded {composer.id}', (Path(tmp)/'life.log').read_text())
+            with patch.object(Session, 'render_final') as render:
+                life.work(composer)
+            render.assert_not_called()
+            self.assertIn(f'composed {composer.id} accepted', (Path(tmp)/'life.log').read_text())
+
+    def test_the_studio_sounds_the_latest_accepted_work_beside_the_composers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            life = living.Life({'atelier': 'a', 'inventory': []}, Path(tmp), X25519PrivateKey.generate(), None, 'ns')
+            composer = next(a for a in life.life.artists if a.art == 'music')
+            sessions = Path(tmp)/'creators'/composer.id
+            for stamp in ('1', '2'):
+                (sessions/stamp).mkdir(parents=True)
+                (sessions/stamp/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-00'}))
+            with patch.object(living.Life, 'sound') as sound:
+                self.assertTrue(life.sound_next())
+            sound.assert_called_once_with(composer, sessions/'2')
+            life.request['render'] = False
+            self.assertFalse(life.sound_next())
 
     def test_an_accepted_work_that_never_sounded_is_found_once(self):
         with tempfile.TemporaryDirectory() as tmp:

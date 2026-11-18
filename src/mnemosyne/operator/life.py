@@ -26,6 +26,7 @@ BIRTH_RATE = .25
 SENSE_EVERY = 900       # seconds between readings of the cluster
 WORDS_EVERY = 600       # seconds between the critics' and chronicler's writing turns
 SOUND_ATTEMPTS = 3
+SOUND_IDLE = 300       # seconds the studio waits when no accepted work is waiting for its sound
 MARGINS_PER_WORK = 4    # margin phrases a composer writes beside each work
 
 
@@ -234,8 +235,8 @@ class Life:
         return None
 
     def unsounded(self, a):
-        """An accepted work of this composer that has not sounded yet (it was accepted before it could)."""
-        for notebook in sorted((self.base/'creators'/a.id).glob('*/notebook.json')):
+        """The latest accepted work of this composer that has not sounded yet."""
+        for notebook in sorted((self.base/'creators'/a.id).glob('*/notebook.json'), reverse=True):
             record = json.loads(notebook.read_text())
             # A failed render is retried a few times: the failure may lie in the studio, not the work.
             if (record.get('status') == 'accepted' and record.get('final') and not record.get('sounding_work')
@@ -263,12 +264,31 @@ class Life:
         if session.record.get('sounding_work'):
             self.say('sounded', a.id, record.get('opus'))
 
+    def sound_next(self):
+        """Sound one accepted composition that has no sound yet. False when nothing is waiting."""
+        if not self.request.get('render', True):
+            return False
+        with self.lock:
+            composers = [a for a in self.life.artists if a.art == 'music']
+        for a in composers:
+            folder = self.unsounded(a)
+            if folder is not None:
+                self.sound(a, folder)
+                return True
+        return False
+
+    def sounding(self):
+        """The studio's own life: it renders accepted works while the composers go on composing."""
+        while not self.stop.is_set():
+            try:
+                busy = self.sound_next()
+            except Exception:
+                self.say('sounding failed', traceback.format_exc(limit=3).replace('\n', ' | '))
+                busy = False
+            if not busy:
+                self.stop.wait(SOUND_IDLE)
+
     def work(self, a):
-        if a.art == 'music' and self.night_factory is None and self.request.get('render', True):
-            backlog = self.unsounded(a)
-            if backlog:
-                self.sound(a, backlog)
-                return
         stamp = f'{now():%Y%m%dT%H%M%S}'
         root = self.base/'creators'/a.id/stamp
         if a.art == 'music':
@@ -293,16 +313,7 @@ class Life:
                 sources += margins(self.life, root, MARGINS_PER_WORK, only=a.id)
                 self.carry(sources, [(session.work_id, session.record)], root/'woven')
                 self.say('composed', a.id, session.record.get('status'))
-            # An accepted work sounds from its woven scores; the backup never waits for it.
-            try:
-                session.render_final(root/'woven')
-                if session.record.get('sounding_work'):
-                    session.save()
-                    self.say('sounded', a.id, session.work_id)
-                elif session.record.get('sound_pending'):
-                    self.say('not sounded', a.id, session.record['sound_pending'])
-            except Exception as exc:
-                self.say('render failed', a.id, type(exc).__name__, str(exc)[:200])
+            # The composer goes on composing; the sound of an accepted work is made beside them (sounding).
         else:
             from mnemosyne.writing.night import WriterNight
             resume = self.unfinished(a) if self.writer_factory is None else None
@@ -328,7 +339,7 @@ class Life:
 
     def run(self):
         threads = [threading.Thread(target=f, daemon=True, name=f.__name__)
-                   for f in ((self.watch_cluster,) if self.api else ()) + (self.fate, self.words)]
+                   for f in ((self.watch_cluster,) if self.api else ()) + (self.fate, self.words, self.sounding)]
         for t in threads:
             t.start()
         while not self.stop.is_set():
