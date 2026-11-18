@@ -307,6 +307,7 @@ def copy(source, target):
             and target.stat().st_mtime >= source.stat().st_mtime:
         return
     target.parent.mkdir(parents=True, exist_ok=True)
+    target.unlink(missing_ok=True)  # never write through a link shared with the site being served
     copyfile(source, target)
 
 
@@ -1299,9 +1300,11 @@ def restore_page(at, out, base=None):
     archive_path = base/'carriers.tar.gz'
     if not archive_path.exists() or LANG == 'en':
         import tarfile
-        with tarfile.open(archive_path, 'w:gz') as archive:
+        partial = archive_path.with_name('carriers.tar.gz.part')
+        with tarfile.open(partial, 'w:gz') as archive:
             for p in carriers:
                 archive.add(p, arcname=str(Path('carriers')/p.relative_to(at.root)))
+        partial.replace(archive_path)  # a new file, not a write through a link shared with the served site
     files = ''.join(f'<li><a href="{UP}files/{html.escape(str(p.relative_to(at.root)))}">{html.escape(p.name)}</a></li>'
                     for p in carriers)
     if en:
