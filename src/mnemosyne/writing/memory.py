@@ -158,7 +158,8 @@ def render_batch(texts, notebook, backend):
 
 def backfill(root: Path, *, backend=None, log=print) -> int:
     root, memory, notebook = Path(root), Memory(root), []
-    todo = [t for t in gather(root) if memory.get(t) is None]
+    # A rendering that slipped into another script is made again.
+    todo = [t for t in gather(root) if memory.get(t) is None or translator.strays(plain(t), memory.get(t))]
     log(f'{len(todo)} texts to translate')
     short = [t for t in todo if len(plain(t)) <= LONG]
     long = [t for t in todo if len(plain(t)) > LONG]

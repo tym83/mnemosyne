@@ -115,3 +115,11 @@ class FailingBatchTests(unittest.TestCase):
             m = memory.Memory(Path(tmp))
             self.assertEqual(done, 6)
             self.assertEqual([m.get(t) for t in texts], ['RU ' + t for t in texts])
+
+
+class StrayScriptTests(unittest.TestCase):
+    def test_a_translation_that_slips_into_han_is_sent_back(self):
+        from mnemosyne.writing.translator import missing
+        self.assertTrue(missing('almost twenty-one minutes', 'почти двадцать一 минуту'))
+        self.assertEqual(missing('almost twenty-one minutes', 'почти двадцать одну минуту'), [])
+        self.assertEqual(missing('俳句 haiku', '俳句 хайку'), [])

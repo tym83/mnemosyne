@@ -5,6 +5,8 @@ and takes no part in the story. He watches every night and translates what was
 written in another language, so that a reader of the atelier can follow all of
 it. Translations are kept beside the originals; the original is the work.
 """
+import re
+
 from pydantic import BaseModel
 
 from ..literature import Writer
@@ -28,10 +30,22 @@ def lines(text: str) -> list[str]:
     return [l for l in text.splitlines() if l.strip()]
 
 
+# Han, kana and hangul: a model's slip into another script, never Russian (unless the original has them).
+FOREIGN_SCRIPT = re.compile('[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]')
+
+
+def strays(original: str, translation: str) -> list[str]:
+    return sorted(set(FOREIGN_SCRIPT.findall(translation)) - set(FOREIGN_SCRIPT.findall(original)))
+
+
 def missing(original: str, translation: str) -> list[str]:
-    """Form problems: the translation must keep every line of the original."""
+    """Form problems: the translation keeps every line of the original and slips into no other script."""
     a, b = len(lines(original)), len(lines(translation))
-    return [] if a == b else [f'the original has {a} non-empty lines, the translation {b}; keep every line, one for one']
+    problems = [] if a == b else [f'the original has {a} non-empty lines, the translation {b}; keep every line, one for one']
+    stray = strays(original, translation)
+    if stray:
+        problems.append(f'the translation contains characters of another script: {"".join(stray)}; write them in Russian')
+    return problems
 
 
 def needed(language: str | None) -> bool:
@@ -56,8 +70,8 @@ def translate(text: str, language: str, notebook: list, *, backend=None, step='t
             problems = missing(original, result)
             if not problems:
                 break
-            result = writer.ask(SYSTEM, f'{prompt}\n\nПрошлый перевод потерял строки: {problems}. '
-                                f'Переведи заново, строка в строку.', Translation, f'{step}:retry{attempt}').text
+            result = writer.ask(SYSTEM, f'{prompt}\n\nВ прошлом переводе ошибки: {problems}. '
+                                f'Переведи заново, строка в строку, только по-русски.', Translation, f'{step}:retry{attempt}').text
         return result
     finally:
         LANGUAGE.reset(spoken)
