@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 
-from mnemosyne.music.composer import Night
+from mnemosyne.music.composer import Night, SchoolMethod, SymphonyMethod, form_fatigue
 
 
 class HabitTests(unittest.TestCase):
@@ -25,6 +25,38 @@ class HabitTests(unittest.TestCase):
             self.assertEqual(habit, [
                 {'form': 'symphony', 'ensemble': 'symphony_orchestra', 'school': 'classical', 'verdict': 'accepted'},
                 {'form': 'school', 'ensemble': 'string_quartet', 'school': 'fugue', 'verdict': 'accepted'}])
+
+
+
+class FormFatigueTests(unittest.TestCase):
+    def test_three_symphonies_running_tire_the_ear(self):
+        habit = [{'form': 'symphony'}] * 3 + [{'form': 'school'}]
+        self.assertEqual(form_fatigue(habit), 'symphony')
+        self.assertIsNone(form_fatigue([{'form': 'symphony'}, {'form': 'school'}, {'form': 'symphony'}]))
+        self.assertIsNone(form_fatigue([{'form': 'symphony'}] * 2))
+
+    def test_a_tired_composer_can_only_answer_with_the_other_form(self):
+        base = dict(school='fugue', sources=[], principle='', transformation='', concept='', reason='',
+                    notagen_prompt='')
+        SchoolMethod(kind='school', form='school', **base)
+        with self.assertRaises(ValueError):
+            SchoolMethod(kind='school', form='symphony', **base)
+        with self.assertRaises(ValueError):
+            SchoolMethod(kind='cross', form='school', **base)
+        SymphonyMethod(kind='cross', form='symphony', **base)
+
+
+class SlashKeyTests(unittest.TestCase):
+    def test_a_key_holding_a_path_is_published_back_to_the_same_key(self):
+        from mnemosyne.weave import variants
+        record = {'worker_logs': {'sketch-00/result/mv0/notation.log': 'The notation was written. The parts were checked against the score.'}}
+        path = variants.collect(record)
+        self.assertTrue(path)
+        for e in path:
+            node, keys = record, variants.steps(e['id'])
+            for k in keys[:-1]:
+                node = node[k]
+            self.assertIn(keys[-1], node)
 
 
 if __name__ == '__main__':

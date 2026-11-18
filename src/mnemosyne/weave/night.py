@@ -47,7 +47,7 @@ def texts(life, notebooks=()):
             target = targets[e['id']]
             if isinstance(target, tuple):
                 record, path = target
-                node, keys = record, path.strip('/').split('/')
+                node, keys = record, variants.steps(path)
                 for k in keys[:-1]:
                     node = node[int(k)] if isinstance(node, list) else node[k]
                 node[int(keys[-1]) if isinstance(node, list) else keys[-1]] = e['text']

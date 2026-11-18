@@ -42,6 +42,25 @@ class Method(BaseModel):
     form: Literal['school', 'symphony']
 
 
+# A composer who has written the same form this many times running is tired of it (see LINEAGE.md).
+FORM_FATIGUE = 3
+
+
+class SchoolMethod(Method):
+    kind: Literal['school', 'invent_school']
+    form: Literal['school']
+
+
+class SymphonyMethod(Method):
+    form: Literal['symphony']
+
+
+def form_fatigue(habit, run=FORM_FATIGUE):
+    """The form the composer's latest works all share, if the last `run` of them share one."""
+    forms = {w['form'] for w in habit[:run]}
+    return forms.pop() if len(habit) >= run and len(forms) == 1 else None
+
+
 class PlanText(BaseModel):
     # JSON text keeps the Writer's strict outer schema compatible with the
     # different versioned grammars. The parsed document is validated below.
@@ -606,10 +625,14 @@ class Night:
             from .instrumentarium import audio_contract
             born = {k: {'name': v['name'], 'author': v['author'], 'manifesto': v['manifesto'].get('manifesto', [])}
                     for k, v in self.life.schools.items() if v.get('status') == 'accepted' and v.get('art', 'music') == 'music'}
+            habit = self.habit()
+            tired = form_fatigue(habit)
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': {k: {**v, 'poetics': poetics.brief(k)} if isinstance(v, dict) else
                                                     f'{v} {poetics.brief(k)}' for k, v in LISTEN.items()},
                 'schools_born_here': born, 'home_school': self.home_school(),
-                'your_latest_works': self.habit(),
+                'your_latest_works': habit,
+                **({'tired_of': f'Your last {FORM_FATIGUE} works were all in the form "{tired}". Your ear is tired '
+                                f'of it: this work takes another form.'} if tired else {}),
                 'forms': {'school': 'one piece in one school for any ensemble of the audio contract: a string quartet, '
                                     'a piano piece, a choral work, an organ piece, a chamber or solo work',
                           'symphony': 'a work in several movements for the full symphony orchestra'},
@@ -619,7 +642,8 @@ class Night:
                 'or invent_school. For a cross or broken principle choose form=symphony and name the exact development. '
                 'invent_school: you then write the manifesto and the grammar of a new school yourself; '
                 'it must pass a trial and your inner critic before you compose in it.'}, ensure_ascii=False),
-                Method, 'method')
+                Method if not tired else (SchoolMethod if tired == 'symphony' else SymphonyMethod), 'method')
+            method = Method.model_validate(method.model_dump())
             method = method.model_copy(update={'school': self.school_key(method.school),
                                                'sources': [self.school_key(x) for x in method.sources]})
             self.record['method'] = method.model_dump()
@@ -791,8 +815,9 @@ class Night:
     def publish_readings(self, readings):
         """The woven reading replaces each draft text; the draft stays as the apparatus."""
         self.record['apparatus'] = {e['id']: e['markup'] for e in readings}
+        from ..weave import variants
         for e in readings:
-            target, keys = self.record, e['id'].strip('/').split('/')
+            target, keys = self.record, variants.steps(e['id'])
             for k in keys[:-1]:
                 target = target[int(k)] if isinstance(target, list) else target[k]
             last = keys[-1]
