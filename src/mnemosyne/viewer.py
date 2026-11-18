@@ -1275,7 +1275,7 @@ def restore_page(at, out, base=None):
     ledger_path = at.home/'ledger'/'ledger.json'
     ledger = json.loads(ledger_path.read_text()) if ledger_path.exists() else {'pieces': []}
     en = LANG == 'en'
-    rows = ''.join(f'<tr><td>{tr("ключевой кадр", "keyframe") if p["kind"] == "keyframe" else tr("изменения", "changes")}</td>'
+    rows = ''.join(f'<tr><td>{tr("полный снимок", "full snapshot") if p["kind"] == "keyframe" else tr("изменения", "changes")}</td>'
                    f'<td>{p["at"][:10]}</td><td>{p["bytes"]} {tr("байт", "bytes")}</td>'
                    f'<td>{p["carried"]} {tr("из", "of")} {p["target"]}</td>'
                    f'<td>{tr("собран", "gathered") if p["complete"] else tr("ещё вплетается", "still being woven")}</td></tr>'
@@ -1284,12 +1284,12 @@ def restore_page(at, out, base=None):
     if en:
         status = (f'The cluster can be restored to any moment from {complete[0]["at"][:10]} to {complete[-1]["at"][:10]}.'
                   if complete else 'No snapshot has been woven in whole yet: the cluster cannot be restored from these '
-                  'works so far. The first snapshot (the keyframe) is the largest; after it come only changes, and they '
+                  'works so far. The first full snapshot is the largest; after it come only changes, and they '
                   'are woven in quickly.')
     else:
         status = (f'Кластер можно восстановить на любой момент с {complete[0]["at"][:10]} по {complete[-1]["at"][:10]}.'
                   if complete else 'Пока ни один снимок не вплетён целиком: кластер из этих работ ещё не восстанавливается. '
-                  'Первый снимок (ключевой кадр) — самый большой; дальше идут только изменения, и они вплетаются быстро.')
+                  'Первый полный снимок — самый большой; дальше идут только изменения, и они вплетаются быстро.')
     # A night keeps its carriers in woven/; a continuous life, in creators/<id>/<session>/woven/.
     carriers = sorted({p for night in at.nights for p in night.rglob('*')
                        if p.is_file() and p.parent.name == 'woven'})
@@ -1311,8 +1311,8 @@ state of the cluster: every API object (instances, services, settings) at a give
 the owner’s key and cut into pieces, and the pieces are woven into notes, word variants and the audience’s response.
 It can be restored to any saved moment.</p>
 <h2>State of the backup</h2><p>{status}</p>
-<table><tr><th>Snapshot</th><th>Moment</th><th>Size</th><th>Frames woven</th><th>State</th></tr>{rows}</table>
-<p class="muted">More frames are needed than the original count: the backup survives the loss of up to 30% of the works.</p>
+<table><tr><th>Snapshot</th><th>Moment</th><th>Size</th><th>Chunks woven</th><th>State</th></tr>{rows}</table>
+<p class="muted">More chunks are needed than the original count: the backup survives the loss of up to 30% of the works.</p>
 <h2>How to raise the cluster</h2>
 <ol>
 <li><b>The owner’s key.</b> It is created once with <code>mnemo keys new --output DIR</code>. The file
@@ -1339,7 +1339,7 @@ them on, if the owner allowed them in the backup.</li>
 все объекты API (инстансы, сервисы, настройки) на определённый момент. Копия зашифрована ключом владельца и разрезана
 на куски, а куски вплетены в ноты, варианты слов и отклик публики. Восстановить можно на любой сохранённый момент.</p>
 <h2>Состояние копии</h2><p>{status}</p>
-<table><tr><th>Снимок</th><th>Момент</th><th>Размер</th><th>Вплетено кадров</th><th>Состояние</th></tr>{rows}</table>
+<table><tr><th>Снимок</th><th>Момент</th><th>Размер</th><th>Вплетено фрагментов</th><th>Состояние</th></tr>{rows}</table>
 <p class="muted">Кадров нужно больше исходного числа: копия переживает потерю до 30% работ.</p>
 <h2>Как поднять кластер</h2>
 <ol>
