@@ -26,6 +26,31 @@ BIRTH_RATE = .25
 SENSE_EVERY = 900       # seconds between readings of the cluster
 WORDS_EVERY = 600       # seconds between the critics' and chronicler's writing turns
 SOUND_ATTEMPTS = 3
+
+
+def studio_version():
+    """The studio's own code: a work that failed to sound gets fresh attempts once the studio changes."""
+    global _STUDIO
+    if _STUDIO is None:
+        import hashlib
+        music = Path(__file__).resolve().parents[1]/'music'
+        digest = hashlib.sha256()
+        for f in sorted(music.rglob('*.py')):
+            digest.update(f.relative_to(music).as_posix().encode() + f.read_bytes())
+        _STUDIO = digest.hexdigest()[:16]
+    return _STUDIO
+
+
+_STUDIO = None
+
+
+def attempts(record):
+    """Sound attempts made by the current studio."""
+    if 'sound_studio' in record and record['sound_studio'] != studio_version():
+        return 0
+    if 'sound_studio' not in record and str(record.get('sound', '')).startswith('failed'):
+        return 0   # failed before the studio kept its version: try again with this one
+    return record.get('sound_attempts', 1 if 'sound' in record else 0)
 SOUND_IDLE = 300       # seconds the studio waits when no accepted work is waiting for its sound
 MARGINS_PER_WORK = 4    # margin phrases a composer writes beside each work
 
@@ -241,7 +266,7 @@ class Life:
             # A failed render is retried a few times: the failure may lie in the studio, not the work.
             if (record.get('status') == 'accepted' and record.get('final') and not record.get('sounding_work')
                     and ('sound' not in record or str(record['sound']).startswith('failed'))
-                    and record.get('sound_attempts', 1 if 'sound' in record else 0) < SOUND_ATTEMPTS):
+                    and attempts(record) < SOUND_ATTEMPTS):
                 return notebook.parent
         return None
 
@@ -254,7 +279,8 @@ class Life:
         session.record.update(record)
         session.sketches[:] = record.get('sketches', [])
         session.record['sketches'] = session.sketches
-        session.record['sound_attempts'] = record.get('sound_attempts', 1 if 'sound' in record else 0) + 1
+        session.record['sound_attempts'] = attempts(record) + 1
+        session.record['sound_studio'] = studio_version()
         try:
             session.render_final(folder/'woven')
         except Exception as exc:
