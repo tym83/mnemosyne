@@ -836,6 +836,11 @@ class Night:
             assignment = (self.root/final['score']).parent/'orchestration.json'
             request['assignment'] = json.loads(assignment.read_text()) if assignment.exists() else None
         label = 'woven-render-'+final['stage']
+        tried = self.root/label
+        if tried.exists() and not (tried/'result'/'result.json').exists():
+            # A failed attempt stays in the notebook as part of the process; the next one starts clean.
+            n = 1 + sum(1 for _ in self.root.glob(label+'.failed-*'))
+            tried.rename(self.root/f'{label}.failed-{n}')
         result = self.studio_run(request, label)
         folder = self.root/label/'result'
         final['sounding_work'] = True

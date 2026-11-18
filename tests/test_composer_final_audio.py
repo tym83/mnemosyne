@@ -119,6 +119,25 @@ class FinalAudioTests(unittest.TestCase):
             request = night.studio.run.call_args.args[0]
             self.assertEqual([m['xml'] for m in request['movements']], ['woven-0', 'clean-1'])
 
+    def test_a_failed_render_is_kept_aside_and_the_next_one_starts_clean(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            woven = root/'woven'; woven.mkdir()
+            folder = root/'mv0'; folder.mkdir()
+            (folder/'plan.json').write_text('{}')
+            (folder/'score.musicxml').write_text('clean-0')
+            failed = root/'woven-render-draft-02'/'result'/'mv0'; failed.mkdir(parents=True)
+            (failed/'render.json').write_text('{}')
+            night = Night.__new__(Night)
+            night.root, night.sound, night.life = root, True, Mock(schools={})
+            night.record = {'final': 'final', 'verdict': {'verdict': 'accept'}}
+            night.sketches = [{'id': 'final', 'stage': 'draft-02', 'form': 'symphony', 'plan': {},
+                               'carriers': [{'movement_index': 0, 'score': 'mv0/score.musicxml'}]}]
+            night.studio = Mock()
+            night.studio.run.side_effect = lambda request, destination: self.assertFalse(destination.exists()) or {}
+            night.render_final(woven)
+            self.assertTrue((root/'woven-render-draft-02.failed-1'/'result'/'mv0'/'render.json').exists())
+
     def test_sound_off_keeps_accepted_work_on_paper(self):
         with tempfile.TemporaryDirectory() as tmp:
             night = Night.__new__(Night)
