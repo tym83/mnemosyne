@@ -112,9 +112,14 @@ class LifeTests(unittest.TestCase):
             # A failed render is tried again, but not forever.
             (sessions/'3'/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-01', 'sound': 'failed: x'}))
             self.assertEqual(life.unsounded(composer), sessions/'3')
+            studio = living.studio_version()
             (sessions/'3'/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-01', 'sound': 'failed: x',
-                                                                  'sound_attempts': 3}))
+                                                                  'sound_attempts': 3, 'sound_studio': studio}))
             self.assertIsNone(life.unsounded(composer))
+            # A changed studio tries again from the start.
+            (sessions/'3'/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-01', 'sound': 'failed: x',
+                                                                  'sound_attempts': 3, 'sound_studio': 'older'}))
+            self.assertEqual(life.unsounded(composer), sessions/'3')
 
     def test_woven_scores_are_named_as_the_renderer_looks_them_up(self):
         sketch = {'id': 'draft-02', 'carriers': [{'movement_index': 0}, {'movement_index': 1}]}

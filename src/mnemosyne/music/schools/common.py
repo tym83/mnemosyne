@@ -123,6 +123,15 @@ def finish(score, total):
     return score
 
 
+def fits(part, total):
+    """The part sounds for exactly the planned time; MusicXML may only complete the last bar with rest."""
+    end = max((float(n.getOffsetInHierarchy(part) + n.quarterLength) for n in part.recurse().notes), default=0.)
+    length = float(part.highestTime)
+    meter = part.recurse().getElementsByClass('TimeSignature').last()
+    bar = float(meter.barDuration.quarterLength) if meter is not None else 4.
+    return end <= float(total) + 1e-8 and float(total) - 1e-8 <= length < float(total) + bar - 1e-8
+
+
 def analyze(score, plan):
     total, _ = validate(plan)
     result = []
@@ -131,7 +140,7 @@ def analyze(score, plan):
         low,high = RANGES[name]
         if not pitches or any(not low <= p <= high for p in pitches):
             raise ValueError(f'empty or out-of-range part: {part.id}')
-        if abs(float(part.highestTime-total)) > 1e-8:
+        if not fits(part, total):
             raise ValueError(f'wrong duration: {part.id}')
         result.append({'part':part.id,'notes':len(pitches),'range':[min(pitches),max(pitches)],'quarters':float(part.highestTime)})
     return {'score_seconds':float(total)*60/plan['tempo'],'parts':result,'out_of_range':0,'empty_parts':0}
