@@ -259,3 +259,16 @@ class WriterResumeTests(unittest.TestCase):
             with patch('mnemosyne.literature.Writer._ask', side_effect=AssertionError('asked again')):
                 self.assertEqual(night.writer.ask('s', 'p', Method, 'method').school, 'haiku')
             self.assertTrue(night.record['resumed'])
+
+
+class HabitTests(unittest.TestCase):
+    def test_a_writer_sees_how_their_latest_works_divide_between_schools(self):
+        from types import SimpleNamespace
+        from mnemosyne.writing.night import habit
+        life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
+        skaz, other = 'skaz', next(k for k in SCHOOLS if k != 'skaz')
+        a = SimpleNamespace(catalogue=[{'school': skaz}] * 4 + [{'school': other}, {'school': skaz, 'synthetic': True}])
+        line = habit(life, a)
+        self.assertIn('Из твоих последних 5 вещей', line)
+        self.assertLess(line.index('— 4'), line.index('— 1'))
+        self.assertEqual(habit(life, SimpleNamespace(catalogue=[{'school': skaz}])), '')

@@ -111,6 +111,18 @@ def around(life, a):
         f'{names[k]} — {n} из {total}' for k, n in recent.most_common(4)) + '.'
 
 
+def habit(life, a, limit=20):
+    """How the writer's own latest works divide between schools: a manner to keep, deepen or leave."""
+    from collections import Counter
+    SCHOOLS = founding.schools(life)
+    latest = [w.get('school') for w in a.catalogue if not w.get('synthetic') and w.get('school') in SCHOOLS][-limit:]
+    if len(latest) < 3:
+        return ''
+    names = {k: (poetics.load(k) or {}).get('name', k) for k in set(latest)}
+    return (f'Из твоих последних {len(latest)} вещей: ' +
+            ', '.join(f'{names[k]} — {n}' for k, n in Counter(latest).most_common()) + '.')
+
+
 FOUNDING_EVENTS = ('illumination', 'period', 'master', 'surpassed', 'return', 'illness_recovery', 'bereavement',
                    'secret_miracle', 'rediscovery')
 
@@ -241,7 +253,7 @@ class WriterNight:
                           'Основать свою школу — большое решение в жизни, и сейчас не его время: выбери из тех, '
                           'что знаешь, ту, что ближе всего, даже если она держит замысел не целиком.')
         method = self.ask(system, f'{idea}\n\nШколы, которые ты знаешь:\n\n{choices}\n\n{tradition(a)}\n'
-                          f'{around(life, a)}\n\n'
+                          f'{around(life, a)}\n{habit(life, a)}\n\n'
                           'Выбери школу, чья поэтика — картина мира, время, голос, язык — служит этому замыслу, '
                           'а не только её форму. В school напиши её код (слово перед тире). ' + founding_words,
                           Method, 'method')

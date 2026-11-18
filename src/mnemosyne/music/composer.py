@@ -371,6 +371,29 @@ class Night:
         atelier.write()
         self.objects = atelier.objects
 
+    def habit(self, limit=8):
+        """The forms and ensembles of the composer's own latest works, newest first, read from their notebooks."""
+        works = []
+        for notebook in sorted(self.root.parent.glob('*/notebook.json'), reverse=True):
+            if notebook.parent == self.root:
+                continue
+            try:
+                record = json.loads(notebook.read_text())
+            except (OSError, ValueError):
+                continue
+            final = next((s for s in record.get('sketches', []) if s.get('id') == record.get('final')), None)
+            if not final or 'plan' not in final:
+                continue
+            form = final.get('form', 'school')
+            plan = final['plan']
+            ensemble = 'symphony_orchestra' if form == 'symphony' else plan.get('ensemble')
+            works.append({'form': form, 'ensemble': ensemble if isinstance(ensemble, str) else 'own ensemble',
+                          'school': plan.get('school') or (record.get('method') or {}).get('school'),
+                          'verdict': record.get('status')})
+            if len(works) == limit:
+                break
+        return works
+
     def home_school(self):
         """The school a composer's idea grows in: their own last one, a teacher's, or the one they were raised in."""
         from .schools import SCHOOLS
@@ -586,7 +609,13 @@ class Night:
             method = self.ask(self.system, json.dumps({'audio': audio_contract(), 'notagen_available': os.environ.get('MNEMOSYNE_NOTAGEN') == 'self-hosted', 'idea': st.model_dump(), 'schools': {k: {**v, 'poetics': poetics.brief(k)} if isinstance(v, dict) else
                                                     f'{v} {poetics.brief(k)}' for k, v in LISTEN.items()},
                 'schools_born_here': born, 'home_school': self.home_school(),
-                'task': 'Choose school (a founding school or one born here), NotaGen period style, cross, broken principle, '
+                'your_latest_works': self.habit(),
+                'forms': {'school': 'one piece in one school for any ensemble of the audio contract: a string quartet, '
+                                    'a piano piece, a choral work, an organ piece, a chamber or solo work',
+                          'symphony': 'a work in several movements for the full symphony orchestra'},
+                'task': 'Composers move between forms over a life: quartets, piano and organ pieces, choral and '
+                'chamber works, symphonies. Look at your latest works and choose the form and ensemble this idea needs. '
+                'Choose school (a founding school or one born here), NotaGen period style, cross, broken principle, '
                 'or invent_school. For a cross or broken principle choose form=symphony and name the exact development. '
                 'invent_school: you then write the manifesto and the grammar of a new school yourself; '
                 'it must pass a trial and your inner critic before you compose in it.'}, ensure_ascii=False),
