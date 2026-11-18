@@ -118,6 +118,13 @@ class LivePerformanceTests(unittest.TestCase):
    zones=regions(d/'main.sfz')
    self.assertEqual([(z['lovel'],z['hivel']) for z in zones],[(1,63),(64,127)])
    self.assertTrue(zones[1]['sample'].endswith('sample2.wav'))
+ def test_malformed_one_slash_comment_is_dropped(self):
+  from mnemosyne.music.native_bank import preprocess
+  with tempfile.TemporaryDirectory() as d:
+   d=Path(d);(d/'a.wav').touch()
+   (d/'c.sfz').write_text('// header\n/        Cymbals & Tamtam\n<region> sample=a.wav key=60\n')
+   out=preprocess(d/'c.sfz')
+   self.assertNotIn('Cymbals',out);self.assertIn('<region>',out)
 
 class StudioAudioRegressionTests(unittest.TestCase):
  """Opt-in measured sfizz regression; fixtures rendered by measure28.py."""

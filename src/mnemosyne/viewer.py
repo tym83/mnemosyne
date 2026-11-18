@@ -70,12 +70,18 @@ class Atelier:
     def notebook(self, wid):
         if not hasattr(self, '_notebooks'):
             self._notebooks, self._sessions = {}, {}
+            # One opus can span several sessions (a rejected plan, then the accepted work):
+            # the accepted, sounded and latest session speaks for the work.
+            def rank(record, folder):
+                return (record.get('status') == 'accepted', bool(record.get('sounding_work')), folder.name)
             for night in self.nights:
                 for p in night.rglob('notebook.json'):
                     record = json.loads(p.read_text())
-                    if record.get('opus'):
-                        self._notebooks[record['opus']] = record
-                        self._sessions[record['opus']] = p.parent
+                    wid = record.get('opus')
+                    if wid and (wid not in self._sessions
+                                or rank(record, p.parent) > rank(self._notebooks[wid], self._sessions[wid])):
+                        self._notebooks[wid] = record
+                        self._sessions[wid] = p.parent
             # A composer's notebook is also kept in the work: it outlasts the files of the session.
             for _, w in self.works():
                 record = (w.get('process') or {}).get('composer')

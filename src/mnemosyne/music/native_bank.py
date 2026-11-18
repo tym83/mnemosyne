@@ -64,6 +64,8 @@ def preprocess(path,macros=None,stack=(),root=None):
     result=[]
     for line in path.read_text(encoding='utf-8-sig').splitlines():
         line=line.split('//',1)[0].strip()
+        # Some libraries ship a malformed one-slash comment; no opcode starts with '/'.
+        if line.startswith('/'):continue
         if line.startswith('#define'):
             _,key,value=line.split(maxsplit=2);macros[key]=value;continue
         def expand(text):

@@ -93,6 +93,12 @@ class LifeTests(unittest.TestCase):
                 (sessions/stamp).mkdir(parents=True)
                 (sessions/stamp/'notebook.json').write_text(json.dumps(record))
             self.assertEqual(life.unsounded(composer), sessions/'3')
+            # A failed render is tried again, but not forever.
+            (sessions/'3'/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-01', 'sound': 'failed: x'}))
+            self.assertEqual(life.unsounded(composer), sessions/'3')
+            (sessions/'3'/'notebook.json').write_text(json.dumps({'status': 'accepted', 'final': 'draft-01', 'sound': 'failed: x',
+                                                                  'sound_attempts': 3}))
+            self.assertIsNone(life.unsounded(composer))
 
     def test_woven_scores_are_named_as_the_renderer_looks_them_up(self):
         sketch = {'id': 'draft-02', 'carriers': [{'movement_index': 0}, {'movement_index': 1}]}

@@ -102,6 +102,10 @@ class ListenTests(unittest.TestCase):
                 'sketches': [{'id': 'draft-02', 'audio': {'local_mp3': mp3}}]}))
             (session/'woven').mkdir()
             (session/'woven'/f'{w["id"]}-notebook.variants.json').write_text('{}')
+            # A later rejected session under the same opus must not hide the sounded one.
+            later = root/'creators'/a.id/'20261118T090000'
+            later.mkdir(parents=True)
+            (later/'notebook.json').write_text(json.dumps({'opus': w['id'], 'artist': a.id, 'status': 'plan_rejected'}))
             site(Atelier(root), root/'site')
             page = (root/'site'/f'work-{w["id"]}.html').read_text()
             self.assertIn('id="listen"', page)

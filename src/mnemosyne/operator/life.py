@@ -25,6 +25,7 @@ from mnemosyne.operator.worker import LocalStudio, margins, sense
 BIRTH_RATE = .25
 SENSE_EVERY = 900       # seconds between readings of the cluster
 WORDS_EVERY = 600       # seconds between the critics' and chronicler's writing turns
+SOUND_ATTEMPTS = 3
 MARGINS_PER_WORK = 4    # margin phrases a composer writes beside each work
 
 
@@ -236,8 +237,10 @@ class Life:
         """An accepted work of this composer that has not sounded yet (it was accepted before it could)."""
         for notebook in sorted((self.base/'creators'/a.id).glob('*/notebook.json')):
             record = json.loads(notebook.read_text())
+            # A failed render is retried a few times: the failure may lie in the studio, not the work.
             if (record.get('status') == 'accepted' and record.get('final') and not record.get('sounding_work')
-                    and 'sound' not in record):
+                    and ('sound' not in record or str(record['sound']).startswith('failed'))
+                    and record.get('sound_attempts', 1 if 'sound' in record else 0) < SOUND_ATTEMPTS):
                 return notebook.parent
         return None
 
@@ -250,6 +253,7 @@ class Life:
         session.record.update(record)
         session.sketches[:] = record.get('sketches', [])
         session.record['sketches'] = session.sketches
+        session.record['sound_attempts'] = record.get('sound_attempts', 1 if 'sound' in record else 0) + 1
         try:
             session.render_final(folder/'woven')
         except Exception as exc:
