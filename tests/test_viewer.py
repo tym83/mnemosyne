@@ -112,3 +112,51 @@ class ListenTests(unittest.TestCase):
             self.assertLess(page.index('work.mp3'), page.index('mv0.mp3'))
             self.assertTrue((root/'site'/'audio'/w['id']/'work.mp3').exists())
             self.assertTrue((root/'site'/'audio'/w['id']/'mv1.mp3').exists())
+
+
+class EnglishTests(unittest.TestCase):
+    """The gallery speaks English at the root and Russian under ru/; texts keep their own language."""
+
+    def atelier(self, tmp):
+        life = Lineage('leonia', datetime(2025, 1, 1), seed=3)
+        for _ in range(30):
+            life.step({})
+        a, w = next((a, w) for a in life.artists for w in a.catalogue)
+        root = Path(tmp)
+        (root/'lineage.json').write_text(json.dumps(life.state()))
+        night = root/'nights'/f'{w["night"]:03d}'/w['id']
+        night.mkdir(parents=True)
+        (night/f'{w["id"]}.txt').write_text('An old pond.')
+        (night/f'{w["id"]}.ru.txt').write_text('Старый пруд.')
+        return root, a, w
+
+    def test_the_english_pages_carry_no_cyrillic_and_the_russian_ones_live_under_ru(self):
+        import re
+        with tempfile.TemporaryDirectory() as tmp:
+            root, a, w = self.atelier(tmp)
+            out = site(Atelier(root), root/'site')
+            pages = sorted(out.glob('*.html'))
+            self.assertIn(out/'timeline.html', pages)
+            for p in pages:
+                text = p.read_text()
+                if 'http-equiv="refresh"' in text:
+                    # The manifesto and the Lexicon exist only in Russian: their root addresses lead to ru/.
+                    self.assertTrue(p.name.startswith(('manifesto', 'lexicon', 'lex-')), p.name)
+                    continue
+                self.assertIn('<html lang="en">', text, p.name)
+                chrome = re.sub(r'<style>.*?</style>', '', text, flags=re.S)
+                self.assertIsNone(re.search('[А-Яа-яЁё]', chrome), (p.name, re.findall('[А-Яа-яЁё]+', chrome)[:5]))
+                self.assertIn(f'href="ru/{p.name}"', text, p.name)
+            work = (out/f'work-{w["id"]}.html').read_text()
+            self.assertIn('An old pond.', work)
+            self.assertNotIn('Старый пруд.', work)
+            self.assertNotIn('id="trall"', work)
+            ru = (out/'ru'/f'work-{w["id"]}.html').read_text()
+            self.assertIn('<html lang="ru">', ru)
+            self.assertIn('Старый пруд.', ru)
+            self.assertIn(f'href="../work-{w["id"]}.html"', ru)
+            self.assertIn('href="../files/', ru)
+            self.assertNotIn('href="ru/', ru)
+            # The Russian-only pages send their reader back to the English start, not into a loop.
+            self.assertIn('href="../index.html" hreflang="en"', (out/'ru'/'manifesto.html').read_text())
+            self.assertFalse((out/'ru'/'files').exists())

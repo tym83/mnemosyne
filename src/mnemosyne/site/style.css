@@ -31,6 +31,9 @@ header.mast{max-width:1080px;margin:0 auto;padding:30px 20px 0;display:flex;flex
 nav.menu{display:flex;flex-wrap:wrap;gap:4px 18px;font:400 15px/1.6 var(--ui);font-variant:small-caps;letter-spacing:.08em}
 nav.menu a{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
 nav.menu a:hover,nav.menu a[aria-current]{color:var(--fg);border-bottom-color:var(--faint)}
+nav.lang{margin-left:auto;display:flex;gap:10px;font:400 13px/1.6 var(--ui);letter-spacing:.12em}
+nav.lang a{color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
+nav.lang a:hover{color:var(--fg);border-bottom-color:var(--faint)}nav.lang [aria-current]{color:var(--fg)}
 .mast-rule{max-width:1080px;margin:22px auto 48px;border:0;height:1px;background:linear-gradient(90deg,transparent,var(--line) 15%,var(--line) 85%,transparent)}
 
 /* type */

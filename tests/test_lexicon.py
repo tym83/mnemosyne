@@ -151,7 +151,8 @@ class LexiconTests(unittest.TestCase):
             lexicon.update(life, root, writer_factory=Pen)
             review['text'] = 'Второе чтение: сказ стал увереннее.'
             lexicon.update(life, root, writer_factory=Pen)
-            out = site(Atelier(root), root/'site')
+            # The Lexicon is written in Russian: it lives under ru/.
+            out = site(Atelier(root), root/'site')/'ru'
             index = (out/'lexicon.html').read_text()
             page = (out/lex_page(f'work:{w["id"]}')).read_text()
             self.assertIn(f'href="{lex_page(f"creator:{writer.id}")}"', index)

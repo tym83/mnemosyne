@@ -81,7 +81,7 @@ class ComposerTranslationTests(unittest.TestCase):
     def test_the_gallery_shows_a_composers_notebook_in_russian_with_the_original(self):
         with tempfile.TemporaryDirectory() as tmp:
             root, a, w = self.atelier(tmp)
-            out = site(Atelier(root), root/'site')
+            out = site(Atelier(root), root/'site')/'ru'
             page = (out/f'night-{a.id}-w09999.html').read_text()
             self.assertIn('Как композитор слушал свои черновики', page)
             self.assertIn('Полутона', page)

@@ -61,7 +61,7 @@ def main(argv=None):
     a.site.parent.mkdir(parents=True, exist_ok=True)
     a.site.mkdir(exist_ok=True)
     if not (a.site/'index.html').exists():
-        (a.site/'index.html').write_text('<!doctype html><meta charset="utf-8"><p>Мастерская ещё собирается.</p>')
+        (a.site/'index.html').write_text('<!doctype html><meta charset="utf-8"><p>The atelier is still being assembled.</p>')
     threading.Thread(target=keep_building, args=(a.root, a.site, a.every), daemon=True).start()
 
     # The path is resolved on every request, so a swapped-in site is served at once.
