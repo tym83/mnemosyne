@@ -50,9 +50,26 @@ def strip_creator(path):
     tree.write(path,encoding='utf-8',xml_declaration=True)
 
 
+def written(score):
+    """The score at written pitch, quarter tones kept as accidentals.
+
+    Transposing a quarter-tone up a tone leaves it as a sharp plus 50 cents, and MusicXML
+    keeps no cents: a trumpet's B quarter-sharp would come back as a plain B."""
+    from music21 import pitch
+    export = score.toWrittenPitch()
+    for n in export.recurse().notes:
+        for p in n.pitches:
+            cents = p.microtone.cents
+            if abs(abs(cents) - 50) < 1e-6:
+                alter = (p.accidental.alter if p.accidental else 0) + (.5 if cents > 0 else -.5)
+                p.microtone = 0
+                p.accidental = pitch.Accidental(alter)
+    return export
+
+
 def engrave(score,base,log):
     xml=base.with_suffix('.musicxml')
-    export=deepcopy(score)
+    export=written(score)
     for i,part in enumerate(export.parts):
         ins=part.recurse().getElementsByClass('Instrument').first()
         if ins.midiChannel != 9:
