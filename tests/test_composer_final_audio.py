@@ -196,6 +196,19 @@ class FinalAudioTests(unittest.TestCase):
             write_midi(recovered, root/'score.mid', 60)
             self.assertTrue((root/'score.mid').read_bytes().startswith(b'MThd'))
 
+    def test_a_failed_render_leaves_no_audio_behind(self):
+        from mnemosyne.music import orchestra_render
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp)/'result'
+            attempt = dest/'.drafts'/'attempt-x'/'stems'; attempt.mkdir(parents=True)
+            (attempt/'cymbals-0.wav').write_text('pcm')
+            (attempt.parent/'render.log').write_text('Parse error')
+            with patch.object(orchestra_render, '_render_orchestra', side_effect=ValueError('Incomplete SFZ load')):
+                with self.assertRaises(ValueError):
+                    orchestra_render.render_orchestra(None, {}, {}, dest, Path(tmp), compact=True)
+            self.assertFalse((attempt/'cymbals-0.wav').exists())
+            self.assertTrue((attempt.parent/'render.log').exists())
+
     def test_cleanup_removes_only_attempt_audio(self):
         from mnemosyne.music.render import discard_audio_intermediates
         with tempfile.TemporaryDirectory() as tmp:

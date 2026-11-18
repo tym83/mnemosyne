@@ -100,6 +100,19 @@ def stem_score(events,name,total):
 
 
 def render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compact=False):
+    """Render one score; a failed compact attempt keeps its logs and notes but not its regenerable audio."""
+    destination=Path(destination)
+    try:
+        return _render_orchestra(score,plan,assignment,destination,bank,sfizz,compact=compact)
+    except Exception:
+        if compact:
+            from .render import discard_audio_intermediates
+            for attempt in (destination/'.drafts').glob('attempt-*'):
+                discard_audio_intermediates(attempt)
+        raise
+
+
+def _render_orchestra(score,plan,assignment,destination,bank,sfizz=None, *, compact=False):
     import os
     sfizz = sfizz or os.environ.get('MNEMO_SFIZZ', '/work/sfizz-build/library/bin/sfizz_render')
     destination=Path(destination);bank=Path(bank)
