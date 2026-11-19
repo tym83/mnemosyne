@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import functools
 import http.server
+import os
 from pathlib import Path
 import shutil
 import threading
@@ -21,6 +22,7 @@ def build(root: Path, site: Path) -> Path:
     from .viewer import Atelier, site as export
     fresh = site.parent/f'{site.name}.next'
     shutil.rmtree(fresh, ignore_errors=True)
+    reuse(site, fresh)
     export(Atelier(root), fresh)
     old = site.parent/f'{site.name}.old'
     shutil.rmtree(old, ignore_errors=True)
@@ -29,6 +31,17 @@ def build(root: Path, site: Path) -> Path:
     fresh.rename(site)
     shutil.rmtree(old, ignore_errors=True)
     return site
+
+
+def reuse(site: Path, fresh: Path):
+    """Hard-link the previous build's media into the new one, so a rebuild does not hold two copies of it."""
+    if not site.is_dir():
+        return
+    for path in site.rglob('*'):
+        if path.is_file() and path.suffix != '.html':
+            target = fresh/path.relative_to(site)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.link(path, target)
 
 
 def keep_building(root: Path, site: Path, every: int):
